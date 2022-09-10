@@ -2,8 +2,8 @@
 #include <math.h>
 #include "engine/engine.h"
 
-#define SCREEN_WIDTH 1000
-#define SCREEN_HEIGHT 1000
+#define SCREEN_WIDTH 1280
+#define SCREEN_HEIGHT 720
 #define FRAMERATE 30
 
 int main(int argc, char** argv)
@@ -46,24 +46,12 @@ int main(int argc, char** argv)
   int mousex, mousey;
 
   Camera cam;
-  cam.pos = (Vector3){-10, -10, -10};
+  cam.pos = (Vector3){0, 0, -5};
 
 
   // Load model
   //------------------------------------------------------------
-  int triangle_count = 0;
-  Vector3 *vertices = load_vertices(&triangle_count, "./cube.obj");
-  printf("tcount = %d\n", triangle_count);
-
-  int **triangles = (int **)malloc(triangle_count * sizeof(int **));
-  for (int i=0; i<triangle_count; i++)
-    triangles[i] = (int *)malloc(3 * sizeof(int));
-  
-  load_vertex_order(triangle_count, triangles, "./cube.obj");
-
-
-  printf("YEP %f %f %f\n", vertices[triangles[1][1]].x, vertices[triangles[1][1]].y, vertices[triangles[1][1]].z);
-
+  Model model1 = load_model("./monkey.obj"); 
   //------------------------------------------------------------
 
   while (1)
@@ -105,10 +93,10 @@ int main(int argc, char** argv)
             cam.pos.y += 1;
             break;
           case SDLK_q:
-            cam.R.y -= 1;
+            cam.R.y -= 0.04;
             break;
           case SDLK_e:
-            cam.R.y += 1;
+            cam.R.y += 0.04;
             break;
         }
     }
@@ -126,13 +114,29 @@ int main(int argc, char** argv)
     //----------------------------------------------
     SDL_SetRenderDrawColor(ren, 0, 255, 0, 255);
 
+    draw_model(ren, cam, model1);
     
-    for (int i=0; i<triangle_count; i+=1)
-    {
-      line_3d(ren, cam, vertices[triangles[i][0]], vertices[triangles[i][1]]);
-      line_3d(ren, cam, vertices[triangles[i][1]], vertices[triangles[i][2]]);
-      line_3d(ren, cam, vertices[triangles[i][2]], vertices[triangles[i][0]]);
-    }
+    // Vector3 p1 = {1, 1, -1};
+    // Vector3 p2 = {1, 0, -1};
+    // Vector3 p3 = {1, 1, 0};
+    // Vector3 p4 = {1, 0, 0};
+    // Vector3 p5 = {0, 1, -1};
+    // Vector3 p6 = {0, 0, -1};
+    // Vector3 p7 = {0, 1, 0};
+    // Vector3 p8 = {0, 0, 0};
+
+    // triangle_3d(ren, cam, p5, p3, p1);
+    // triangle_3d(ren, cam, p3, p8, p4);
+    // triangle_3d(ren, cam, p7, p6, p8);
+    // triangle_3d(ren, cam, p2, p8, p6);
+    // triangle_3d(ren, cam, p1, p4, p2);
+    // triangle_3d(ren, cam, p5, p2, p6);
+    // triangle_3d(ren, cam, p3, p7, p8);
+    // triangle_3d(ren, cam, p7, p5, p6);
+    // triangle_3d(ren, cam, p2, p4, p8);
+    // triangle_3d(ren, cam, p1, p3, p4);
+    // triangle_3d(ren, cam, p5, p1, p2);
+
 
     SDL_RenderPresent(ren);
     //----------------------------------------------

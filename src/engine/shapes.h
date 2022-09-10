@@ -14,7 +14,7 @@ typedef struct Rect {
   Triangle t1, t2;
 } Rect;
 
-void draw_line(SDL_Renderer *renderer, float x1, float y1, float x2, float y2);
+void line_2d(SDL_Renderer *renderer, float x1, float y1, float x2, float y2);
 void draw_triangle(SDL_Renderer *renderer, int x1, int y1, int x2, int y2, int x3, int y3);
 void draw_square(SDL_Renderer *renderer, int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4);
 void draw_rect(SDL_Renderer *renderer, int x, int y, int w, int h);

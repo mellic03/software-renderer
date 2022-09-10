@@ -2,13 +2,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <SDL2/SDL.h>
 #include "vector.h"
 #include "camera.h"
-
+#include "engine.h"
 /** Load vertices from an obj file.
  * 
  */
-Vector3 *load_vertices(int *face_count, char filepath[])
+Vector3 *load_vertices(int *polygon_count, char filepath[])
 {
   // Determine number of vertices
   FILE *fh = fopen(filepath, "r");
@@ -17,34 +18,28 @@ Vector3 *load_vertices(int *face_count, char filepath[])
 
   char buffer[64];
   int line_count = 0;
-  *face_count = 0;
+  *polygon_count = 0;
   while (fgets(buffer, 64, fh) != NULL)
   {
-    if (feof(fh))
-      break;
-
     // Only looking at vertex data
     if (buffer[0] == 'v' && buffer[1] == ' ')
       line_count += 1;
     if (buffer[0] == 'f' && buffer[1] == ' ')
     {
-      printf("%s\n", buffer);
-      *face_count += 1;
+      // printf("%s\n", buffer);
+      *polygon_count += 1;
     }
   }
 
   rewind(fh);
 
   // Allocate Vector3 array
-  Vector3 *vertices = (Vector3 *)malloc(*face_count * sizeof(Vector3));
+  Vector3 *vertices = (Vector3 *)malloc(*polygon_count * sizeof(Vector3));
 
   // Load vertices
   int index = 0;
   while (fgets(buffer, 64, fh) != NULL)
   {
-    if (feof(fh))
-      break;
-
     // Only looking at vertex data
     if (buffer[0] == 'v' && buffer[1] == ' ')
     {
@@ -79,43 +74,76 @@ void substr(char dest[], char src[])
   }
 }
 
-void load_vertex_order(int face_count, int **triangles, char filepath[])
+void load_vertex_order(int face_count, int **polygon_order, char filepath[])
 {
-  // Get face count
-
   FILE *fh = fopen(filepath, "r");
   if (fh == NULL)
     printf("Error opening %s\n", filepath);
 
+
+
   char buffer[64];
   int index = 0;
   char delim[] = " ";
-
-  while (1)
+  while (fgets(buffer, 64, fh) != NULL)
   {
-    if (feof(fh))
-      break;
-    fgets(buffer, 64, fh);
-
-    // Only looking at face data
     if (buffer[0] == 'f' && buffer[1] == ' ')
     {
       char *token = strtok(buffer, delim);
-      for (int i=0; i<3; i++) // three vertices per face in triangulated obj file
+      for (int i=0; i<3; i++)
       {
-        char temp[5] = "    \0";
         token = strtok(NULL, delim);
-        substr(temp, token);
-        // printf("Token: %s, temp: %s\n", token, temp);
-        triangles[index][i] = atoi(temp);
+        
+        char temp[5] = "    \0";
+        substr(temp, token);  
+        
+        // printf("%s == %d?\n", temp, atoi(temp));
+
+        polygon_order[index][i] = atoi(temp);
+        // printf("%d\n", polygon_order[index][i]);
       }
-      index += 1;
+      index += 1; 
     }
   }
+
+
 
   fclose(fh);
 }
 
+
+Model load_model(char *filepath)
+{
+  Model model;
+  int polygon_count;
+  model.vertices = load_vertices(&polygon_count, filepath);
+  model.polygon_count = polygon_count;
+
+  model.polygon_order = (int **)malloc(model.polygon_count * sizeof(int *));
+  for (int i=0; i<model.polygon_count; i++)
+    model.polygon_order[i] = (int *)malloc(3 * sizeof(int)); // three vertices per polygon.
+
+  load_vertex_order(polygon_count, model.polygon_order, filepath);
+
+  for (int i=0; i<polygon_count; i++)
+  {
+    for (int j=0; j<3; j++)
+      printf("%d ", model.polygon_order[i][j]);
+    printf("\n"); 
+  }
+
+  return model;
+}
+
+void draw_model(SDL_Renderer *ren, Camera cam, Model model)
+{
+  for (int i=0; i<model.polygon_count; i++)
+  {
+    line_3d(ren, cam, model.vertices[model.polygon_order[i][0]-1], model.vertices[model.polygon_order[i][1]-1]);
+    line_3d(ren, cam, model.vertices[model.polygon_order[i][1]-1], model.vertices[model.polygon_order[i][2]-1]);
+    line_3d(ren, cam, model.vertices[model.polygon_order[i][2]-1], model.vertices[model.polygon_order[i][0]-1]);
+  }
+}
 
 /** Project a 3D world coordinate onto a 2D screen coordinate.
  */
@@ -156,8 +184,8 @@ Vector2 project_coordinate(Camera cam, Vector3 pt)
   d[2][0] = (d[2][0] == 0) ? 1 : d[2][0];
   
   Vector2 screen_point;
-  screen_point.x = (500/d[2][0]) * d[0][0] + 500;
-  screen_point.y = (500/d[2][0]) * d[1][0] + 500;
+  screen_point.x = (500/d[2][0]) * d[0][0] + 640;
+  screen_point.y = (500/d[2][0]) * d[1][0] + 360;
 
   return screen_point;
 }

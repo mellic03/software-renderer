@@ -6,14 +6,16 @@
 #include "shapes.h"
 
 typedef struct Model {
+  int vertex_count ;
+  Vector3 *vertices;
   int polygon_count;
-  Vector2 **vertices;
-  int triangle_count;
-  int **triangle_order;
+  int **polygon_order; // array of arrays of three indices of vertices in *vertices
 } Model;
 
-Vector3 *load_vertices(int *v_count, char filepath[]);
-void load_vertex_order(int v_count, int **orders, char filepath[]);
+Vector3 *load_vertices(int *polygon_count, char filepath[]);
+void load_vertex_order(int polygon_count, int **polygon_order, char filepath[]);
 Vector2 project_coordinate(Camera cam, Vector3 pt);
+Model load_model(char *filepath);
+void draw_model(SDL_Renderer *ren, Camera cam, Model model);
 
 #endif /* ENGINE_H */
