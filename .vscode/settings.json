@@ -16,6 +16,12 @@
     "variant": "c",
     "engine.h": "c",
     "sstream": "c",
-    "camera.h": "c"
+    "camera.h": "c",
+    "cmath": "c",
+    "cblas.h": "c",
+    "random": "c",
+    "input.h": "c",
+    "complex": "c",
+    "stdbool.h": "c"
   }
 }
