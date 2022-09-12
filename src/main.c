@@ -51,7 +51,7 @@ int main(int argc, char** argv)
   rotate_y(monkey, 3.14);
 
   Model plane = load_model("./plane.obj");
-  plane.pos.y = -2;
+  plane.pos.y = -5;
   //------------------------------------------------------------
 
   SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -64,15 +64,15 @@ int main(int argc, char** argv)
     SDL_PumpEvents();
 
     SDL_RenderSetLogicalSize(ren, SCREEN_WIDTH, SCREEN_HEIGHT);
-    SDL_SetRenderDrawColor(ren, 0, 0, 0, 255); // Set background
+    SDL_SetRenderDrawColor(ren, 255, 255, 255, 255); // Set background
     SDL_RenderClear(ren); // Clear screen
     
     // Render loop
     //----------------------------------------------
-    SDL_SetRenderDrawColor(ren, 0, 255, 0, 255);
+    SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
 
     draw_model(ren, cam, monkey);
-    draw_model(ren, cam, plane);
+    // draw_model(ren, cam, plane);
 
 
     SDL_RenderPresent(ren);

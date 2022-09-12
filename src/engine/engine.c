@@ -18,6 +18,8 @@ float XROTATION = 0;
 float YROTATION = 0;
 float ZROTATION = 0;
 
+#define MIN(a, b) (a<b?a:b)
+#define MAX(a, b) (a>b?a:b)
 
 // TRANSFORMATIONS
 //-------------------------------------------------------------------------------
@@ -173,47 +175,54 @@ void rotate_z(Model model, float r)
 
 // DRAWING
 //-------------------------------------------------------------------------------
+
+float sign(Vector2 p1, Vector2 p2, Vector2 p3)
+{
+  return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+}
+
+
 bool in_range(float n, float l, float u)
 {
   return (n >= l && n <= u) ? true : false;
 }
 
-void line_2d(SDL_Renderer *renderer, float x1, float y1, float x2, float y2)
+void line_2d(SDL_Renderer *renderer, Vector2 p1, Vector2 p2)
 {
-  float m = (float)(y1-y2) / (float)(x1-x2); // slope
-  float c = y1 - m*x1; // constant
+  float m = (float)(p1.y-p2.y) / (float)(p1.x-p2.x); // slope
+  float c = p1.y - m*p1.x; // constant
 
   // If vertical
   if (m < -100 || m > 100)
   {
-    if (y1 < y2)
-      for (int y=y1; y<y2; y++)
-        SDL_RenderDrawPoint(renderer, x1, y);
-    else if (y1 > y2)
-      for (int y=y2; y<y1; y++)
-        SDL_RenderDrawPoint(renderer, x1, y);
+    if (p1.y < p2.y)
+      for (int y=p1.y; y<p2.y; y++)
+        SDL_RenderDrawPoint(renderer, p1.x, y);
+    else if (p1.y > p2.y)
+      for (int y=p2.y; y<p1.y; y++)
+        SDL_RenderDrawPoint(renderer, p1.x, y);
   }
 
   // if gradient is not between -1 and 1
   else if (!in_range(m, -1, 1))
   {
-    if (y1 < y2)
-      for (int y=y1; y<y2; y++)
+    if (p1.y < p2.y)
+      for (int y=p1.y; y<p2.y; y++)
         SDL_RenderDrawPoint(renderer, (y-c) / m, y);
-    else if (y1 > y2)
-      for (int y=y2; y<y1; y++)
+    else if (p1.y > p2.y)
+      for (int y=p2.y; y<p1.y; y++)
         SDL_RenderDrawPoint(renderer, (y-c) / m, y);
   }
 
   // if gradient is between -1 and 1
   else
   {
-    if (x1 < x2)
-      for (int x=x1; x<=x2; x++)
+    if (p1.x < p2.x)
+      for (int x=p1.x; x<=p2.x; x++)
         SDL_RenderDrawPoint(renderer, x, m*x + c);
 
-    else if (x1 > x2)
-      for (int x=x2; x<=x1; x++)
+    else if (p1.x > p2.x)
+      for (int x=p2.x; x<=p1.x; x++)
         SDL_RenderDrawPoint(renderer, x, m*x + c);
   }
 }
@@ -221,14 +230,14 @@ void line_2d(SDL_Renderer *renderer, float x1, float y1, float x2, float y2)
 bool in_viewport(Camera cam, Vector3 point)
 {
   float dist = vector3_dist(point, cam.pos);
-  if (dist > 30 || dist < 1)
+  if (dist > 20 || dist < 1)
     return false;
   Vector3 temp = vector3_sub(cam.pos, (Vector3){XOFFSET, YOFFSET, ZOFFSET});
   Vector3 trans_point = vector3_sub(point, temp);
   float angle = vector3_angle(cam.dir, trans_point);
 
   // printf("cam-obj: %f\n", angle);
-  if (angle < 0.4)
+  if (angle < 0.7)
     return true;
   else
     return false;
@@ -241,8 +250,44 @@ void line_3d(SDL_Renderer *renderer, Camera cam, Vector3 p1, Vector3 p2)
   {
     Vector2 screen_p1 = project_coordinate(cam, p1);
     Vector2 screen_p2 = project_coordinate(cam, p2);
-    line_2d(renderer, screen_p1.x, screen_p1.y, screen_p2.x, screen_p2.y);
+    line_2d(renderer, screen_p1, screen_p2);
   }
+}
+
+void triangle_2d(SDL_Renderer *ren, Vector2 p1, Vector2 p2, Vector2 p3)
+{
+  line_2d(ren, p1, p2);
+  line_2d(ren, p2, p3);
+  line_2d(ren, p3, p1);
+
+  // find lx, hx, ly and hy
+  float lx = MIN(p1.x, MIN(p2.x, p3.x));
+  float hx = MAX(p1.x, MAX(p2.x, p3.x));
+  float ly = MIN(p1.y, MIN(p2.y, p3.y));
+  float hy = MAX(p1.y, MAX(p2.y, p3.y));
+
+  // check for flat bottom triangle
+  if (p1.y == p2.y || p1.y == p3.y || p2.y == p3.y)
+  {
+
+  }
+
+  // check for
+
+  
+}
+
+void triangle_3d(SDL_Renderer *ren, Camera cam, Vector3 p1, Vector3 p2, Vector3 p3)
+{
+  if (in_viewport(cam, p1) && in_viewport(cam, p2) && in_viewport(cam, p3))
+  {
+    triangle_2d(ren,
+      project_coordinate(cam, p1),
+      project_coordinate(cam, p2),
+      project_coordinate(cam, p3)
+    );
+  }
+
 }
 
 void draw_model(SDL_Renderer *ren, Camera cam, Model model)
@@ -250,9 +295,11 @@ void draw_model(SDL_Renderer *ren, Camera cam, Model model)
   translate_world(model.pos.x, model.pos.y, model.pos.z);
   for (int i=0; i<model.polygon_count; i++)
   {
-    line_3d(ren, cam, model.vertices[model.polygon_order[i][0]-1], model.vertices[model.polygon_order[i][1]-1]);
-    line_3d(ren, cam, model.vertices[model.polygon_order[i][1]-1], model.vertices[model.polygon_order[i][2]-1]);
-    line_3d(ren, cam, model.vertices[model.polygon_order[i][2]-1], model.vertices[model.polygon_order[i][0]-1]);
+    triangle_3d(ren, cam,
+      model.vertices[model.polygon_order[i][0]-1],
+      model.vertices[model.polygon_order[i][1]-1],
+      model.vertices[model.polygon_order[i][2]-1]
+    );
   }
   translate_world(-model.pos.x, -model.pos.y, -model.pos.z);
 
@@ -266,7 +313,7 @@ Vector2 project_coordinate(Camera cam, Vector3 pt)
 {
   float m1[9] = {
     1, 0,              0,
-    0, cos(cam.R.x), sin(cam.R.x),
+    0, cos(cam.R.x), -sin(cam.R.x),
     0, sin(cam.R.x), cos(cam.R.x) 
   };
 

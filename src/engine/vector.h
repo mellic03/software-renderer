@@ -11,6 +11,8 @@ typedef struct Vector3 {
 
 float vector2_dot(Vector2 v1, Vector2 v2);
 float vector2_angle(Vector2 v1, Vector2 v2);
+Vector2 vector2_scale(Vector2 v1, float scalar);
+Vector2 vector2_sub(Vector2 v1, Vector2 v2);
 
 Vector3 vector3_add(Vector3 v1, Vector3 v2);
 Vector3 vector3_sub(Vector3 v1, Vector3 v2);

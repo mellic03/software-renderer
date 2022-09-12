@@ -55,11 +55,11 @@ void input_handler(SDL_Event event, Camera *cam)
     {
       cam->R.y -= event.motion.xrel * 0.001;
       cam->R.x += event.motion.yrel * 0.001;
-      if (cam->R.x < -0.2)
-        cam->R.x = -0.199;
-      else if (cam->R.x > 0.2)
-        cam->R.x = 0.199;
-      printf("%f\n", cam->R.x);
+      // if (cam->R.x < -0.2)
+      //   cam->R.x = -0.199;
+      // else if (cam->R.x > 0.2)
+      //   cam->R.x = 0.199;
+      // printf("%f\n", cam->R.x);
       cam->dir.x = sin(-cam->R.y);
       cam->dir.z = cos(-cam->R.y);
       cam->dir.y = sin(-cam->R.x);

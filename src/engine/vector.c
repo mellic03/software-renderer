@@ -19,6 +19,19 @@ float vector2_angle(Vector2 v1, Vector2 v2)
   return acosf(cos_angle);
 } 
 
+/** Scale v1 by a scalar
+ */
+Vector2 vector2_scale(Vector2 v1, float scalar)
+{
+  return (Vector2){v1.x * scalar, v1.y * scalar};
+}
+
+Vector2 vector2_sub(Vector2 v1, Vector2 v2)
+{
+  return (Vector2){v1.x-v2.x, v1.y-v2.y};
+}
+
+
 /** Add v1 and v2
  */
 Vector3 vector3_add(Vector3 v1, Vector3 v2)
