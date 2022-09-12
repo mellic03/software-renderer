@@ -2,6 +2,23 @@
 #include <stdio.h>
 #include <math.h>
 
+float vector2_dot(Vector2 v1, Vector2 v2)
+{
+  float dot = 0;
+  dot += v1.x * v2.x;
+  dot += v1.y * v2.y;
+  return dot;
+}
+
+float vector2_angle(Vector2 v1, Vector2 v2)
+{
+  float dot = vector2_dot(v1, v2);
+  float mag1 = sqrt(v1.x*v1.x + v1.y*v1.y);
+  float mag2 = sqrt(v2.x*v2.x + v2.y*v2.y);
+  float cos_angle = dot/(mag1*mag2);
+  return acosf(cos_angle);
+} 
+
 /** Add v1 and v2
  */
 Vector3 vector3_add(Vector3 v1, Vector3 v2)
@@ -29,27 +46,24 @@ int vector3_dist(Vector3 p1, Vector3 p2)
 
 float vector3_dot(Vector3 v1, Vector3 v2)
 {
-  // +  -  +
-  // x1 y1 z1
-  // x2 y2 z2
-  // dot == 0 + (y1*z2 - z1*y2) - (x1*z2 - z1*x2) + (x1*y2 - y1*x2);
+  float dot = 0;
+  dot += v1.x * v2.x;
+  dot += v1.y * v2.y;
+  dot += v1.z * v2.z;
+  return dot;
+}
 
+float vector3_cross(Vector3 v1, Vector3 v2)
+{
   return (v1.y*v2.z - v1.z*v2.y) - (v1.x*v2.z - v1.z*v2.x) + (v1.x*v2.y - v1.y*v2.x);
 }
 
 float vector3_angle(Vector3 v1, Vector3 v2)
 {
   float dot = vector3_dot(v1, v2);
-  
-  // printf("dot: %f\n", dot);
-
-  float mag1 = sqrt(v1.x*v1.x + v1.y*v1.y + v1.z*v1.z);
-  float mag2 = sqrt(v2.x*v2.x + v2.y*v2.y + v2.z*v2.z);
-
+  float mag1 = vector3_mag(v1);
+  float mag2 = vector3_mag(v2);
   float cos_angle = dot/(mag1*mag2);
-  cos_angle /= 6.28;
-  cos_angle -= 0.5;
-
   return acosf(cos_angle);
 }
 

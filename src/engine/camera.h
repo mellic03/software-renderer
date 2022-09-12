@@ -6,6 +6,7 @@
 typedef struct Camera {
   Vector3 pos;
   Vector3 R; // rotation
+  Vector3 dir;
   float fov; // field of view
 
 } Camera;

@@ -3,7 +3,7 @@
 #include "engine/engine.h"
 #include "engine/input.h"
 
-#define SCREEN_WIDTH 2000
+#define SCREEN_WIDTH 1000
 #define SCREEN_HEIGHT 1000
 #define FRAMERATE 30
 
@@ -38,24 +38,20 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  Uint64 NOW = SDL_GetPerformanceCounter();
-  Uint64 LAST = 0;
-  double deltaTime = 0;
-
-  int mousex, mousey;
-
   Camera cam;
-  cam.pos = (Vector3){0, 0, -5};
+  cam.pos = (Vector3){0, 0, -20};
+  cam.R = (Vector3){0, 0, 0};
+  cam.dir = (Vector3){0, 0, 1};
   cam.fov = 1000;
 
   // Load model
   //------------------------------------------------------------
   Model monkey = load_model("./monkey.obj");
-  monkey.pos.z = 20;
+  monkey.pos.z = 0;
+  rotate_y(monkey, 3.14);
 
-  Model monkey2 = load_model("./monkey.obj");
-  monkey2.pos.z = 20;
-  monkey2.pos.x = 20;
+  Model plane = load_model("./plane.obj");
+  plane.pos.y = -2;
   //------------------------------------------------------------
 
   SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -63,23 +59,31 @@ int main(int argc, char** argv)
 
   while (1)
   {
-    input_handler(event, &cam, &mousex, &mousey);
+    input_handler(event, &cam);
 
     SDL_PumpEvents();
 
     SDL_RenderSetLogicalSize(ren, SCREEN_WIDTH, SCREEN_HEIGHT);
-    SDL_SetRenderDrawColor(ren, 255, 255, 255, 255); // Set background
+    SDL_SetRenderDrawColor(ren, 0, 0, 0, 255); // Set background
     SDL_RenderClear(ren); // Clear screen
     
     // Render loop
     //----------------------------------------------
-    SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
+    SDL_SetRenderDrawColor(ren, 0, 255, 0, 255);
 
     draw_model(ren, cam, monkey);
-    draw_model(ren, cam, monkey2);
+    draw_model(ren, cam, plane);
+
 
     SDL_RenderPresent(ren);
-    //----------------------------------------------
+
+
+    // printf("x, y, z: %f %f %f angle: %f\n", cam.dir.x, cam.dir.y, cam.dir.z, cam.R.y);
+    // Vector3 trans_point = vector3_sub(monkey.pos, cam.pos);
+    // float angle = vector3_angle(cam.dir, trans_point);
+    // printf("cam-obj angle: %f\n", angle);
+    // printf("monkeypos: %f %f %f, tmonkeypos: %f %f %f\n", monkey.pos.x, monkey.pos.y, monkey.pos.z, trans_point.x, trans_point.y, trans_point.z);
+
   }
 
   //Clean Up

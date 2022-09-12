@@ -12,7 +12,7 @@
 
 float XOFFSET = 0;
 float YOFFSET = 0;
-float ZOFFSET = 10;
+float ZOFFSET = 0;
 
 float XROTATION = 0;
 float YROTATION = 0;
@@ -42,26 +42,61 @@ void translate_point(Vector3 *point, float x, float y, float z)
   point->z += z;
 }
 
-void rotate_point(Vector3 *point, float x, float y, float z)
+void rotate_point_x(Vector3 *point, float x)
 {
-  float rot_y[3][3] = {
-    { cos(y),  0, sin(y) },
-    { 0,       1,      0 },
-    { -sin(y), 0, cos(y) }
+  float rot_x[3][3] = {
+    { 1,      0,       0 },
+    { 0, cos(x), -sin(x) },
+    { 0, sin(x),  cos(x) }
   };
 
   float result[3][1];
-
   float point_as_array[3][1] = {
     {point->x},
     {point->y},
     {point->z}
   };
-
-  matrix_mult(3, 3, 3, 1, result, rot_y, point_as_array);
-
+  matrix_mult(3, 3, 3, 1, result, rot_x, point_as_array);
   *point = (Vector3){result[0][0], result[1][0], result[2][0]};
 }
+
+void rotate_point_y(Vector3 *point, float y)
+{
+    float rot_y[3][3] = {
+    { cos(y),  0, sin(y) },
+    { 0,       1,      0 },
+    { -sin(y), 0, cos(y) }
+  };
+  
+  float result[3][1];
+  float point_as_array[3][1] = {
+    {point->x},
+    {point->y},
+    {point->z}
+  };
+  matrix_mult(3, 3, 3, 1, result, rot_y, point_as_array);
+  *point = (Vector3){result[0][0], result[1][0], result[2][0]};
+}
+
+void rotate_point_z(Vector3 *point, float z)
+{
+
+  float rot_z[3][3] = {
+    { cos(z),  -sin(z), 0 },
+    { sin(z),   cos(z), 0 },
+    { 0,             0, 1 }
+  };
+
+  float result[3][1];
+  float point_as_array[3][1] = {
+    {point->x},
+    {point->y},
+    {point->z}
+  };
+  matrix_mult(3, 3, 3, 1, result, rot_z, point_as_array);
+  *point = (Vector3){result[0][0], result[1][0], result[2][0]};
+}
+
 
 void reset_translation()
 {
@@ -185,14 +220,18 @@ void line_2d(SDL_Renderer *renderer, float x1, float y1, float x2, float y2)
 
 bool in_viewport(Camera cam, Vector3 point)
 {
-  // Translate the point by the camera offset, then make sure its z
-  // coordinate is greater than 0
-  bool in_view = false;
-  rotate_point(&point, 0, -YROTATION, 0);
-  if (ZOFFSET - point.z > 1)
-    in_view = true;
-  rotate_point(&point, 0, YROTATION, 0);
-  return in_view;
+  float dist = vector3_dist(point, cam.pos);
+  if (dist > 30 || dist < 1)
+    return false;
+  Vector3 temp = vector3_sub(cam.pos, (Vector3){XOFFSET, YOFFSET, ZOFFSET});
+  Vector3 trans_point = vector3_sub(point, temp);
+  float angle = vector3_angle(cam.dir, trans_point);
+
+  // printf("cam-obj: %f\n", angle);
+  if (angle < 0.4)
+    return true;
+  else
+    return false;
 
 }
 
@@ -226,27 +265,27 @@ void draw_model(SDL_Renderer *ren, Camera cam, Model model)
 Vector2 project_coordinate(Camera cam, Vector3 pt)
 {
   float m1[9] = {
-    1, 0,                        0,
-    0, cos(cam.R.x + XROTATION), sin(cam.R.x + XROTATION),
-    0, sin(cam.R.x + XROTATION), cos(cam.R.x + XROTATION) 
+    1, 0,              0,
+    0, cos(cam.R.x), sin(cam.R.x),
+    0, sin(cam.R.x), cos(cam.R.x) 
   };
 
   float m2[9] = {
-    cos(cam.R.y + YROTATION),  0,  -sin(cam.R.y + YROTATION),
-    0,                         1,  0,
-    sin(cam.R.y + YROTATION),  0,  cos(cam.R.y + YROTATION)  
+    cos(cam.R.y),  0,  -sin(cam.R.y),
+    0,             1,  0,
+    sin(cam.R.y),  0,  cos(cam.R.y)  
   };
 
   float m3[9] = {
-    cos(cam.R.z + ZROTATION),  sin(cam.R.z + ZROTATION), 0,
-    -sin(cam.R.z + ZROTATION), cos(cam.R.z + ZROTATION), 0,
-    0,                         0,                        1
+    cos(cam.R.z),  sin(cam.R.z), 0,
+    -sin(cam.R.z), cos(cam.R.z), 0,
+    0,             0,            1
   };
 
   float m4[3] = {
-    pt.x - (cam.pos.x + XOFFSET),
-    pt.y - (cam.pos.y + YOFFSET),
-    pt.z - (cam.pos.z + ZOFFSET)
+    pt.x - cam.pos.x + XOFFSET,
+    pt.y - cam.pos.y + YOFFSET, 
+    pt.z - cam.pos.z + ZOFFSET
   };
 
   float d_0[9];
@@ -296,8 +335,53 @@ Vector2 project_coordinate(Camera cam, Vector3 pt)
   );
 
   Vector2 screen_point;
-  screen_point.x = (cam.fov/d[2]) * d[0] + 1000;
+  screen_point.x = (cam.fov/d[2]) * d[0] + 500;
   screen_point.y = (-cam.fov/d[2]) * d[1] + 500;
+
+  // printf("d.x: %f, d.y: %f, d.z: %f\n", d[0], d[1], d[2]);
+  // printf("x: %f, y: %f\n", screen_point.x, screen_point.y);
+
+  return screen_point;
+}
+
+Vector2 project_coordinate_without_cblas(Camera cam, Vector3 pt)
+{
+  float m1[3][3] = {
+    { 1, 0,            0            },
+    { 0, cos(cam.R.x), sin(cam.R.x) },
+    { 0, sin(cam.R.x), cos(cam.R.x) }
+  };
+
+  float m2[3][3] = {
+    { cos(cam.R.y),  0, -sin(cam.R.y) },
+    { 0,             1, 0             },
+    { sin(cam.R.y),  0, cos(cam.R.y)  }
+  };
+
+  float m3[3][3] = {
+    { cos(cam.R.z),  sin(cam.R.z), 0 },
+    { -sin(cam.R.z), cos(cam.R.z), 0 },
+    { 0,             0,            1 }
+  };
+
+  float m4[3][1] = {
+    { pt.x - cam.pos.x + XOFFSET },
+    { pt.y - cam.pos.y + YOFFSET },
+    { pt.z - cam.pos.z + ZOFFSET }
+  };
+
+  float d_0[3][3];
+  float d_1[3][1];
+  float d[3][1];
+
+  matrix_mult(3, 3, 3, 3, d_0, m1, m2);
+  matrix_mult(3, 3, 3, 1, d_1, m3, m4);
+  matrix_mult(3, 3, 3, 1, d, d_0, d_1);
+
+
+  Vector2 screen_point;
+  screen_point.x = (cam.fov/d[2][0]) * d[0][0] + 1000;
+  screen_point.y = (-cam.fov/d[2][0]) * d[1][0] + 500;
 
   // printf("d.x: %f, d.y: %f, d.z: %f\n", d[0], d[1], d[2]);
   // printf("x: %f, y: %f\n", screen_point.x, screen_point.y);

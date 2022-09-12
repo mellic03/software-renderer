@@ -4,31 +4,28 @@
 #include <SDL2/SDL.h>
 #include "engine.h"
 
-void input_handler(SDL_Event event, Camera *cam, int *mousex, int *mousey)
+void input_handler(SDL_Event event, Camera *cam)
 {
-
-  SDL_GetMouseState(mousex, mousey);
-
   const Uint8 *state = SDL_GetKeyboardState(NULL);
   if (state[SDL_SCANCODE_W])
-  {
-    cam->pos.x -= 0.05 * cos(cam->R.y+3.14/2);
-    cam->pos.z -= 0.05 * sin(cam->R.y+3.14/2);
-  }
-  else if (state[SDL_SCANCODE_S])
   {
     cam->pos.x += 0.05 * cos(cam->R.y+3.14/2);
     cam->pos.z += 0.05 * sin(cam->R.y+3.14/2);
   }
+  else if (state[SDL_SCANCODE_S])
+  {
+    cam->pos.x -= 0.05 * cos(cam->R.y+3.14/2);
+    cam->pos.z -= 0.05 * sin(cam->R.y+3.14/2);
+  }
   if (state[SDL_SCANCODE_A])
   {
-    cam->pos.x += 0.05 * cos(cam->R.y);
-    cam->pos.z += 0.05 * sin(cam->R.y);
+    cam->pos.x -= 0.05 * cos(cam->R.y);
+    cam->pos.z -= 0.05 * sin(cam->R.y);
   }
   else if (state[SDL_SCANCODE_D])
   {
-    cam->pos.x -= 0.05 * cos(cam->R.y);
-    cam->pos.z -= 0.05 * sin(cam->R.y);       
+    cam->pos.x += 0.05 * cos(cam->R.y);
+    cam->pos.z += 0.05 * sin(cam->R.y);       
   }
   if (state[SDL_SCANCODE_SPACE])
   {
@@ -58,6 +55,14 @@ void input_handler(SDL_Event event, Camera *cam, int *mousex, int *mousey)
     {
       cam->R.y -= event.motion.xrel * 0.001;
       cam->R.x += event.motion.yrel * 0.001;
+      if (cam->R.x < -0.2)
+        cam->R.x = -0.199;
+      else if (cam->R.x > 0.2)
+        cam->R.x = 0.199;
+      printf("%f\n", cam->R.x);
+      cam->dir.x = sin(-cam->R.y);
+      cam->dir.z = cos(-cam->R.y);
+      cam->dir.y = sin(-cam->R.x);
     }
   }
 }
