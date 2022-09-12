@@ -18,8 +18,6 @@ float XROTATION = 0;
 float YROTATION = 0;
 float ZROTATION = 0;
 
-#define MIN(a, b) (a<b?a:b)
-#define MAX(a, b) (a>b?a:b)
 
 // TRANSFORMATIONS
 //-------------------------------------------------------------------------------
@@ -82,7 +80,6 @@ void rotate_point_y(Vector3 *point, float y)
 
 void rotate_point_z(Vector3 *point, float z)
 {
-
   float rot_z[3][3] = {
     { cos(z),  -sin(z), 0 },
     { sin(z),   cos(z), 0 },
@@ -98,18 +95,6 @@ void rotate_point_z(Vector3 *point, float z)
   matrix_mult(3, 3, 3, 1, result, rot_z, point_as_array);
   *point = (Vector3){result[0][0], result[1][0], result[2][0]};
 }
-
-
-void reset_translation()
-{
-
-}
-
-void reset_rotation()
-{
-
-}
-
 
 void rotate_x(Model model, float r)
 {
@@ -259,32 +244,19 @@ void triangle_2d(SDL_Renderer *ren, Vector2 p1, Vector2 p2, Vector2 p3)
   line_2d(ren, p1, p2);
   line_2d(ren, p2, p3);
   line_2d(ren, p3, p1);
-
-  // find lx, hx, ly and hy
-  float lx = MIN(p1.x, MIN(p2.x, p3.x));
-  float hx = MAX(p1.x, MAX(p2.x, p3.x));
-  float ly = MIN(p1.y, MIN(p2.y, p3.y));
-  float hy = MAX(p1.y, MAX(p2.y, p3.y));
-
-  // check for flat bottom triangle
-  if (p1.y == p2.y || p1.y == p3.y || p2.y == p3.y)
-  {
-
-  }
-
-  // check for
-
-  
 }
 
 void triangle_3d(SDL_Renderer *ren, Camera cam, Vector3 p1, Vector3 p2, Vector3 p3)
 {
   if (in_viewport(cam, p1) && in_viewport(cam, p2) && in_viewport(cam, p3))
   {
-    triangle_2d(ren,
-      project_coordinate(cam, p1),
-      project_coordinate(cam, p2),
-      project_coordinate(cam, p3)
+    Vector2 v1 = project_coordinate(cam, p1);
+    Vector2 v2 = project_coordinate(cam, p2);
+    Vector2 v3 = project_coordinate(cam, p3);
+    triangle_2d_filled(ren,
+      &v1,
+      &v2,
+      &v3
     );
   }
 
@@ -563,3 +535,76 @@ Model load_model(char *filepath)
   return model;
 }
 //-------------------------------------------------------------------------------
+
+
+
+void fill_flat_bottom(SDL_Renderer *ren, Vector2 v1, Vector2 v2, Vector2 v3)
+{
+  // gradients
+  const float m1 = (v2.x-v1.x)/(v2.y-v1.y);
+  const float m2 = (v3.x-v1.x)/(v3.y-v1.y);
+  
+  for (int y=v1.y; y<v2.y; y+=1)
+  {
+    const int px1 = m1 * (y + 0.5 -v1.y) + v1.x;
+    const int px2 = m2 * (y + 0.5 -v3.y) + v3.x;
+    line_2d(ren, (Vector2){px1, y}, (Vector2){px2, y});
+  }
+}
+
+
+void fill_flat_top(SDL_Renderer *ren, Vector2 v1, Vector2 v2, Vector2 v3)
+{
+  // gradients
+  const float m1 = (v1.x-v3.x)/(v1.y-v3.y);
+  const float m2 = (v2.x-v3.x)/(v2.y-v3.y);
+
+  for (int y=v1.y; y<v3.y; y+=1)
+  {
+    const int px1 = m1 * (y + 0.5 -v1.y) + v1.x;
+    const int px2 = m2 * (y + 0.5 -v2.y) + v2.x;
+    line_2d(ren, (Vector2){px1, y}, (Vector2){px2, y});
+  }
+}
+
+void vector2_swap(Vector2 *v1, Vector2 *v2)
+{
+  Vector2 temp = *v2;
+  *v2 = *v1;
+  *v1 = temp;
+}
+
+void triangle_2d_filled(SDL_Renderer *ren, Vector2 *p1, Vector2 *p2, Vector2 *p3)
+{
+  // sort veritces by y
+  if (p2->y < p1->y) vector2_swap(p1, p2);
+  if (p3->y < p2->y) vector2_swap(p2, p3);
+  if (p2->y < p1->y) vector2_swap(p1, p2);
+  
+  if (p1->y == p2->y) // if flat top
+  {
+    if (p2->x < p1->x) vector2_swap(p1, p2);
+      fill_flat_top(ren, *p1, *p2, *p3);
+  }
+  else if(p2->y == p3->y) // if flat bottom
+  {
+    if (p3->x < p2->x) vector2_swap(p2, p3);
+      fill_flat_bottom(ren, *p1, *p2, *p3);
+  }
+  else
+  {
+    const float alpha_split = (p2->y - p1->y) / (p3->y - p1->y);
+    const Vector2 vi = vector2_add(*p1, vector2_scale(vector2_sub(*p3, *p1), alpha_split));
+
+    if (p2->x < vi.x)
+    {
+      fill_flat_bottom(ren, *p1, *p2, vi);
+      fill_flat_top(ren, *p2, vi, *p3);
+    }
+    else
+    {
+      fill_flat_bottom(ren, *p1, vi, *p2);
+      fill_flat_top(ren, vi, *p2, *p3);
+    }
+  }
+}

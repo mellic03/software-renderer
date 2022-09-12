@@ -4,6 +4,9 @@
 #include "vector.h"
 #include "camera.h"
 
+#define MIN(a, b) (a<b?a:b)
+#define MAX(a, b) (a>b?a:b)
+
 typedef struct Model {
 
   Vector3 pos;
@@ -18,7 +21,11 @@ typedef struct Model {
 
 Vector2 project_coordinate(Camera cam, Vector3 pt);
 Model load_model(char *filepath);
+void triangle_2d_filled(SDL_Renderer *ren, Vector2 *p1, Vector2 *p2, Vector2 *p3);
 
+Vector2 vector2_add(Vector2 v1, Vector2 v2);
+
+void line_2d(SDL_Renderer *renderer, Vector2 p1, Vector2 p2);
 void line_3d(SDL_Renderer *renderer, Camera cam, Vector3 p1, Vector3 p2);
 
 void draw_model(SDL_Renderer *ren, Camera cam, Model model);

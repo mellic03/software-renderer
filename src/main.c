@@ -7,6 +7,7 @@
 #define SCREEN_HEIGHT 1000
 #define FRAMERATE 30
 
+
 int main(int argc, char** argv)
 {
   if (SDL_Init(SDL_INIT_VIDEO) != 0)
@@ -76,14 +77,7 @@ int main(int argc, char** argv)
 
 
     SDL_RenderPresent(ren);
-
-
-    // printf("x, y, z: %f %f %f angle: %f\n", cam.dir.x, cam.dir.y, cam.dir.z, cam.R.y);
-    // Vector3 trans_point = vector3_sub(monkey.pos, cam.pos);
-    // float angle = vector3_angle(cam.dir, trans_point);
-    // printf("cam-obj angle: %f\n", angle);
-    // printf("monkeypos: %f %f %f, tmonkeypos: %f %f %f\n", monkey.pos.x, monkey.pos.y, monkey.pos.z, trans_point.x, trans_point.y, trans_point.z);
-
+    //----------------------------------------------
   }
 
   //Clean Up
@@ -93,3 +87,4 @@ int main(int argc, char** argv)
 
   return 0;
 }
+
