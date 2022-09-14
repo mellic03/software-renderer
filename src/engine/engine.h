@@ -18,9 +18,19 @@ typedef struct Model {
 
   int vertex_count ;
   Vector3 *vertices;
+
+  int *vertex_normals; // Array of vertex normals
   
   int polygon_count;
-  int **polygon_order; // array of arrays of three indices of vertices in *vertices
+  int **polygon_order; // Array of arrays of indices of vertices in *vertices
+
+  // vertex_normals[n] = (Vector2){0.7563, -0.0299, 0.6535}
+  // the vertex norm of vertices[n] will be vertex_normals[n];
+  // therefore the size of the vertex_normals array should be the same
+  // size as the vertices array.
+
+  //  f 943/1034/1817 965/1062/1817 967/1064/1817
+  // Vertex #943's normal vector is normal vector #1817
 
 } Model;
 

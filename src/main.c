@@ -63,7 +63,6 @@ int main(int argc, char** argv)
     
     // Render loop
     //----------------------------------------------
-   
 
     SDL_SetRenderDrawColor(ren, 0, 200, 0, 255);
     draw_model(ren, cam, plane);
