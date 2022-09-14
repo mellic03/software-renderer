@@ -1,12 +1,10 @@
 #include <SDL2/SDL.h>
 #include <math.h>
+#include <time.h>
+
 #include "engine/engine.h"
 #include "engine/input.h"
-
-#define SCREEN_WIDTH 1000
-#define SCREEN_HEIGHT 1000
-#define FRAMERATE 30
-
+#include "engine/screen.h"
 
 int main(int argc, char** argv)
 {
@@ -39,11 +37,7 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  Camera cam;
-  cam.pos = (Vector3){0, 0, -20};
-  cam.R = (Vector3){0, 0, 0};
-  cam.dir = (Vector3){0, 0, 1};
-  cam.fov = 1000;
+  Camera cam = create_camera();
 
   // Load model
   //------------------------------------------------------------
@@ -58,22 +52,24 @@ int main(int argc, char** argv)
   SDL_SetRelativeMouseMode(SDL_TRUE);
   SDL_Event event; // no need for new/delete, stack is fine
 
+
   while (1)
   {
     input_handler(event, &cam);
-
     SDL_PumpEvents();
-
     SDL_RenderSetLogicalSize(ren, SCREEN_WIDTH, SCREEN_HEIGHT);
-    SDL_SetRenderDrawColor(ren, 255, 255, 255, 255); // Set background
+    SDL_SetRenderDrawColor(ren, 109, 133, 169, 50); // Set background
     SDL_RenderClear(ren); // Clear screen
     
     // Render loop
     //----------------------------------------------
-    SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
+   
 
+    SDL_SetRenderDrawColor(ren, 0, 200, 0, 255);
+    draw_model(ren, cam, plane);
+
+    SDL_SetRenderDrawColor(ren, 200, 200, 200, 255);
     draw_model(ren, cam, monkey);
-    // draw_model(ren, cam, plane);
 
 
     SDL_RenderPresent(ren);

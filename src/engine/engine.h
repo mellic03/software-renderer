@@ -3,9 +3,14 @@
 
 #include "vector.h"
 #include "camera.h"
+#include "screen.h"
+
+#define RENDER_DISTANCE 100
 
 #define MIN(a, b) (a<b?a:b)
 #define MAX(a, b) (a>b?a:b)
+
+extern SDL_Point *point_array;
 
 typedef struct Model {
 
@@ -19,24 +24,17 @@ typedef struct Model {
 
 } Model;
 
-Vector2 project_coordinate(Camera cam, Vector3 pt);
 Model load_model(char *filepath);
-void triangle_2d_filled(SDL_Renderer *ren, Vector2 *p1, Vector2 *p2, Vector2 *p3);
+void draw_model(SDL_Renderer *ren, Camera cam, Model model);
 
-Vector2 vector2_add(Vector2 v1, Vector2 v2);
+Vector2 project_coordinate(Camera cam, Vector3 pt);
+Vector2 project_coordinate_without_cblas(Camera cam, Vector3 pt);
 
-void line_2d(SDL_Renderer *renderer, Vector2 p1, Vector2 p2);
 void line_3d(SDL_Renderer *renderer, Camera cam, Vector3 p1, Vector3 p2);
 
-void draw_model(SDL_Renderer *ren, Camera cam, Model model);
 void rotate_x(Model model, float rotation);
 void rotate_y(Model model, float r);
 void rotate_z(Model model, float r);
-
-void rotate_point_x(Vector3 *point, float x);
-void rotate_point_y(Vector3 *point, float y);
-void rotate_point_z(Vector3 *point, float z);
-
 
 void translate_world(float x, float y, float z);
 void rotate_world(float x, float y, float z);

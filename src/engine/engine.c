@@ -5,10 +5,12 @@
 #include <SDL2/SDL.h>
 #include <cblas.h>
 #include <stdbool.h>
+#include <pthread.h>
 
 #include "vector.h"
 #include "camera.h"
 #include "engine.h"
+#include "screen.h"
 
 float XOFFSET = 0;
 float YOFFSET = 0;
@@ -18,6 +20,7 @@ float XROTATION = 0;
 float YROTATION = 0;
 float ZROTATION = 0;
 
+SDL_Point *point_array;
 
 // TRANSFORMATIONS
 //-------------------------------------------------------------------------------
@@ -42,64 +45,10 @@ void translate_point(Vector3 *point, float x, float y, float z)
   point->z += z;
 }
 
-void rotate_point_x(Vector3 *point, float x)
-{
-  float rot_x[3][3] = {
-    { 1,      0,       0 },
-    { 0, cos(x), -sin(x) },
-    { 0, sin(x),  cos(x) }
-  };
-
-  float result[3][1];
-  float point_as_array[3][1] = {
-    {point->x},
-    {point->y},
-    {point->z}
-  };
-  matrix_mult(3, 3, 3, 1, result, rot_x, point_as_array);
-  *point = (Vector3){result[0][0], result[1][0], result[2][0]};
-}
-
-void rotate_point_y(Vector3 *point, float y)
-{
-    float rot_y[3][3] = {
-    { cos(y),  0, sin(y) },
-    { 0,       1,      0 },
-    { -sin(y), 0, cos(y) }
-  };
-  
-  float result[3][1];
-  float point_as_array[3][1] = {
-    {point->x},
-    {point->y},
-    {point->z}
-  };
-  matrix_mult(3, 3, 3, 1, result, rot_y, point_as_array);
-  *point = (Vector3){result[0][0], result[1][0], result[2][0]};
-}
-
-void rotate_point_z(Vector3 *point, float z)
-{
-  float rot_z[3][3] = {
-    { cos(z),  -sin(z), 0 },
-    { sin(z),   cos(z), 0 },
-    { 0,             0, 1 }
-  };
-
-  float result[3][1];
-  float point_as_array[3][1] = {
-    {point->x},
-    {point->y},
-    {point->z}
-  };
-  matrix_mult(3, 3, 3, 1, result, rot_z, point_as_array);
-  *point = (Vector3){result[0][0], result[1][0], result[2][0]};
-}
-
 void rotate_x(Model model, float r)
 {
   float rot_x[3][3] = {
-    { 1,      0,       0 },
+    { 1, 0,       0      },
     { 0, cos(r), -sin(r) },
     { 0, sin(r),  cos(r) }
   };
@@ -120,7 +69,7 @@ void rotate_y(Model model, float r)
 {
   float rot_y[3][3] = {
     { cos(r),  0, sin(r) },
-    { 0,       1,      0 },
+    { 0,       1, 0      },
     { -sin(r), 0, cos(r) }
   };
 
@@ -139,9 +88,9 @@ void rotate_y(Model model, float r)
 void rotate_z(Model model, float r)
 {
   float rot_z[3][3] = {
-    { cos(r),  -sin(r), 0 },
-    { sin(r),   cos(r), 0 },
-    { 0,             0, 1 }
+    { cos(r), -sin(r), 0 },
+    { sin(r), cos(r),  0 },
+    { 0,      0,       1 }
   };
 
   float result[3][1];
@@ -157,16 +106,8 @@ void rotate_z(Model model, float r)
 }
 //-------------------------------------------------------------------------------
 
-
 // DRAWING
 //-------------------------------------------------------------------------------
-
-float sign(Vector2 p1, Vector2 p2, Vector2 p3)
-{
-  return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
-}
-
-
 bool in_range(float n, float l, float u)
 {
   return (n >= l && n <= u) ? true : false;
@@ -174,7 +115,7 @@ bool in_range(float n, float l, float u)
 
 void line_2d(SDL_Renderer *renderer, Vector2 p1, Vector2 p2)
 {
-  float m = (float)(p1.y-p2.y) / (float)(p1.x-p2.x); // slope
+  float m = (p1.y-p2.y) / (p1.x-p2.x); // slope
   float c = p1.y - m*p1.x; // constant
 
   // If vertical
@@ -182,10 +123,11 @@ void line_2d(SDL_Renderer *renderer, Vector2 p1, Vector2 p2)
   {
     if (p1.y < p2.y)
       for (int y=p1.y; y<p2.y; y++)
-        SDL_RenderDrawPoint(renderer, p1.x, y);
+        point_array[y*SCREEN_WIDTH + (int)p1.x] = (SDL_Point){(int)p1.x, y};
+
     else if (p1.y > p2.y)
       for (int y=p2.y; y<p1.y; y++)
-        SDL_RenderDrawPoint(renderer, p1.x, y);
+        point_array[y*SCREEN_WIDTH + (int)p1.x] = (SDL_Point){(int)p1.x, y};
   }
 
   // if gradient is not between -1 and 1
@@ -193,10 +135,11 @@ void line_2d(SDL_Renderer *renderer, Vector2 p1, Vector2 p2)
   {
     if (p1.y < p2.y)
       for (int y=p1.y; y<p2.y; y++)
-        SDL_RenderDrawPoint(renderer, (y-c) / m, y);
+        point_array[y*SCREEN_WIDTH + (int)((y-c)/m)] = (SDL_Point){(int)((y-c)/m), y};
+
     else if (p1.y > p2.y)
       for (int y=p2.y; y<p1.y; y++)
-        SDL_RenderDrawPoint(renderer, (y-c) / m, y);
+        point_array[y*SCREEN_WIDTH + (int)((y-c)/m)] = (SDL_Point){(int)((y-c)/m), y};
   }
 
   // if gradient is between -1 and 1
@@ -204,29 +147,29 @@ void line_2d(SDL_Renderer *renderer, Vector2 p1, Vector2 p2)
   {
     if (p1.x < p2.x)
       for (int x=p1.x; x<=p2.x; x++)
-        SDL_RenderDrawPoint(renderer, x, m*x + c);
+        point_array[((int)(m*x+c) * SCREEN_WIDTH) + (int)x] = (SDL_Point){x, (int)(m*x+c)};
 
     else if (p1.x > p2.x)
       for (int x=p2.x; x<=p1.x; x++)
-        SDL_RenderDrawPoint(renderer, x, m*x + c);
+        point_array[((int)(m*x+c) * SCREEN_WIDTH) + (int)x] = (SDL_Point){x, (int)(m*x+c)};
   }
 }
 
 bool in_viewport(Camera cam, Vector3 point)
 {
   float dist = vector3_dist(point, cam.pos);
-  if (dist > 20 || dist < 1)
+  if (dist > RENDER_DISTANCE || dist < 1)
     return false;
-  Vector3 temp = vector3_sub(cam.pos, (Vector3){XOFFSET, YOFFSET, ZOFFSET});
-  Vector3 trans_point = vector3_sub(point, temp);
-  float angle = vector3_angle(cam.dir, trans_point);
+
+  Vector3 cam_no_offset = vector3_sub(cam.pos, (Vector3){XOFFSET, YOFFSET, ZOFFSET});
+  Vector3 point_shifted = vector3_sub(point, cam_no_offset);
+  float angle = vector3_angle(cam.dir, point_shifted);
 
   // printf("cam-obj: %f\n", angle);
-  if (angle < 0.7)
+  if (angle < 1.2)
     return true;
   else
     return false;
-
 }
 
 void line_3d(SDL_Renderer *renderer, Camera cam, Vector3 p1, Vector3 p2)
@@ -239,31 +182,78 @@ void line_3d(SDL_Renderer *renderer, Camera cam, Vector3 p1, Vector3 p2)
   }
 }
 
+float sign (Vector2 p1, Vector2 p2, Vector2 p3)
+{
+  return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+}
+
+bool PointInTriangle (Vector2 pt, Vector2 v1, Vector2 v2, Vector2 v3)
+{
+  float d1, d2, d3;
+  bool has_neg, has_pos;
+
+  d1 = sign(pt, v1, v2);
+  d2 = sign(pt, v2, v3);
+  d3 = sign(pt, v3, v1);
+
+  has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+  has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+
+  return !(has_neg && has_pos);
+}
+
 void triangle_2d(SDL_Renderer *ren, Vector2 p1, Vector2 p2, Vector2 p3)
 {
+  // if (!in_range(p1.x, 0, SCREEN_WIDTH) || !in_range(p2.x, 0, SCREEN_WIDTH) || !in_range(p3.x, 0, SCREEN_WIDTH));
+  //   return;
+  // if (!in_range(p1.y, 0, SCREEN_HEIGHT) || !in_range(p2.y, 0, SCREEN_HEIGHT) || !in_range(p3.y, 0, SCREEN_HEIGHT));
+  //   return;
+
+  if (p1.x < 0 || p1.x > SCREEN_WIDTH)
+    return;
+  if (p2.x < 0 || p2.x > SCREEN_WIDTH)
+    return;
+  if (p3.x < 0 || p3.x > SCREEN_WIDTH)
+    return;
+  if (p1.y < 0 || p1.y > SCREEN_HEIGHT)
+    return;
+  if (p2.y < 0 || p2.y > SCREEN_HEIGHT)
+    return;
+  if (p3.y < 0 || p3.y > SCREEN_HEIGHT)
+    return;
+
   line_2d(ren, p1, p2);
   line_2d(ren, p2, p3);
   line_2d(ren, p3, p1);
+
+  // Fill
+  // int lx = MIN(p1.x, MIN(p2.x, p3.x));
+  // int hx = MAX(p1.x, MAX(p2.x, p3.x));
+  // int ly = MIN(p1.y, MIN(p2.y, p3.y));
+  // int hy = MAX(p1.y, MAX(p2.y, p3.y));
+  // for (int x=lx; x<hx; x++)
+  //   for (int y=ly; y<hy; y++)
+  //     if (PointInTriangle((Vector2){x, y}, p1, p2, p3))
+  //       point_array[y*SCREEN_WIDTH + x] = (SDL_Point){x, y};
+  
 }
 
 void triangle_3d(SDL_Renderer *ren, Camera cam, Vector3 p1, Vector3 p2, Vector3 p3)
 {
   if (in_viewport(cam, p1) && in_viewport(cam, p2) && in_viewport(cam, p3))
   {
-    Vector2 v1 = project_coordinate(cam, p1);
-    Vector2 v2 = project_coordinate(cam, p2);
-    Vector2 v3 = project_coordinate(cam, p3);
-    triangle_2d_filled(ren,
-      &v1,
-      &v2,
-      &v3
+    triangle_2d(ren,
+      project_coordinate(cam, p1),
+      project_coordinate(cam, p2),
+      project_coordinate(cam, p3)
     );
   }
-
 }
 
 void draw_model(SDL_Renderer *ren, Camera cam, Model model)
 {
+  point_array = (SDL_Point *)calloc(SCREEN_WIDTH*SCREEN_HEIGHT, sizeof(SDL_Point));
+
   translate_world(model.pos.x, model.pos.y, model.pos.z);
   for (int i=0; i<model.polygon_count; i++)
   {
@@ -273,8 +263,11 @@ void draw_model(SDL_Renderer *ren, Camera cam, Model model)
       model.vertices[model.polygon_order[i][2]-1]
     );
   }
-  translate_world(-model.pos.x, -model.pos.y, -model.pos.z);
 
+  SDL_RenderDrawPoints(ren, point_array, SCREEN_WIDTH*SCREEN_HEIGHT);
+  free(point_array);
+
+  translate_world(-model.pos.x, -model.pos.y, -model.pos.z);
 }
 //-------------------------------------------------------------------------------
 
@@ -284,7 +277,7 @@ void draw_model(SDL_Renderer *ren, Camera cam, Model model)
 Vector2 project_coordinate(Camera cam, Vector3 pt)
 {
   float m1[9] = {
-    1, 0,              0,
+    1, 0,            0,
     0, cos(cam.R.x), -sin(cam.R.x),
     0, sin(cam.R.x), cos(cam.R.x) 
   };
@@ -354,11 +347,8 @@ Vector2 project_coordinate(Camera cam, Vector3 pt)
   );
 
   Vector2 screen_point;
-  screen_point.x = (cam.fov/d[2]) * d[0] + 500;
-  screen_point.y = (-cam.fov/d[2]) * d[1] + 500;
-
-  // printf("d.x: %f, d.y: %f, d.z: %f\n", d[0], d[1], d[2]);
-  // printf("x: %f, y: %f\n", screen_point.x, screen_point.y);
+  screen_point.x = (cam.fov/d[2]) * d[0] + HALF_SCREEN_WIDTH;
+  screen_point.y = (-cam.fov/d[2]) * d[1] + HALF_SCREEN_HEIGHT;
 
   return screen_point;
 }
@@ -366,9 +356,9 @@ Vector2 project_coordinate(Camera cam, Vector3 pt)
 Vector2 project_coordinate_without_cblas(Camera cam, Vector3 pt)
 {
   float m1[3][3] = {
-    { 1, 0,            0            },
-    { 0, cos(cam.R.x), sin(cam.R.x) },
-    { 0, sin(cam.R.x), cos(cam.R.x) }
+    { 1, 0,            0             },
+    { 0, cos(cam.R.x), -sin(cam.R.x) },
+    { 0, sin(cam.R.x), cos(cam.R.x)  }
   };
 
   float m2[3][3] = {
@@ -397,13 +387,9 @@ Vector2 project_coordinate_without_cblas(Camera cam, Vector3 pt)
   matrix_mult(3, 3, 3, 1, d_1, m3, m4);
   matrix_mult(3, 3, 3, 1, d, d_0, d_1);
 
-
   Vector2 screen_point;
-  screen_point.x = (cam.fov/d[2][0]) * d[0][0] + 1000;
-  screen_point.y = (-cam.fov/d[2][0]) * d[1][0] + 500;
-
-  // printf("d.x: %f, d.y: %f, d.z: %f\n", d[0], d[1], d[2]);
-  // printf("x: %f, y: %f\n", screen_point.x, screen_point.y);
+  screen_point.x = (cam.fov/d[2][0]) * d[0][0] + HALF_SCREEN_WIDTH;
+  screen_point.y = (-cam.fov/d[2][0]) * d[1][0] + HALF_SCREEN_HEIGHT;
 
   return screen_point;
 }
@@ -478,8 +464,6 @@ void load_vertex_order(int face_count, int **polygon_order, char filepath[])
   if (fh == NULL)
     printf("Error opening %s\n", filepath);
 
-
-
   char buffer[64];
   int index = 0;
   char delim[] = " ";
@@ -491,19 +475,13 @@ void load_vertex_order(int face_count, int **polygon_order, char filepath[])
       for (int i=0; i<3; i++)
       {
         token = strtok(NULL, delim);
-        
         char temp[5] = "    \0";
         substr(temp, token);  
-        
-        // printf("%s == %d?\n", temp, atoi(temp));
-
         polygon_order[index][i] = atoi(temp);
-        // printf("%d\n", polygon_order[index][i]);
       }
       index += 1; 
     }
   }
-
 
   fclose(fh);
 }
@@ -535,76 +513,3 @@ Model load_model(char *filepath)
   return model;
 }
 //-------------------------------------------------------------------------------
-
-
-
-void fill_flat_bottom(SDL_Renderer *ren, Vector2 v1, Vector2 v2, Vector2 v3)
-{
-  // gradients
-  const float m1 = (v2.x-v1.x)/(v2.y-v1.y);
-  const float m2 = (v3.x-v1.x)/(v3.y-v1.y);
-  
-  for (int y=v1.y; y<v2.y; y+=1)
-  {
-    const int px1 = m1 * (y + 0.5 -v1.y) + v1.x;
-    const int px2 = m2 * (y + 0.5 -v3.y) + v3.x;
-    line_2d(ren, (Vector2){px1, y}, (Vector2){px2, y});
-  }
-}
-
-
-void fill_flat_top(SDL_Renderer *ren, Vector2 v1, Vector2 v2, Vector2 v3)
-{
-  // gradients
-  const float m1 = (v1.x-v3.x)/(v1.y-v3.y);
-  const float m2 = (v2.x-v3.x)/(v2.y-v3.y);
-
-  for (int y=v1.y; y<v3.y; y+=1)
-  {
-    const int px1 = m1 * (y + 0.5 -v1.y) + v1.x;
-    const int px2 = m2 * (y + 0.5 -v2.y) + v2.x;
-    line_2d(ren, (Vector2){px1, y}, (Vector2){px2, y});
-  }
-}
-
-void vector2_swap(Vector2 *v1, Vector2 *v2)
-{
-  Vector2 temp = *v2;
-  *v2 = *v1;
-  *v1 = temp;
-}
-
-void triangle_2d_filled(SDL_Renderer *ren, Vector2 *p1, Vector2 *p2, Vector2 *p3)
-{
-  // sort veritces by y
-  if (p2->y < p1->y) vector2_swap(p1, p2);
-  if (p3->y < p2->y) vector2_swap(p2, p3);
-  if (p2->y < p1->y) vector2_swap(p1, p2);
-  
-  if (p1->y == p2->y) // if flat top
-  {
-    if (p2->x < p1->x) vector2_swap(p1, p2);
-      fill_flat_top(ren, *p1, *p2, *p3);
-  }
-  else if(p2->y == p3->y) // if flat bottom
-  {
-    if (p3->x < p2->x) vector2_swap(p2, p3);
-      fill_flat_bottom(ren, *p1, *p2, *p3);
-  }
-  else
-  {
-    const float alpha_split = (p2->y - p1->y) / (p3->y - p1->y);
-    const Vector2 vi = vector2_add(*p1, vector2_scale(vector2_sub(*p3, *p1), alpha_split));
-
-    if (p2->x < vi.x)
-    {
-      fill_flat_bottom(ren, *p1, *p2, vi);
-      fill_flat_top(ren, *p2, vi, *p3);
-    }
-    else
-    {
-      fill_flat_bottom(ren, *p1, vi, *p2);
-      fill_flat_top(ren, vi, *p2, *p3);
-    }
-  }
-}

@@ -11,4 +11,6 @@ typedef struct Camera {
 
 } Camera;
 
+Camera create_camera(void);
+
 #endif /* CAMERA_H */

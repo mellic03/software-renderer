@@ -23,6 +23,8 @@
     "input.h": "c",
     "complex": "c",
     "stdbool.h": "c",
-    "string.h": "c"
+    "string.h": "c",
+    "screen.h": "c",
+    "math.h": "c"
   }
 }
