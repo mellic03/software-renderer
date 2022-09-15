@@ -44,10 +44,10 @@ int main(int argc, char** argv)
   // Model monkey = load_model("./monkey.obj");
   // rotate_y(monkey, 3.14);
 
-  Model plane = load_model("./plane.obj");
-  plane.pos.y = -5;
+  // Model plane = load_model("./plane.obj");
+  // plane.pos.y = -5;
   Model cube = load_model("./cube.obj");
-  cube.pos.z = 0;
+  cube.pos.z = 5;
   cube.fill = (Vector3){200, 100, 50};
   //------------------------------------------------------------
 
@@ -66,12 +66,12 @@ int main(int argc, char** argv)
     // Render loop
     //----------------------------------------------
 
-    SDL_SetRenderDrawColor(ren, 0, 200, 0, 255);
-    draw_model(ren, cam, plane);
-
-    SDL_SetRenderDrawColor(ren, 200, 200, 200, 255);
+    // draw_model(ren, cam, plane);
     // draw_model(ren, cam, monkey);
     draw_model(ren, cam, cube);
+
+
+
     SDL_RenderPresent(ren);
     //----------------------------------------------
   }

@@ -20,8 +20,10 @@ float XROTATION = 0;
 float YROTATION = 0;
 float ZROTATION = 0;
 
-SDL_Point *line_matrix;
+SDL_Point *stroke_matrix;
 SDL_Point *fill_matrix;
+
+Pixel *pixel_matrix;
 
 // TRANSFORMATIONS
 //-------------------------------------------------------------------------------
@@ -124,11 +126,11 @@ void line_2d(SDL_Renderer *renderer, Vector2 p1, Vector2 p2)
   {
     if (p1.y < p2.y)
       for (int y=p1.y; y<p2.y; y++)
-        line_matrix[y*SCREEN_WIDTH + (int)p1.x] = (SDL_Point){(int)p1.x, y};
+        stroke_matrix[y*SCREEN_WIDTH + (int)p1.x] = (SDL_Point){(int)p1.x, y};
 
     else if (p1.y > p2.y)
       for (int y=p2.y; y<p1.y; y++)
-        line_matrix[y*SCREEN_WIDTH + (int)p1.x] = (SDL_Point){(int)p1.x, y};
+        stroke_matrix[y*SCREEN_WIDTH + (int)p1.x] = (SDL_Point){(int)p1.x, y};
   }
 
   // if gradient is not between -1 and 1
@@ -136,11 +138,11 @@ void line_2d(SDL_Renderer *renderer, Vector2 p1, Vector2 p2)
   {
     if (p1.y < p2.y)
       for (int y=p1.y; y<p2.y; y++)
-        line_matrix[y*SCREEN_WIDTH + (int)((y-c)/m)] = (SDL_Point){(int)((y-c)/m), y};
+        stroke_matrix[y*SCREEN_WIDTH + (int)((y-c)/m)] = (SDL_Point){(int)((y-c)/m), y};
 
     else if (p1.y > p2.y)
       for (int y=p2.y; y<p1.y; y++)
-        line_matrix[y*SCREEN_WIDTH + (int)((y-c)/m)] = (SDL_Point){(int)((y-c)/m), y};
+        stroke_matrix[y*SCREEN_WIDTH + (int)((y-c)/m)] = (SDL_Point){(int)((y-c)/m), y};
   }
 
   // if gradient is between -1 and 1
@@ -148,11 +150,11 @@ void line_2d(SDL_Renderer *renderer, Vector2 p1, Vector2 p2)
   {
     if (p1.x < p2.x)
       for (int x=p1.x; x<=p2.x; x++)
-        line_matrix[((int)(m*x+c) * SCREEN_WIDTH) + (int)x] = (SDL_Point){x, (int)(m*x+c)};
+        stroke_matrix[((int)(m*x+c) * SCREEN_WIDTH) + (int)x] = (SDL_Point){x, (int)(m*x+c)};
 
     else if (p1.x > p2.x)
       for (int x=p2.x; x<=p1.x; x++)
-        line_matrix[((int)(m*x+c) * SCREEN_WIDTH) + (int)x] = (SDL_Point){x, (int)(m*x+c)};
+        stroke_matrix[((int)(m*x+c) * SCREEN_WIDTH) + (int)x] = (SDL_Point){x, (int)(m*x+c)};
   }
 }
 
@@ -178,11 +180,6 @@ bool PointInTriangle (Vector2 pt, Vector2 v1, Vector2 v2, Vector2 v3)
 
 void triangle_2d(SDL_Renderer *ren, Vector2 p1, Vector2 p2, Vector2 p3)
 {
-  // if (!in_range(p1.x, 0, SCREEN_WIDTH) || !in_range(p2.x, 0, SCREEN_WIDTH) || !in_range(p3.x, 0, SCREEN_WIDTH));
-  //   return;
-  // if (!in_range(p1.y, 0, SCREEN_HEIGHT) || !in_range(p2.y, 0, SCREEN_HEIGHT) || !in_range(p3.y, 0, SCREEN_HEIGHT));
-  //   return;
-
   if (p1.x < 0 || p1.x > SCREEN_WIDTH)
     return;
   if (p2.x < 0 || p2.x > SCREEN_WIDTH)
@@ -227,16 +224,14 @@ bool in_viewport(Camera cam, Vector3 point, Vector3 normal)
   if (angle > 1.2)
     return false;
 
-
   // From wikipedia: (V0 - P) dot N >= 0
-  if (vector3_dot(vector3_sub(point_shifted, cam.dir), normal) >= 0)
-    return false;
-
+  // if (vector3_dot(vector3_sub(point_shifted, cam.dir), normal) >= 0)
+  //   return false;
 
   return true;
 }
 
-void triangle_3d(SDL_Renderer *ren, Camera cam, Vector3 p1, Vector3 p2, Vector3 p3, Vector3 normal)
+void triangle_3d(SDL_Renderer *ren, Camera cam, Polygon polygon, Vector3 p1, Vector3 p2, Vector3 p3, Vector3 normal)
 {
   if (in_viewport(cam, p1, normal) && in_viewport(cam, p2, normal) && in_viewport(cam, p3, normal))
   {
@@ -248,15 +243,48 @@ void triangle_3d(SDL_Renderer *ren, Camera cam, Vector3 p1, Vector3 p2, Vector3 
   }
 }
 
+/** Average three vectors
+ */
+Vector3 vector3_avg(Vector3 v1, Vector3 v2, Vector3 v3)
+{
+  return (Vector3){(v1.x+v2.x+v3.x)/3, (v1.y+v2.y+v3.y)/3, (v1.z+v2.z+v3.z)/3};
+}
+
+void sort_polygons_by_depth(Camera cam, Model model, Polygon *polygons)
+{
+  // For each polygon, calculate dist
+  for (int i=0; i<model.polygon_count-1; i++)
+  {
+    for (int j=i; j>=0; j--)
+    {
+      float dist1 = vector3_dist(cam.pos, vector3_avg(polygons[j].vertices[0], polygons[j].vertices[1], polygons[j].vertices[2]));
+      float dist2 = vector3_dist(cam.pos, vector3_avg(polygons[j+1].vertices[0], polygons[j+1].vertices[1], polygons[j+1].vertices[2]));
+      if (dist1 < dist2)
+      {
+        Polygon temp = polygons[j];
+        polygons[j] = polygons[j+1];
+        polygons[j+1] = temp;
+      }
+    }
+  }
+}
+
 void draw_model(SDL_Renderer *ren, Camera cam, Model model)
 {
   fill_matrix = (SDL_Point *)calloc(SCREEN_WIDTH*SCREEN_HEIGHT, sizeof(SDL_Point));
-  line_matrix = (SDL_Point *)calloc(SCREEN_WIDTH*SCREEN_HEIGHT, sizeof(SDL_Point));
+  stroke_matrix = (SDL_Point *)calloc(SCREEN_WIDTH*SCREEN_HEIGHT, sizeof(SDL_Point));
+
+  // Sort polygons by depth, then draw
+  sort_polygons_by_depth(cam, model, model.polygons);
+  
+  float dist1 = vector3_dist(cam.pos, vector3_add(model.polygons[0].vertices[0], (Vector3){XOFFSET, YOFFSET, ZOFFSET}));
+  float dist2 = vector3_dist(cam.pos, vector3_add(model.polygons[8].vertices[0], (Vector3){XOFFSET, YOFFSET, ZOFFSET}));
 
   translate_world(model.pos.x, model.pos.y, model.pos.z);
+
   for (int i=0; i<model.polygon_count; i++)
   {
-    triangle_3d(ren, cam,
+    triangle_3d(ren, cam, model.polygons[i],
       model.polygons[i].vertices[0],
       model.polygons[i].vertices[1],
       model.polygons[i].vertices[2],
@@ -266,13 +294,11 @@ void draw_model(SDL_Renderer *ren, Camera cam, Model model)
 
   SDL_SetRenderDrawColor(ren, model.fill.x, model.fill.y, model.fill.z, 255);
   SDL_RenderDrawPoints(ren, fill_matrix, SCREEN_WIDTH*SCREEN_HEIGHT);
-  
   SDL_SetRenderDrawColor(ren, model.stroke.x, model.stroke.y, model.stroke.z, 255);
-  SDL_RenderDrawPoints(ren, line_matrix, SCREEN_WIDTH*SCREEN_HEIGHT);
-
-
+  SDL_RenderDrawPoints(ren, stroke_matrix, SCREEN_WIDTH*SCREEN_HEIGHT);
+  
   free(fill_matrix);
-  free(line_matrix);
+  free(stroke_matrix);
 
   translate_world(-model.pos.x, -model.pos.y, -model.pos.z);
 }

@@ -27,6 +27,10 @@ typedef struct Model {
   Vector3 stroke;
 } Model;
 
+typedef struct Pixel {
+  int r, g, b, a;
+} Pixel;
+
 Model load_model(char *filepath);
 void draw_model(SDL_Renderer *ren, Camera cam, Model model);
 
