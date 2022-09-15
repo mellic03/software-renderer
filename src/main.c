@@ -41,12 +41,14 @@ int main(int argc, char** argv)
 
   // Load model
   //------------------------------------------------------------
-  Model monkey = load_model("./monkey.obj");
-  monkey.pos.z = 0;
-  rotate_y(monkey, 3.14);
+  // Model monkey = load_model("./monkey.obj");
+  // rotate_y(monkey, 3.14);
 
   Model plane = load_model("./plane.obj");
   plane.pos.y = -5;
+  Model cube = load_model("./cube.obj");
+  cube.pos.z = 0;
+  cube.fill = (Vector3){200, 100, 50};
   //------------------------------------------------------------
 
   SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -68,9 +70,8 @@ int main(int argc, char** argv)
     draw_model(ren, cam, plane);
 
     SDL_SetRenderDrawColor(ren, 200, 200, 200, 255);
-    draw_model(ren, cam, monkey);
-
-
+    // draw_model(ren, cam, monkey);
+    draw_model(ren, cam, cube);
     SDL_RenderPresent(ren);
     //----------------------------------------------
   }

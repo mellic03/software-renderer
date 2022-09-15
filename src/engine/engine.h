@@ -5,33 +5,26 @@
 #include "camera.h"
 #include "screen.h"
 
-#define RENDER_DISTANCE 100
+#define RENDER_DISTANCE 50
 
 #define MIN(a, b) (a<b?a:b)
 #define MAX(a, b) (a>b?a:b)
 
-extern SDL_Point *point_array;
+extern SDL_Point *fill_matrix;
+
+typedef struct Polygon {
+  Vector3 vertices[3]; // Array of three vertices
+  Vector3 normal_vector;
+} Polygon;
 
 typedef struct Model {
-
   Vector3 pos;
-
-  int vertex_count ;
-  Vector3 *vertices;
-
-  int *vertex_normals; // Array of vertex normals
-  
+  int vertex_count;
+  int normal_count;
   int polygon_count;
-  int **polygon_order; // Array of arrays of indices of vertices in *vertices
-
-  // vertex_normals[n] = (Vector2){0.7563, -0.0299, 0.6535}
-  // the vertex norm of vertices[n] will be vertex_normals[n];
-  // therefore the size of the vertex_normals array should be the same
-  // size as the vertices array.
-
-  //  f 943/1034/1817 965/1062/1817 967/1064/1817
-  // Vertex #943's normal vector is normal vector #1817
-
+  Polygon *polygons; // Array of polygons
+  Vector3 fill;
+  Vector3 stroke;
 } Model;
 
 Model load_model(char *filepath);

@@ -37,11 +37,11 @@ void input_handler(SDL_Event event, Camera *cam)
   }
   if (state[SDL_SCANCODE_LEFTBRACKET])
   {
-    cam->fov -= 100;
+    cam->fov -= 1;
   }
   else if (state[SDL_SCANCODE_RIGHTBRACKET])
   {
-    cam->fov += 100;
+    cam->fov += 1;
   }
 
   while(SDL_PollEvent(&event))
