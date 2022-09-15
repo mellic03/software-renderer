@@ -20,10 +20,9 @@ float XROTATION = 0;
 float YROTATION = 0;
 float ZROTATION = 0;
 
-SDL_Point *stroke_matrix;
-SDL_Point *fill_matrix;
-
-Pixel *pixel_matrix;
+Pixel **pixel_matrix;
+uint8_t pixels[SCREEN_WIDTH * SCREEN_HEIGHT * 4] = { 0 };
+SDL_Texture *window_texture;
 
 // TRANSFORMATIONS
 //-------------------------------------------------------------------------------
@@ -70,22 +69,25 @@ void rotate_x(Model model, float r)
 
 void rotate_y(Model model, float r)
 {
-  // float rot_y[3][3] = {
-  //   { cos(r),  0, sin(r) },
-  //   { 0,       1, 0      },
-  //   { -sin(r), 0, cos(r) }
-  // };
+  float rot_y[3][3] = {
+    { cos(r),  0, sin(r) },
+    { 0,       1, 0      },
+    { -sin(r), 0, cos(r) }
+  };
 
-  // float result[3][1];
+  float result[3][1];
 
-  // for (int i=0; i<model.vertex_count; i++)
-  // {
-  //   float coord[3][1] = {{model.vertices[i].x}, {model.vertices[i].y}, {model.vertices[i].z}};
-  //   matrix_mult(3, 3, 3, 1, result, rot_y, coord);
-  //   model.vertices[i].x = result[0][0];
-  //   model.vertices[i].y = result[1][0];
-  //   model.vertices[i].z = result[2][0];
-  // }
+  for (int i=0; i<model.polygon_count; i++)
+  {
+    for (int j=0; j<3; j++)
+    {
+      float coord[3][1] = {{model.polygons[i].vertices[j].x}, {model.polygons[i].vertices[j].y}, {model.polygons[i].vertices[j].z}};
+      matrix_mult(3, 3, 3, 1, result, rot_y, coord);
+      model.polygons[i].vertices[j].x = result[0][0];
+      model.polygons[i].vertices[j].y = result[1][0];
+      model.polygons[i].vertices[j].z = result[2][0];
+    }
+  }
 }
 
 void rotate_z(Model model, float r)
@@ -111,12 +113,20 @@ void rotate_z(Model model, float r)
 
 // DRAWING
 //-------------------------------------------------------------------------------
+void pixel(SDL_Texture *texture, int x, int y, int r, int g, int b)
+{
+  pixels[4*SCREEN_WIDTH*y + 4*x + 0] = r;
+  pixels[4*SCREEN_WIDTH*y + 4*x + 1] = g;
+  pixels[4*SCREEN_WIDTH*y + 4*x + 2] = b;
+  pixels[4*SCREEN_WIDTH*y + 4*x + 3] = 255;
+}
+
 bool in_range(float n, float l, float u)
 {
   return (n >= l && n <= u) ? true : false;
 }
 
-void line_2d(SDL_Renderer *renderer, Vector2 p1, Vector2 p2)
+void line_2d(SDL_Renderer *renderer, Vector3 stroke, Vector2 p1, Vector2 p2)
 {
   float m = (p1.y-p2.y) / (p1.x-p2.x); // slope
   float c = p1.y - m*p1.x; // constant
@@ -126,11 +136,11 @@ void line_2d(SDL_Renderer *renderer, Vector2 p1, Vector2 p2)
   {
     if (p1.y < p2.y)
       for (int y=p1.y; y<p2.y; y++)
-        stroke_matrix[y*SCREEN_WIDTH + (int)p1.x] = (SDL_Point){(int)p1.x, y};
+        pixel(window_texture, (int)p1.x, y, stroke.x, stroke.y, stroke.z);
 
     else if (p1.y > p2.y)
       for (int y=p2.y; y<p1.y; y++)
-        stroke_matrix[y*SCREEN_WIDTH + (int)p1.x] = (SDL_Point){(int)p1.x, y};
+        pixel(window_texture, (int)p1.x, y, stroke.x, stroke.y, stroke.z);
   }
 
   // if gradient is not between -1 and 1
@@ -138,11 +148,11 @@ void line_2d(SDL_Renderer *renderer, Vector2 p1, Vector2 p2)
   {
     if (p1.y < p2.y)
       for (int y=p1.y; y<p2.y; y++)
-        stroke_matrix[y*SCREEN_WIDTH + (int)((y-c)/m)] = (SDL_Point){(int)((y-c)/m), y};
+        pixel(window_texture, (int)((y-c)/m), y, stroke.x, stroke.y, stroke.z);
 
     else if (p1.y > p2.y)
       for (int y=p2.y; y<p1.y; y++)
-        stroke_matrix[y*SCREEN_WIDTH + (int)((y-c)/m)] = (SDL_Point){(int)((y-c)/m), y};
+        pixel(window_texture, (int)((y-c)/m), y, stroke.x, stroke.y, stroke.z);
   }
 
   // if gradient is between -1 and 1
@@ -150,15 +160,15 @@ void line_2d(SDL_Renderer *renderer, Vector2 p1, Vector2 p2)
   {
     if (p1.x < p2.x)
       for (int x=p1.x; x<=p2.x; x++)
-        stroke_matrix[((int)(m*x+c) * SCREEN_WIDTH) + (int)x] = (SDL_Point){x, (int)(m*x+c)};
+        pixel(window_texture, x, (int)(m*x+c), stroke.x, stroke.y, stroke.z);
 
     else if (p1.x > p2.x)
       for (int x=p2.x; x<=p1.x; x++)
-        stroke_matrix[((int)(m*x+c) * SCREEN_WIDTH) + (int)x] = (SDL_Point){x, (int)(m*x+c)};
+        pixel(window_texture, x, (int)(m*x+c), stroke.x, stroke.y, stroke.z);
   }
 }
 
-float sign (Vector2 p1, Vector2 p2, Vector2 p3)
+float sign(Vector2 p1, Vector2 p2, Vector2 p3)
 {
   return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
 }
@@ -178,7 +188,7 @@ bool PointInTriangle (Vector2 pt, Vector2 v1, Vector2 v2, Vector2 v3)
   return !(has_neg && has_pos);
 }
 
-void triangle_2d(SDL_Renderer *ren, Vector2 p1, Vector2 p2, Vector2 p3)
+void triangle_2d(SDL_Renderer *ren, Vector3 fill, Vector2 p1, Vector2 p2, Vector2 p3)
 {
   if (p1.x < 0 || p1.x > SCREEN_WIDTH)
     return;
@@ -193,9 +203,9 @@ void triangle_2d(SDL_Renderer *ren, Vector2 p1, Vector2 p2, Vector2 p3)
   if (p3.y < 0 || p3.y > SCREEN_HEIGHT)
     return;
 
-  line_2d(ren, p1, p2);
-  line_2d(ren, p2, p3);
-  line_2d(ren, p3, p1);
+  line_2d(ren, fill, p1, p2);
+  line_2d(ren, fill, p2, p3);
+  line_2d(ren, fill, p3, p1);
 
   // Fill
   int lx = MIN(p1.x, MIN(p2.x, p3.x));
@@ -205,7 +215,12 @@ void triangle_2d(SDL_Renderer *ren, Vector2 p1, Vector2 p2, Vector2 p3)
   for (int x=lx; x<hx; x++)
     for (int y=ly; y<hy; y++)
       if (PointInTriangle((Vector2){x, y}, p1, p2, p3))
-        fill_matrix[y*SCREEN_WIDTH + x] = (SDL_Point){x, y};
+      {
+        pixels[4*SCREEN_WIDTH*y + 4*x + 0] = fill.x;
+        pixels[4*SCREEN_WIDTH*y + 4*x + 1] = fill.y;
+        pixels[4*SCREEN_WIDTH*y + 4*x + 2] = fill.z;
+        pixels[4*SCREEN_WIDTH*y + 4*x + 3] = 255;
+      }
 }
 
 bool in_viewport(Camera cam, Vector3 point, Vector3 normal)
@@ -231,11 +246,16 @@ bool in_viewport(Camera cam, Vector3 point, Vector3 normal)
   return true;
 }
 
-void triangle_3d(SDL_Renderer *ren, Camera cam, Polygon polygon, Vector3 p1, Vector3 p2, Vector3 p3, Vector3 normal)
+void triangle_3d(SDL_Renderer *ren, Camera cam, Model model, Vector3 p1, Vector3 p2, Vector3 p3, Vector3 normal)
 {
   if (in_viewport(cam, p1, normal) && in_viewport(cam, p2, normal) && in_viewport(cam, p3, normal))
   {
-    triangle_2d(ren,
+    float angle = vector3_angle(normal, (Vector3){5, -5, 0});
+    float f1 = (angle*model.fill.x > 255) ? 255 : angle*model.fill.x;
+    float f2 = (angle*model.fill.y > 255) ? 255 : angle*model.fill.y;
+    float f3 = (angle*model.fill.z > 255) ? 255 : angle*model.fill.z;
+
+    triangle_2d(ren, (Vector3){f1, f2, f3},
       project_coordinate(cam, p1),
       project_coordinate(cam, p2),
       project_coordinate(cam, p3)
@@ -271,34 +291,20 @@ void sort_polygons_by_depth(Camera cam, Model model, Polygon *polygons)
 
 void draw_model(SDL_Renderer *ren, Camera cam, Model model)
 {
-  fill_matrix = (SDL_Point *)calloc(SCREEN_WIDTH*SCREEN_HEIGHT, sizeof(SDL_Point));
-  stroke_matrix = (SDL_Point *)calloc(SCREEN_WIDTH*SCREEN_HEIGHT, sizeof(SDL_Point));
-
   // Sort polygons by depth, then draw
   sort_polygons_by_depth(cam, model, model.polygons);
-  
-  float dist1 = vector3_dist(cam.pos, vector3_add(model.polygons[0].vertices[0], (Vector3){XOFFSET, YOFFSET, ZOFFSET}));
-  float dist2 = vector3_dist(cam.pos, vector3_add(model.polygons[8].vertices[0], (Vector3){XOFFSET, YOFFSET, ZOFFSET}));
 
   translate_world(model.pos.x, model.pos.y, model.pos.z);
 
   for (int i=0; i<model.polygon_count; i++)
   {
-    triangle_3d(ren, cam, model.polygons[i],
+    triangle_3d(ren, cam, model,
       model.polygons[i].vertices[0],
       model.polygons[i].vertices[1],
       model.polygons[i].vertices[2],
       model.polygons[i].normal_vector
     );
   }
-
-  SDL_SetRenderDrawColor(ren, model.fill.x, model.fill.y, model.fill.z, 255);
-  SDL_RenderDrawPoints(ren, fill_matrix, SCREEN_WIDTH*SCREEN_HEIGHT);
-  SDL_SetRenderDrawColor(ren, model.stroke.x, model.stroke.y, model.stroke.z, 255);
-  SDL_RenderDrawPoints(ren, stroke_matrix, SCREEN_WIDTH*SCREEN_HEIGHT);
-  
-  free(fill_matrix);
-  free(stroke_matrix);
 
   translate_world(-model.pos.x, -model.pos.y, -model.pos.z);
 }

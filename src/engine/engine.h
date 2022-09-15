@@ -11,6 +11,8 @@
 #define MAX(a, b) (a>b?a:b)
 
 extern SDL_Point *fill_matrix;
+extern uint8_t pixels[SCREEN_WIDTH * SCREEN_HEIGHT * 4];
+extern SDL_Texture *window_texture;
 
 typedef struct Polygon {
   Vector3 vertices[3]; // Array of three vertices

@@ -25,6 +25,7 @@
     "stdbool.h": "c",
     "string.h": "c",
     "screen.h": "c",
-    "math.h": "c"
+    "math.h": "c",
+    "pthread.h": "c"
   }
 }
