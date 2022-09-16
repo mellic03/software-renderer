@@ -37,6 +37,11 @@ Vector2 vector2_sub(Vector2 v1, Vector2 v2)
   return (Vector2){v1.x-v2.x, v1.y-v2.y};
 }
 
+Vector3 vector3_scale(Vector3 v1, float scalar)
+{
+  return (Vector3){v1.x * scalar, v1.y * scalar, v1.z * scalar};
+}
+
 
 /** Add v1 and v2
  */
@@ -57,24 +62,28 @@ float vector3_mag(Vector3 v)
   return sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
 }
 
-int vector3_dist(Vector3 p1, Vector3 p2)
+float vector3_dist(Vector3 v1, Vector3 v2)
 {
-  Vector3 dir = {p2.x-p1.x, p2.y-p1.y, p2.z-p1.z};
+  Vector3 dir = {v2.x-v1.x, v2.y-v1.y, v2.z-v1.z};
   return vector3_mag(dir);
 }
 
 float vector3_dot(Vector3 v1, Vector3 v2)
 {
-  float dot = 0;
-  dot += v1.x * v2.x;
-  dot += v1.y * v2.y;
-  dot += v1.z * v2.z;
-  return dot;
+  return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
 }
 
-float vector3_cross(Vector3 v1, Vector3 v2)
+void vector3_normalise(Vector3 *v1)
 {
-  return (v1.y*v2.z - v1.z*v2.y) - (v1.x*v2.z - v1.z*v2.x) + (v1.x*v2.y - v1.y*v2.x);
+  float mag = vector3_mag(*v1);
+  v1->x /= mag;
+  v1->y /= mag;
+  v1->z /= mag;
+}
+
+Vector3 vector3_cross(Vector3 v1, Vector3 v2)
+{
+  return (Vector3){(v1.y*v2.z - v1.z*v2.y), -(v1.x*v2.z - v1.z*v2.x), (v1.x*v2.y - v1.y*v2.x)};
 }
 
 float vector3_angle(Vector3 v1, Vector3 v2)

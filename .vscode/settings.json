@@ -26,6 +26,8 @@
     "string.h": "c",
     "screen.h": "c",
     "math.h": "c",
-    "pthread.h": "c"
+    "pthread.h": "c",
+    "*.tcc": "c",
+    "future": "c"
   }
 }

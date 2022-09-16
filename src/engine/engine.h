@@ -10,7 +10,12 @@
 #define MIN(a, b) (a<b?a:b)
 #define MAX(a, b) (a>b?a:b)
 
-extern SDL_Point *fill_matrix;
+
+// GLOBALS
+//----------------------------------------
+extern Vector3 camera_pos;
+//----------------------------------------
+
 extern uint8_t pixels[SCREEN_WIDTH * SCREEN_HEIGHT * 4];
 extern SDL_Texture *window_texture;
 
@@ -34,7 +39,7 @@ typedef struct Pixel {
 } Pixel;
 
 Model load_model(char *filepath);
-void draw_model(SDL_Renderer *ren, Camera cam, Model model);
+void draw_model(SDL_Renderer *ren, Camera cam, Model *model);
 
 Vector2 project_coordinate(Camera cam, Vector3 pt);
 Vector2 project_coordinate_without_cblas(Camera cam, Vector3 pt);
@@ -44,6 +49,8 @@ void line_3d(SDL_Renderer *renderer, Camera cam, Vector3 p1, Vector3 p2);
 void rotate_x(Model model, float rotation);
 void rotate_y(Model model, float r);
 void rotate_z(Model model, float r);
+void rotate_point(Vector3 *pt, float x, float y, float z);
+Vector3 rotate_point_out(Vector3 pt, float x, float y, float z);
 
 void translate_world(float x, float y, float z);
 void rotate_world(float x, float y, float z);

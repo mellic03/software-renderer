@@ -20,9 +20,10 @@ float XROTATION = 0;
 float YROTATION = 0;
 float ZROTATION = 0;
 
-Pixel **pixel_matrix;
 uint8_t pixels[SCREEN_WIDTH * SCREEN_HEIGHT * 4] = { 0 };
 SDL_Texture *window_texture;
+
+Vector3 camera_pos;
 
 // TRANSFORMATIONS
 //-------------------------------------------------------------------------------
@@ -46,6 +47,74 @@ void translate_point(Vector3 *point, float x, float y, float z)
   point->y += y;
   point->z += z;
 }
+
+void rotate_point(Vector3 *pt, float x, float y, float z)
+{
+  float rot_x[3][3] = {
+    { 1, 0,       0      },
+    { 0, cos(x), -sin(x) },
+    { 0, sin(x),  cos(x) }
+  };
+
+  float rot_y[3][3] = {
+    { cos(y),  0, sin(y) },
+    { 0,       1, 0      },
+    { -sin(y), 0, cos(y) }
+  };
+
+  float rot_z[3][3] = {
+    { cos(z), -sin(z), 0 },
+    { sin(z), cos(z),  0 },
+    { 0,      0,       1 }
+  };
+
+  float output[3][1];
+  float output2[3][1];
+
+  float pt_as_arr[3][1] = {{pt->x}, {pt->y}, {pt->z}};
+  matrix_mult(3, 3, 3, 1, output, rot_x, pt_as_arr);
+  matrix_mult(3, 3, 3, 1, output2, rot_y, output);
+
+  pt->x = output2[0][0];
+  pt->y = output2[1][0];
+  pt->z = output2[2][0];
+}
+
+Vector3 rotate_point_out(Vector3 pt, float x, float y, float z)
+{
+  float rot_x[3][3] = {
+    { 1, 0,      0       },
+    { 0, cos(x), -sin(x) },
+    { 0, sin(x), cos(x)  }
+  };
+
+  float rot_y[3][3] = {
+    { cos(y),  0, sin(y) },
+    { 0,       1, 0      },
+    { -sin(y), 0, cos(y) }
+  };
+
+  float rot_z[3][3] = {
+    { cos(z), -sin(z), 0 },
+    { sin(z), cos(z),  0 },
+    { 0,      0,       1 }
+  };
+
+  Vector3 outputv;
+
+  float output[3][1];
+  float output2[3][1];
+
+  float pt_as_arr[3][1] = {{pt.x}, {pt.y}, {pt.z}};
+  matrix_mult(3, 3, 3, 1, output, rot_x, pt_as_arr);
+  matrix_mult(3, 3, 3, 1, output2, rot_y, output);
+
+  outputv.x = output2[0][0];
+  outputv.y = output2[1][0];
+  outputv.z = output2[2][0];
+  return outputv;
+}
+
 
 void rotate_x(Model model, float r)
 {
@@ -115,10 +184,9 @@ void rotate_z(Model model, float r)
 //-------------------------------------------------------------------------------
 void pixel(SDL_Texture *texture, int x, int y, int r, int g, int b)
 {
-  pixels[4*SCREEN_WIDTH*y + 4*x + 0] = r;
-  pixels[4*SCREEN_WIDTH*y + 4*x + 1] = g;
-  pixels[4*SCREEN_WIDTH*y + 4*x + 2] = b;
-  pixels[4*SCREEN_WIDTH*y + 4*x + 3] = 255;
+  pixels[3*SCREEN_WIDTH*y + 3*x + 0] = r;
+  pixels[3*SCREEN_WIDTH*y + 3*x + 1] = g;
+  pixels[3*SCREEN_WIDTH*y + 3*x + 2] = b;
 }
 
 bool in_range(float n, float l, float u)
@@ -190,17 +258,17 @@ bool PointInTriangle (Vector2 pt, Vector2 v1, Vector2 v2, Vector2 v3)
 
 void triangle_2d(SDL_Renderer *ren, Vector3 fill, Vector2 p1, Vector2 p2, Vector2 p3)
 {
-  if (p1.x < 0 || p1.x > SCREEN_WIDTH)
+  if (p1.x <= 0 || p1.x >= SCREEN_WIDTH-10)
     return;
-  if (p2.x < 0 || p2.x > SCREEN_WIDTH)
+  if (p2.x <= 0 || p2.x >= SCREEN_WIDTH-10)
     return;
-  if (p3.x < 0 || p3.x > SCREEN_WIDTH)
+  if (p3.x <= 0 || p3.x >= SCREEN_WIDTH-10)
     return;
-  if (p1.y < 0 || p1.y > SCREEN_HEIGHT)
+  if (p1.y <= 0 || p1.y >= SCREEN_HEIGHT-10)
     return;
-  if (p2.y < 0 || p2.y > SCREEN_HEIGHT)
+  if (p2.y <= 0 || p2.y >= SCREEN_HEIGHT-10)
     return;
-  if (p3.y < 0 || p3.y > SCREEN_HEIGHT)
+  if (p3.y <= 0 || p3.y >= SCREEN_HEIGHT-10)
     return;
 
   line_2d(ren, fill, p1, p2);
@@ -216,10 +284,9 @@ void triangle_2d(SDL_Renderer *ren, Vector3 fill, Vector2 p1, Vector2 p2, Vector
     for (int y=ly; y<hy; y++)
       if (PointInTriangle((Vector2){x, y}, p1, p2, p3))
       {
-        pixels[4*SCREEN_WIDTH*y + 4*x + 0] = fill.x;
-        pixels[4*SCREEN_WIDTH*y + 4*x + 1] = fill.y;
-        pixels[4*SCREEN_WIDTH*y + 4*x + 2] = fill.z;
-        pixels[4*SCREEN_WIDTH*y + 4*x + 3] = 255;
+        pixels[3*SCREEN_WIDTH*y + 3*x + 0] = fill.x;
+        pixels[3*SCREEN_WIDTH*y + 3*x + 1] = fill.y;
+        pixels[3*SCREEN_WIDTH*y + 3*x + 2] = fill.z;
       }
 }
 
@@ -228,32 +295,41 @@ bool in_viewport(Camera cam, Vector3 point, Vector3 normal)
   // Check angle between camera direction and point.
   bool in_angle = false;
   float dist = vector3_dist(point, cam.pos);
-  if (dist > RENDER_DISTANCE || dist < 1)
+  if (dist > RENDER_DISTANCE || dist < 0.2)
     return false;
 
   Vector3 cam_no_offset = vector3_sub(cam.pos, (Vector3){XOFFSET, YOFFSET, ZOFFSET});
-  Vector3 point_shifted = vector3_sub(point, cam_no_offset);
-  float angle = vector3_angle(cam.dir, point_shifted);
-  // printf("%f\n", angle);
+  Vector3 point_shifted = vector3_sub(point, cam.pos);
+  // float angle = vector3_angle(cam.dir, point_shifted);
 
-  if (angle > 1.2)
-    return false;
+  float d1 = vector3_dot(cam.left_normal , point_shifted);
+  float d2 = vector3_dot(cam.right_normal, point_shifted);
+  float d3 = vector3_dot(cam.top_normal,   point_shifted);
+  float d4 = vector3_dot(cam.bot_normal,   point_shifted);
+
+  // printf("left: %.2f, right: %.2f, top: %.2f, bot: %.2f\n", d1, d2, d3, d4);
+  // if (d1 < 0 || d2 < 0 || d3 < 0 || d4 < 0)
+  //   return false;
 
   // From wikipedia: (V0 - P) dot N >= 0
-  // if (vector3_dot(vector3_sub(point_shifted, cam.dir), normal) >= 0)
+  // if (vector3_dot(vector3_sub(point_shifted, cam.dir), normal) <= 0)
   //   return false;
 
   return true;
 }
 
-void triangle_3d(SDL_Renderer *ren, Camera cam, Model model, Vector3 p1, Vector3 p2, Vector3 p3, Vector3 normal)
+void triangle_3d(SDL_Renderer *ren, Camera cam, Model *model, Vector3 p1, Vector3 p2, Vector3 p3, Vector3 normal)
 {
-  if (in_viewport(cam, p1, normal) && in_viewport(cam, p2, normal) && in_viewport(cam, p3, normal))
+  bool c1 = in_viewport(cam, p1, normal);
+  bool c2 = in_viewport(cam, p2, normal);
+  bool c3 = in_viewport(cam, p3, normal);
+
+  if (c1 && c2 && c3)
   {
-    float angle = vector3_angle(normal, (Vector3){5, -5, 0});
-    float f1 = (angle*model.fill.x > 255) ? 255 : angle*model.fill.x;
-    float f2 = (angle*model.fill.y > 255) ? 255 : angle*model.fill.y;
-    float f3 = (angle*model.fill.z > 255) ? 255 : angle*model.fill.z;
+    float angle = vector3_angle(normal, (Vector3){5, 15, 0});
+    float f1 = (model->fill.x - angle*10 < 0) ? 0 : model->fill.x - angle*10;
+    float f2 = (model->fill.y - angle*10 < 0) ? 0 : model->fill.y - angle*10;
+    float f3 = (model->fill.z - angle*10 < 0) ? 0 : model->fill.z - angle*10;
 
     triangle_2d(ren, (Vector3){f1, f2, f3},
       project_coordinate(cam, p1),
@@ -270,46 +346,43 @@ Vector3 vector3_avg(Vector3 v1, Vector3 v2, Vector3 v3)
   return (Vector3){(v1.x+v2.x+v3.x)/3, (v1.y+v2.y+v3.y)/3, (v1.z+v2.z+v3.z)/3};
 }
 
-void sort_polygons_by_depth(Camera cam, Model model, Polygon *polygons)
+int compare(const void * a, const void * b)
 {
-  // For each polygon, calculate dist
-  for (int i=0; i<model.polygon_count-1; i++)
-  {
-    for (int j=i; j>=0; j--)
-    {
-      float dist1 = vector3_dist(cam.pos, vector3_avg(polygons[j].vertices[0], polygons[j].vertices[1], polygons[j].vertices[2]));
-      float dist2 = vector3_dist(cam.pos, vector3_avg(polygons[j+1].vertices[0], polygons[j+1].vertices[1], polygons[j+1].vertices[2]));
-      if (dist1 < dist2)
-      {
-        Polygon temp = polygons[j];
-        polygons[j] = polygons[j+1];
-        polygons[j+1] = temp;
-      }
-    }
-  }
+  const Polygon p1 = *(Polygon *)(a);
+  const Polygon p2 = *(Polygon *)(b);
+
+  Vector3 v1 = vector3_avg(p1.vertices[0], p1.vertices[1], p1.vertices[2]);
+  Vector3 v2 = vector3_avg(p2.vertices[0], p2.vertices[1], p2.vertices[2]);
+  float d1 = vector3_dist(camera_pos, v1);
+  float d2 = vector3_dist(camera_pos, v2);
+
+  if (d1 > d2)
+    return -1;
+  else if (d1 == d2)
+    return 0;
+  else
+    return 1;
 }
 
-void draw_model(SDL_Renderer *ren, Camera cam, Model model)
+void draw_model(SDL_Renderer *ren, Camera cam, Model *model)
 {
-  // Sort polygons by depth, then draw
-  sort_polygons_by_depth(cam, model, model.polygons);
+  qsort(model->polygons, model->polygon_count, sizeof(Polygon), compare);
 
-  translate_world(model.pos.x, model.pos.y, model.pos.z);
+  translate_world(model->pos.x, model->pos.y, model->pos.z);
 
-  for (int i=0; i<model.polygon_count; i++)
+  for (int i=0; i<model->polygon_count; i++)
   {
     triangle_3d(ren, cam, model,
-      model.polygons[i].vertices[0],
-      model.polygons[i].vertices[1],
-      model.polygons[i].vertices[2],
-      model.polygons[i].normal_vector
+      model->polygons[i].vertices[0],
+      model->polygons[i].vertices[1],
+      model->polygons[i].vertices[2],
+      model->polygons[i].normal_vector
     );
   }
 
-  translate_world(-model.pos.x, -model.pos.y, -model.pos.z);
+  translate_world(-model->pos.x, -model->pos.y, -model->pos.z);
 }
 //-------------------------------------------------------------------------------
-
 
 /** Project a 3D world coordinate onto a 2D screen coordinate.
  */
@@ -461,7 +534,6 @@ void extract_vert_text_norm(int dest[3], char *src)
       src[i] == ' ';
 
   sscanf(src, "%d/%d/%d", &dest[0], &dest[1], &dest[2]);
-
   // printf("%d, %d, %d\n", vertex, texture, normal);
 }
 
@@ -494,7 +566,7 @@ void load_polygons(FILE *fh, Model model, Polygon *polygons)
       vertices[vertex_index].x = temp[0];
       vertices[vertex_index].y = temp[1];
       vertices[vertex_index].z = temp[2];
-      printf("v: %f %f %f\n", vertices[vertex_index++].x, vertices[vertex_index].y, vertices[vertex_index].z);
+      vertex_index++;
     }
 
     // Line with vertex normal
@@ -532,18 +604,15 @@ void load_polygons(FILE *fh, Model model, Polygon *polygons)
     }
   }
 
-
   free(vertices);
   free(normals);
 
-  for (int i=0; i<model.polygon_count; i++)
-  {
-    for (int j=0; j<3; j++)
-    {
-      printf("V: %f %f %f, ", polygons[i].vertices[j].x, polygons[i].vertices[j].y, polygons[i].vertices[j].z);
-    }
-    printf("\n");
-  }
+  // for (int i=0; i<model.polygon_count; i++)
+  // {
+  //   for (int j=0; j<3; j++)
+  //     printf("V: %f %f %f, ", polygons[i].vertices[j].x, polygons[i].vertices[j].y, polygons[i].vertices[j].z);
+  //   printf("\n");
+  // }
 }
 
 /** Load an obj file
@@ -553,6 +622,7 @@ Model load_model(char *filepath)
   Model model;
   model.fill = (Vector3){0, 0, 0};
   model.stroke = (Vector3){255, 255, 255};
+  model.pos = (Vector3){0, 0, 0};
 
   FILE *fh = fopen(filepath, "r");
   if (fh == NULL)

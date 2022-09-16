@@ -7,6 +7,9 @@
 void input_handler(SDL_Event event, Camera *cam)
 {
   const Uint8 *state = SDL_GetKeyboardState(NULL);
+
+  camera_pos = (Vector3)cam->pos;
+
   if (state[SDL_SCANCODE_W])
   {
     cam->pos.x += 0.05 * cos(cam->R.y+3.14/2);
@@ -60,9 +63,20 @@ void input_handler(SDL_Event event, Camera *cam)
       // else if (cam->R.x > 0.2)
       //   cam->R.x = 0.199;
       // printf("%f\n", cam->R.x);
+      if (cam->R.x > 6.28)
+        cam->R.x -= 6.28;
+      else if (cam->R.x < 0)
+        cam->R.x += 6.28;
       cam->dir.x = sin(-cam->R.y);
-      cam->dir.z = cos(-cam->R.y);
       cam->dir.y = sin(-cam->R.x);
+      cam->dir.z = cos(-cam->R.y);
+
+      cam->left_normal = rotate_point_out(cam->dir, 0, 1.57-(cam->hfov), 0);
+      cam->right_normal = rotate_point_out(cam->dir, 0, -1.57+(cam->hfov), 0);
+
+      cam->top_normal = rotate_point_out(cam->dir, 1.57-(cam->vfov), 0, 0);
+      cam->bot_normal = rotate_point_out(cam->dir, -1.57+(cam->vfov), 0, 0);
+
     }
   }
 }

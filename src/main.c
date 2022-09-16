@@ -40,6 +40,8 @@ int main(int argc, char** argv)
   }
 
   Camera cam = create_camera();
+  cam.pos.x = 0;
+  cam.pos.y = 0;
 
   // Load model
   //------------------------------------------------------------
@@ -48,18 +50,17 @@ int main(int argc, char** argv)
   monkey.stroke = (Vector3){50, 100, 50};
   rotate_y(monkey, 3.14);
 
-  // Model plane = load_model("./plane.obj");
-  // plane.pos.y = -5;
-  // Model cube = load_model("./cube.obj");
-  // cube.pos.z = 5;
-  // cube.fill = (Vector3){200, 100, 50};
+  Model plane = load_model("./plane.obj");
+  plane.pos.y = -5;
+  Model cube = load_model("./cube.obj");
+  cube.pos.z = 5;
+  cube.fill = (Vector3){200, 100, 50};
   //------------------------------------------------------------
 
   SDL_SetRelativeMouseMode(SDL_TRUE);
   SDL_Event event; // no need for new/delete, stack is fine
 
-  window_texture = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
-
+  window_texture = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
 
   while (1)
   {
@@ -69,21 +70,35 @@ int main(int argc, char** argv)
     //----------------------------------------------
     for (int i=0; i<SCREEN_WIDTH; i++)
     {
-      for (int j=0; j<SCREEN_WIDTH; j++)
+      for (int j=0; j<SCREEN_HEIGHT; j++)
       {
-        pixels[4*SCREEN_WIDTH*j + 4*i + 0] = 0;
-        pixels[4*SCREEN_WIDTH*j + 4*i + 1] = 0;
-        pixels[4*SCREEN_WIDTH*j + 4*i + 2] = 0;
-        pixels[4*SCREEN_WIDTH*j + 4*i + 3] = 255;
+        pixels[3*SCREEN_WIDTH*j + 3*i + 0] = 109;
+        pixels[3*SCREEN_WIDTH*j + 3*i + 1] = 133;
+        pixels[3*SCREEN_WIDTH*j + 3*i + 2] = 169;
       }
     }
 
-    // draw_model(ren, cam, plane);
-    draw_model(ren, cam, monkey);
-    // draw_model(ren, cam, cube);
+    Model *models = (Model *)malloc(3 * sizeof(Model));
+    for (int i=0; i<3; i++)
+    {
+      if (vector3_dist(cam.pos, monkey.pos) < vector3_dist(cam.pos, cube.pos))
+      {
+        draw_model(ren, cam, &cube);
+        draw_model(ren, cam, &monkey);
+      }
+      else
+      {
+        draw_model(ren, cam, &monkey);
+        draw_model(ren, cam, &cube);
+      }
+    }
 
 
-
+    // printf("left: %.2f %.2f %.2f, right : %.2f %.2f %.2f, top: %.2f %.2f %.2f, bot: %.2f %.2f %.2f\n",
+    // cam.left_normal.x, cam.left_normal.y, cam.left_normal.z,
+    // cam.right_normal.x, cam.right_normal.y, cam.right_normal.z,
+    // cam.top_normal.x, cam.top_normal.y, cam.top_normal.z,
+    // cam.bot_normal.x, cam.bot_normal.y, cam.bot_normal.z);
 
     int texture_pitch = 0;
     void *texture_pixels = NULL;
