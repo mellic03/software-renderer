@@ -1,6 +1,9 @@
 #ifndef ENGINE_H
 #define ENGINE_H
 
+#include <SDL2/SDL.h>
+#include <stdlib.h>
+
 #include "vector.h"
 #include "camera.h"
 #include "screen.h"
@@ -50,7 +53,7 @@ void rotate_x(Model model, float rotation);
 void rotate_y(Model model, float r);
 void rotate_z(Model model, float r);
 void rotate_point(Vector3 *pt, float x, float y, float z);
-Vector3 rotate_point_out(Vector3 pt, float x, float y, float z);
+void translate_model(Model *model, float x, float y, float z);
 
 void translate_world(float x, float y, float z);
 void rotate_world(float x, float y, float z);

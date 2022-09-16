@@ -70,13 +70,6 @@ void input_handler(SDL_Event event, Camera *cam)
       cam->dir.x = sin(-cam->R.y);
       cam->dir.y = sin(-cam->R.x);
       cam->dir.z = cos(-cam->R.y);
-
-      cam->left_normal = rotate_point_out(cam->dir, 0, 1.57-(cam->hfov), 0);
-      cam->right_normal = rotate_point_out(cam->dir, 0, -1.57+(cam->hfov), 0);
-
-      cam->top_normal = rotate_point_out(cam->dir, 1.57-(cam->vfov), 0, 0);
-      cam->bot_normal = rotate_point_out(cam->dir, -1.57+(cam->vfov), 0, 0);
-
     }
   }
 }

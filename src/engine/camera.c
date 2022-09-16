@@ -1,8 +1,8 @@
+#include <math.h>
+
 #include "camera.h"
 #include "screen.h"
-#include "math.h"
-#include "stdlib.h"
-#include "stdio.h"
+#include "engine.h"
 
 Camera create_camera(void)
 {
@@ -42,6 +42,8 @@ Camera create_camera(void)
   vector3_normalise(&cam.right_normal);
   vector3_normalise(&cam.top_normal);
   vector3_normalise(&cam.bot_normal);
+
+  camera_pos = (Vector3)cam.pos;
 
   return cam;
 }

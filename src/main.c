@@ -41,21 +41,26 @@ int main(int argc, char** argv)
 
   Camera cam = create_camera();
   cam.pos.x = 0;
-  cam.pos.y = 0;
+  cam.pos.z = -50;
 
   // Load model
   //------------------------------------------------------------
   Model monkey = load_model("./monkey.obj");
   monkey.fill = (Vector3){50, 100, 50};
   monkey.stroke = (Vector3){50, 100, 50};
-  rotate_y(monkey, 3.14);
 
   Model plane = load_model("./plane.obj");
-  plane.pos.y = -5;
-  Model cube = load_model("./cube.obj");
-  cube.pos.z = 5;
-  cube.fill = (Vector3){200, 100, 50};
+  plane.fill = (Vector3){155, 155, 155};
+  translate_model(&plane, 0, -5, 0);
+
+  Model cube1 = load_model("./cube.obj");
+  cube1.fill = (Vector3){200, 100, 50};
+
+  Model cube2 = load_model("./cube.obj");
+  cube2.fill = (Vector3){55, 200, 50};
   //------------------------------------------------------------
+  translate_model(&cube1, cube1.pos.x, cube1.pos.y, cube1.pos.z);
+  translate_model(&cube2, cube2.pos.x, cube2.pos.y, cube2.pos.z);
 
   SDL_SetRelativeMouseMode(SDL_TRUE);
   SDL_Event event; // no need for new/delete, stack is fine
@@ -78,20 +83,8 @@ int main(int argc, char** argv)
       }
     }
 
-    Model *models = (Model *)malloc(3 * sizeof(Model));
-    for (int i=0; i<3; i++)
-    {
-      if (vector3_dist(cam.pos, monkey.pos) < vector3_dist(cam.pos, cube.pos))
-      {
-        draw_model(ren, cam, &cube);
-        draw_model(ren, cam, &monkey);
-      }
-      else
-      {
-        draw_model(ren, cam, &monkey);
-        draw_model(ren, cam, &cube);
-      }
-    }
+    draw_model(ren, cam, &plane);
+    draw_model(ren, cam, &cube1);
 
 
     // printf("left: %.2f %.2f %.2f, right : %.2f %.2f %.2f, top: %.2f %.2f %.2f, bot: %.2f %.2f %.2f\n",
