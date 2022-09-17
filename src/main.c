@@ -52,7 +52,7 @@ int main(int argc, char** argv)
 
   // Load models
   //------------------------------------------------------------
-  Model cube = load_model("./monkey.obj");
+  Model cube = load_model("./cube.obj");
   cube.fill = (Vector3){150, 0, 150};
   // translate_model(&cube, 0, 0, 10);
 

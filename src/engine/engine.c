@@ -252,19 +252,20 @@ bool PointInTriangle (Vector2 pt, Vector2 v1, Vector2 v2, Vector2 v3)
 void triangle_2d(Camera cam, Vector3 fill, Vector3 p1, Vector3 p2, Vector3 p3)
 {
 
+  Vector2 c1 = project_coordinate(p1);
+  Vector2 c2 = project_coordinate(p2);
+  Vector2 c3 = project_coordinate(p3);
 
-  // Fill
-  int lx = MIN(p1.x, MIN(p2.x, p3.x));
-  int hx = MAX(p1.x, MAX(p2.x, p3.x));
-  int ly = MIN(p1.y, MIN(p2.y, p3.y));
-  int hy = MAX(p1.y, MAX(p2.y, p3.y));
+  line_2d(fill, c1, c2);
+  line_2d(fill, c2, c3);
+  line_2d(fill, c3, c1);
 
-  for (int x=lx; x<=hx; x++)
-    for (int y=ly; y<=hy; y++)
-    {
-      if (p1.z < z_buffer[SCREEN_WIDTH*y + x])
-        z_buffer[SCREEN_WIDTH*y + x] = p1.z;
-    }
+  int lx = MIN(c1.x, MIN(c2.x, c3.x));
+  int hx = MAX(c1.x, MAX(c2.x, c3.x));
+  int ly = MIN(c1.y, MIN(c2.y, c3.y));
+  int hy = MAX(c1.y, MAX(c2.y, c3.y));
+
+  
 
 }
 
@@ -442,7 +443,7 @@ void draw_model(Camera cam, Model model)
 
 /** Project a 3D world coordinate onto a 2D screen coordinate.
  */
-Vector2 project_coordinate(Camera cam, Vector3 pt)
+Vector2 project_coordinate(Vector3 pt)
 {
   // 3d to 2d transform
   //-----------------------------------
@@ -450,8 +451,8 @@ Vector2 project_coordinate(Camera cam, Vector3 pt)
   float nearplane_height = 500;
   float nearplane_z = 1;
 
-  int canvas_x = (1/pt.z) * pt.x * nearplane_z * nearplane_width;
-  int canvas_y = (1/pt.z) * pt.y * nearplane_z * nearplane_height;
+  float canvas_x = (1/pt.z) * pt.x * nearplane_z * nearplane_width;
+  float canvas_y = (1/pt.z) * pt.y * nearplane_z * nearplane_height;
   canvas_x += HALF_SCREEN_WIDTH;
   canvas_y += HALF_SCREEN_HEIGHT;
 
