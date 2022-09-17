@@ -12,26 +12,15 @@
 #include "engine.h"
 #include "screen.h"
 
-float XROTATION = 0;
-float YROTATION = 0;
-float ZROTATION = 0;
-
 uint8_t pixels[SCREEN_WIDTH * SCREEN_HEIGHT * 4] = { 0 };
+int z_buffer[SCREEN_WIDTH * SCREEN_HEIGHT] = { 0 };
 SDL_Texture *window_texture;
 
-Vector3 light_source = {20, 20, 0};
-
+Vector3 lightsource = {20, 20, -10};
 Vector3 camera_pos; // Needed for qsort()
 
 // TRANSFORMATIONS
 //-------------------------------------------------------------------------------
-void rotate_world(float x, float y, float z)
-{
-  XROTATION += x;
-  YROTATION += y;
-  ZROTATION += z;
-}
-
 void translate_model(Model *model, float x, float y, float z)
 {
   for (int i=0; i<model->polygon_count; i++)
@@ -157,6 +146,35 @@ void rotate_z(Model model, float r)
 
 // DRAWING
 //-------------------------------------------------------------------------------
+void clear_screen(void)
+{
+  for (int i=0; i<SCREEN_WIDTH; i++)
+    for (int j=0; j<SCREEN_HEIGHT; j++)
+    {
+      pixels[3*SCREEN_WIDTH*j + 3*i + 0] = 109;
+      pixels[3*SCREEN_WIDTH*j + 3*i + 1] = 133;
+      pixels[3*SCREEN_WIDTH*j + 3*i + 2] = 169;
+    }
+
+  for (int i=0; i<SCREEN_WIDTH; i++)
+    for (int j=0; j<SCREEN_HEIGHT; j++)
+      z_buffer[SCREEN_WIDTH*j + i] = RENDER_DISTANCE*2;
+}
+
+void render_screen(SDL_Renderer *ren)
+{
+  int texture_pitch = 0;
+  void *texture_pixels = NULL;
+  if (SDL_LockTexture(window_texture, NULL, &texture_pixels, &texture_pitch) != 0)
+      SDL_Log("Unable to lock texture: %s", SDL_GetError());
+  else
+    memcpy(texture_pixels, pixels, texture_pitch * SCREEN_HEIGHT);
+  SDL_UnlockTexture(window_texture);
+  SDL_RenderClear(ren);
+  SDL_RenderCopy(ren, window_texture, NULL, NULL);
+  SDL_RenderPresent(ren);
+}
+
 void pixel(SDL_Texture *texture, int x, int y, int r, int g, int b)
 {
   pixels[3*SCREEN_WIDTH*y + 3*x + 0] = r;
@@ -169,7 +187,7 @@ bool in_range(float n, float l, float u)
   return (n >= l && n <= u) ? true : false;
 }
 
-void line_2d(SDL_Renderer *renderer, Vector3 stroke, Vector2 p1, Vector2 p2)
+void line_2d(Vector3 stroke, Vector2 p1, Vector2 p2)
 {
   float m = (p1.y-p2.y) / (p1.x-p2.x); // slope
   float c = p1.y - m*p1.x; // constant
@@ -231,92 +249,113 @@ bool PointInTriangle (Vector2 pt, Vector2 v1, Vector2 v2, Vector2 v3)
   return !(has_neg && has_pos);
 }
 
-void triangle_2d(SDL_Renderer *ren, Vector3 fill, Vector2 p1, Vector2 p2, Vector2 p3)
+void triangle_2d(Vector3 fill, Vector2 p1, Vector2 p2, Vector2 p3)
 {
-  // line_2d(ren, fill, p1, p2);
-  // line_2d(ren, fill, p2, p3);
-  // line_2d(ren, fill, p3, p1);
+  line_2d(fill, p1, p2);
+  line_2d(fill, p2, p3);
+  line_2d(fill, p3, p1);
 
   // Fill
   int lx = MIN(p1.x, MIN(p2.x, p3.x));
   int hx = MAX(p1.x, MAX(p2.x, p3.x));
   int ly = MIN(p1.y, MIN(p2.y, p3.y));
   int hy = MAX(p1.y, MAX(p2.y, p3.y));
+
   for (int x=lx; x<=hx; x++)
     for (int y=ly; y<=hy; y++)
-      if (lx > 0 && hx < SCREEN_WIDTH && ly > 0 && hy < SCREEN_HEIGHT && PointInTriangle((Vector2){x, y}, p1, p2, p3))
+      if (PointInTriangle((Vector2){x, y}, p1, p2, p3))
       {
         pixels[3*SCREEN_WIDTH*y + 3*x + 0] = fill.x;
         pixels[3*SCREEN_WIDTH*y + 3*x + 1] = fill.y;
         pixels[3*SCREEN_WIDTH*y + 3*x + 2] = fill.z;
-      }
+      }  
 }
 
 void triangle_3d(SDL_Renderer *ren, Camera cam, Model *model, Vector3 p1, Vector3 p2, Vector3 p3, Vector3 normal)
 {
-  // if (vector3_dist(p1, cam.pos) > RENDER_DISTANCE)
-  //   return;
   // if (vector3_dot(vector3_sub(p1, cam.pos), normal) >= 0)
   //   return;
   // if (vector3_angle(vector3_sub(p1, cam.pos), cam.dir) > 0.8)
   //   return;
 
+  // float angle = vector3_angle(normal, lightsource);
+  // float f1 = (model->fill.x - angle*81 < 0) ? 0 : model->fill.x - angle*81;
+  // float f2 = (model->fill.y - angle*81 < 0) ? 0 : model->fill.y - angle*81;
+  // float f3 = (model->fill.z - angle*81 < 0) ? 0 : model->fill.z - angle*81;
+  
+  // Vector2 projected1;
+  // Vector2 projected2;
+  // Vector2 projected3;
 
-  float angle = vector3_angle(normal, light_source);
-  float f1 = (model->fill.x - angle*10 < 0) ? 0 : model->fill.x - angle*10;
-  float f2 = (model->fill.y - angle*10 < 0) ? 0 : model->fill.y - angle*10;
-  float f3 = (model->fill.z - angle*10 < 0) ? 0 : model->fill.z - angle*10;
-
-  triangle_2d(ren, (Vector3){f1, f2, f3},
-    project_coordinate(cam, p1),
-    project_coordinate(cam, p2),
-    project_coordinate(cam, p3)
-  );
+  // bool b1 = project_coordinate(cam, p1, &projected1);
+  // bool b2 = project_coordinate(cam, p2, &projected2);
+  // bool b3 = project_coordinate(cam, p3, &projected3);
+  // if (b1 && b2 && b3)
+  //   triangle_2d(ren, (Vector3){f1, f2, f3},
+  //     projected1,
+  //     projected2,
+  //     projected3
+  //   );
 }
 
-/** Average three vectors
- */
-Vector3 vector3_avg(Vector3 v1, Vector3 v2, Vector3 v3)
+void draw_model(Camera cam, Model model)
 {
-  return (Vector3){(v1.x+v2.x+v3.x)/3, (v1.y+v2.y+v3.y)/3, (v1.z+v2.z+v3.z)/3};
-}
+  Vector2 **vertex_array = (Vector2 **)malloc(model.polygon_count * sizeof(Vector2 *));
+  for (int i=0; i<model.polygon_count; i++)
+    vertex_array[i] = (Vector2 *)malloc(3 * sizeof(Vector2));
 
-int compare(const void * a, const void * b)
-{
-  const Polygon p1 = *(Polygon *)(a);
-  const Polygon p2 = *(Polygon *)(b);
+  for (int i=0; i<model.polygon_count; i++)
+    for (int j=0; j<3; j++)
+    {
+      // 3D to 3D transform here
+      model.polygons[i].vertices[j].x += cam.pos.x;
+      model.polygons[i].vertices[j].y -= cam.pos.y;
+      model.polygons[i].vertices[j].z += cam.pos.y;
+      rotate_point(&model.polygons[i].vertices[j], 0, cam.R.y, 0);
+      rotate_point(&model.polygons[i].vertices[j], cam.R.x, 0, 0);
 
-  float d1 = vector3_dist(camera_pos, p1.vertices[0]);
-  float d2 = vector3_dist(camera_pos, p2.vertices[0]);
+      bool visible_or_something_idk = true;
+      if (visible_or_something_idk)
+        vertex_array[i][j] = project_coordinate(cam, model.polygons[i].vertices[j]);
+    }
 
-  if (d1 > d2)
-    return -1;
-  else if (d1 < d2)
-    return 1;
-  else
-    return 0;
-}
 
-void draw_model(SDL_Renderer *ren, Camera cam, Model *model)
-{
-  qsort(model->polygons, model->polygon_count, sizeof(Polygon), compare);
-
-  for (int i=0; i<model->polygon_count; i++)
+  for (int i=0; i<model.polygon_count; i++)
   {
-    triangle_3d(ren, cam, model,
-      model->polygons[i].vertices[0],
-      model->polygons[i].vertices[1],
-      model->polygons[i].vertices[2],
-      model->polygons[i].normal_vector
+    triangle_2d(
+      model.fill,
+      vertex_array[i][0],
+      vertex_array[i][1],
+      vertex_array[i][2]
     );
   }
 
+  for (int i=0; i<model.polygon_count; i++)
+    free(vertex_array[i]);
+  free(vertex_array);
 }
 //-------------------------------------------------------------------------------
 
 /** Project a 3D world coordinate onto a 2D screen coordinate.
  */
 Vector2 project_coordinate(Camera cam, Vector3 pt)
+{
+  // 3d to 2d transform
+  //-----------------------------------
+  float nearplane_width = 500;
+  float nearplane_height = 500;
+  float nearplane_z = 1;
+
+  float canvas_x = (1/pt.z) * pt.x * nearplane_z * nearplane_width;
+  float canvas_y = (1/pt.z) * pt.y * nearplane_z * nearplane_height;
+  canvas_x += HALF_SCREEN_WIDTH;
+  canvas_y += HALF_SCREEN_HEIGHT;
+  //-----------------------------------
+
+  return (Vector2){canvas_x, canvas_y};
+}
+
+Vector2 project_coordinate_cblas(Camera cam, Vector3 pt)
 {
   float m1[9] = {
     1, 0,            0,

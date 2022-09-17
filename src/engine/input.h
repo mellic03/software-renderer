@@ -4,7 +4,7 @@
 #include <SDL2/SDL.h>
 #include "engine.h"
 
-void input_handler(SDL_Event event, Camera *cam)
+void input(SDL_Event event, Camera *cam)
 {
   const Uint8 *state = SDL_GetKeyboardState(NULL);
 
@@ -12,40 +12,35 @@ void input_handler(SDL_Event event, Camera *cam)
 
   if (state[SDL_SCANCODE_W])
   {
-    cam->pos.x += 0.05 * cos(cam->R.y+3.14/2);
-    cam->pos.z += 0.05 * sin(cam->R.y+3.14/2);
+    cam->pos.z += 0.2 * sin(cam->R.y + 3.1415 / 2);
+    cam->pos.x += 0.2 * cos(cam->R.y + 3.1415 / 2);
   }
   else if (state[SDL_SCANCODE_S])
   {
-    cam->pos.x -= 0.05 * cos(cam->R.y+3.14/2);
-    cam->pos.z -= 0.05 * sin(cam->R.y+3.14/2);
+    cam->pos.x -= 0.2 * cos(cam->R.y+3.14/2);
+    cam->pos.z -= 0.2 * sin(cam->R.y+3.14/2);
   }
   if (state[SDL_SCANCODE_A])
   {
-    cam->pos.x -= 0.05 * cos(cam->R.y);
-    cam->pos.z -= 0.05 * sin(cam->R.y);
+    cam->pos.x -= 0.2 * cos(cam->R.y);
+    cam->pos.z -= 0.2 * sin(cam->R.y);
   }
   else if (state[SDL_SCANCODE_D])
   {
-    cam->pos.x += 0.05 * cos(cam->R.y);
-    cam->pos.z += 0.05 * sin(cam->R.y);       
+    cam->pos.x += 0.2 * cos(cam->R.y);
+    cam->pos.z += 0.2 * sin(cam->R.y);       
   }
+
   if (state[SDL_SCANCODE_SPACE])
-  {
     cam->pos.y += 0.05;
-  }
   else if (state[SDL_SCANCODE_LCTRL])
-  {
     cam->pos.y -= 0.05;
-  }
+
   if (state[SDL_SCANCODE_LEFTBRACKET])
-  {
     cam->fov -= 1;
-  }
   else if (state[SDL_SCANCODE_RIGHTBRACKET])
-  {
     cam->fov += 1;
-  }
+
 
   while(SDL_PollEvent(&event))
   {

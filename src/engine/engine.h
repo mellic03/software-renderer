@@ -1,14 +1,14 @@
 #ifndef ENGINE_H
 #define ENGINE_H
-
-#include <SDL2/SDL.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <SDL2/SDL.h>
 
 #include "vector.h"
 #include "camera.h"
 #include "screen.h"
 
-#define RENDER_DISTANCE 50
+#define RENDER_DISTANCE 500
 
 #define MIN(a, b) (a<b?a:b)
 #define MAX(a, b) (a>b?a:b)
@@ -17,9 +17,12 @@
 // GLOBALS
 //----------------------------------------
 extern Vector3 camera_pos;
+extern Vector3 lightsource;
+
 //----------------------------------------
 
 extern uint8_t pixels[SCREEN_WIDTH * SCREEN_HEIGHT * 4];
+extern int z_buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
 extern SDL_Texture *window_texture;
 
 typedef struct Polygon {
@@ -42,7 +45,10 @@ typedef struct Pixel {
 } Pixel;
 
 Model load_model(char *filepath);
-void draw_model(SDL_Renderer *ren, Camera cam, Model *model);
+void draw_model(Camera cam, Model model);
+
+void clear_screen(void);
+void render_screen(SDL_Renderer *ren);
 
 Vector2 project_coordinate(Camera cam, Vector3 pt);
 Vector2 project_coordinate_without_cblas(Camera cam, Vector3 pt);
