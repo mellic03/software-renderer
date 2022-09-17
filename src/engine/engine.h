@@ -46,12 +46,12 @@ typedef struct Pixel {
 } Pixel;
 
 Model load_model(char *filepath);
-void draw_model(Camera cam, Model model);
+void draw_model(Camera cam, Model *model);
 
 void clear_screen(uint8_t r, uint8_t g, uint8_t b);
 void render_screen(SDL_Renderer *ren);
 
-Vector2 project_coordinate(Vector3 pt);
+Vector2 project_coordinate(Vector3 *pt);
 Vector2 project_coordinate_without_cblas(Camera cam, Vector3 pt);
 
 void line_3d(SDL_Renderer *renderer, Camera cam, Vector3 p1, Vector3 p2);

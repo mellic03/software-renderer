@@ -53,7 +53,7 @@ int main(int argc, char** argv)
   // Load models
   //------------------------------------------------------------
   Model cube = load_model("./cube.obj");
-  cube.fill = (Vector3){150, 0, 150};
+  cube.fill = (Vector3){150, 150, 150};
   // translate_model(&cube, 0, 0, 10);
 
   //------------------------------------------------------------
@@ -67,7 +67,7 @@ int main(int argc, char** argv)
     
 
 
-    draw_model(cam, cube);
+    draw_model(cam, &cube);
 
 
 

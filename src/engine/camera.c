@@ -12,7 +12,6 @@ Camera create_camera(void)
   cam.R = (Vector3){0, 0, 0};
 
 
-
   cam.near_norm = (Vector3){0, 0, 1};
   cam.far_norm = (Vector3){0, 0, -1};
 

@@ -32,9 +32,9 @@ void input(SDL_Event event, Camera *cam)
   }
 
   if (state[SDL_SCANCODE_SPACE])
-    cam->pos.y += 0.05;
-  else if (state[SDL_SCANCODE_LCTRL])
     cam->pos.y -= 0.05;
+  else if (state[SDL_SCANCODE_LCTRL])
+    cam->pos.y += 0.05;
 
   if (state[SDL_SCANCODE_LEFTBRACKET])
     cam->fov -= 1;
