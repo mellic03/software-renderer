@@ -13,10 +13,9 @@ typedef struct Camera {
   float vfov; 
   float hfov;
 
-  Vector3 left_normal;
-  Vector3 right_normal;
-  Vector3 top_normal;
-  Vector3 bot_normal;
+  Vector3 near_norm, far_norm;
+  Vector3 l_norm, r_norm;
+  Vector3 t_norm, b_norm;
 } Camera;
 
 Camera create_camera(void);

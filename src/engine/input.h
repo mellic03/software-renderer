@@ -12,23 +12,23 @@ void input(SDL_Event event, Camera *cam)
 
   if (state[SDL_SCANCODE_W])
   {
-    cam->pos.z += 0.2 * sin(cam->R.y + 3.1415 / 2);
-    cam->pos.x += 0.2 * cos(cam->R.y + 3.1415 / 2);
+    cam->pos.z += 0.02 * sin(cam->R.y + 3.1415 / 2);
+    cam->pos.x += 0.02 * cos(cam->R.y + 3.1415 / 2);
   }
   else if (state[SDL_SCANCODE_S])
   {
-    cam->pos.x -= 0.2 * cos(cam->R.y+3.14/2);
-    cam->pos.z -= 0.2 * sin(cam->R.y+3.14/2);
+    cam->pos.x -= 0.02 * cos(cam->R.y+3.14/2);
+    cam->pos.z -= 0.02 * sin(cam->R.y+3.14/2);
   }
   if (state[SDL_SCANCODE_A])
   {
-    cam->pos.x -= 0.2 * cos(cam->R.y);
-    cam->pos.z -= 0.2 * sin(cam->R.y);
+    cam->pos.x -= 0.02 * cos(cam->R.y);
+    cam->pos.z -= 0.02 * sin(cam->R.y);
   }
   else if (state[SDL_SCANCODE_D])
   {
-    cam->pos.x += 0.2 * cos(cam->R.y);
-    cam->pos.z += 0.2 * sin(cam->R.y);       
+    cam->pos.x += 0.02 * cos(cam->R.y);
+    cam->pos.z += 0.02 * sin(cam->R.y);       
   }
 
   if (state[SDL_SCANCODE_SPACE])

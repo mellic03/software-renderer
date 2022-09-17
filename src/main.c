@@ -52,9 +52,9 @@ int main(int argc, char** argv)
 
   // Load models
   //------------------------------------------------------------
-  Model cube = load_model("./cube.obj");
-  cube.fill = (Vector3){200, 100, 50};
-  translate_model(&cube, 0, 0, 10);
+  Model cube = load_model("./monkey.obj");
+  cube.fill = (Vector3){150, 0, 150};
+  // translate_model(&cube, 0, 0, 10);
 
   //------------------------------------------------------------
 
@@ -62,7 +62,7 @@ int main(int argc, char** argv)
   //----------------------------------------------
   while (1)
   {
-    clear_screen();
+    clear_screen(109, 133, 169);
     input(event, &cam);
     
 
@@ -71,7 +71,8 @@ int main(int argc, char** argv)
 
 
 
-    printf("%f %f %f\n", cam.dir.x, cam.dir.y, cam.dir.z);
+    // printf("%f %f %f\n", cam.dir.x, cam.dir.y, cam.dir.z);
+    // printf("%f %f %f\n", cam.pos.x, cam.pos.y, cam.pos.z);
 
 
 

@@ -28,6 +28,7 @@ extern SDL_Texture *window_texture;
 typedef struct Polygon {
   Vector3 vertices[3]; // Array of three vertices
   Vector3 normal_vector;
+  Vector3 fill; // Fill color
 } Polygon;
 
 typedef struct Model {
@@ -47,7 +48,7 @@ typedef struct Pixel {
 Model load_model(char *filepath);
 void draw_model(Camera cam, Model model);
 
-void clear_screen(void);
+void clear_screen(uint8_t r, uint8_t g, uint8_t b);
 void render_screen(SDL_Renderer *ren);
 
 Vector2 project_coordinate(Camera cam, Vector3 pt);
