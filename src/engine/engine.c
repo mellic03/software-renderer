@@ -255,9 +255,9 @@ void triangle_2d(Camera *cam, Vector3 fill, Polygon *tri)
   Vector2 p2 = project_coordinate(&tri->vertices[1]);
   Vector2 p3 = project_coordinate(&tri->vertices[2]);
 
-  line_2d(fill, p1, p2);
-  line_2d(fill, p2, p3);
-  line_2d(fill, p3, p1);
+  line_2d((Vector3){0, 0, 0}, p1, p2);
+  line_2d((Vector3){0, 0, 0}, p2, p3);
+  line_2d((Vector3){0, 0, 0}, p3, p1);
 
   // int lx = MIN(p1.x, MIN(p2.x, p3.x));
   // int hx = MAX(p1.x, MAX(p2.x, p3.x));
@@ -316,8 +316,8 @@ void CLIP_two_outside( Vector3 plane_pos, Vector3 plane_normal, Polygon *tri)
   }
 }
 
-void CLIP_one_outside( Vector3 plane_pos, Vector3 plane_normal, Polygon *tri_in,
-                              Polygon *tri_out_1, Polygon *tri_out_2 )
+void CLIP_one_outside( Camera *cam, Vector3 plane_pos, Vector3 plane_normal, Polygon *tri_in,
+                              Polygon *tri_out_1)
 {
   // find which point is outside plane
   int index_of_outside_point = 10;
@@ -339,48 +339,39 @@ void CLIP_one_outside( Vector3 plane_pos, Vector3 plane_normal, Polygon *tri_in,
     case (0):
       point1 = CLIP_point_of_intersect(plane_pos, plane_normal, tri_in->vertices[0], tri_in->vertices[1]);
       point2 = CLIP_point_of_intersect(plane_pos, plane_normal, tri_in->vertices[0], tri_in->vertices[2]);
-      
-      tri_out_1->vertices[1] = point1;
-      tri_out_1->vertices[2] = point2;
-      tri_out_1->vertices[0] = tri_in->vertices[1];
-
-
-      tri_out_2->vertices[0] = point2;
-      tri_out_2->vertices[1] = tri_in->vertices[2];
-      tri_out_2->vertices[2] = tri_in->vertices[1];
+      tri_out_1->vertices[0] = point1;
+      tri_out_1->vertices[1] = tri_in->vertices[1];
+      tri_out_1->vertices[2] = tri_in->vertices[2];
+      tri_in->vertices[0] = point1;
+      tri_in->vertices[1] = point2;
       break;
 
     case (1):
       point1 = CLIP_point_of_intersect(plane_pos, plane_normal, tri_in->vertices[1], tri_in->vertices[0]);
       point2 = CLIP_point_of_intersect(plane_pos, plane_normal, tri_in->vertices[1], tri_in->vertices[2]);
-
-      tri_out_1->vertices[1] = point1;
-      tri_out_1->vertices[2] = point2;
-      tri_out_1->vertices[0] = tri_in->vertices[0];
-
-
-      tri_out_2->vertices[0] = point2;
-      tri_out_2->vertices[2] = tri_in->vertices[0];
-      tri_out_2->vertices[1] = tri_in->vertices[2];
+      tri_out_1->vertices[0] = point1;
+      tri_out_1->vertices[1] = tri_in->vertices[0];
+      tri_out_1->vertices[2] = tri_in->vertices[2];
+      tri_in->vertices[0] = point1;
+      tri_in->vertices[1] = point2;
       break;
    
     case (2):
       point1 = CLIP_point_of_intersect(plane_pos, plane_normal, tri_in->vertices[2], tri_in->vertices[0]);
       point2 = CLIP_point_of_intersect(plane_pos, plane_normal, tri_in->vertices[2], tri_in->vertices[1]);
-      
-      tri_out_1->vertices[1] = point1;
-      tri_out_1->vertices[2] = point2;
-      tri_out_1->vertices[0] = tri_in->vertices[1];
-
-
-      tri_out_2->vertices[0] = point1;
-      tri_out_2->vertices[1] = tri_in->vertices[1];
-      tri_out_2->vertices[2] = tri_in->vertices[0];
+      tri_out_1->vertices[0] = point2;
+      tri_out_1->vertices[1] = tri_in->vertices[1];
+      tri_out_1->vertices[2] = tri_in->vertices[0];
+      tri_in->vertices[1] = point1;
+      tri_in->vertices[2] = point2;
       break;
     
     case (10): printf("something is wrong\n"); break;
   }
 
+  // clip these two triangles agains planes
+  draw_polygon(cam, tri_in);
+  draw_polygon(cam, tri_out_1);
 }
 
 /** Return the number of points that lay outside the clipping plane.
@@ -390,8 +381,6 @@ int CLIP_points_outside(Vector3 *plane_normal, Polygon *tri)
   float dot1 = vector3_dot(*plane_normal, tri->vertices[0]);
   float dot2 = vector3_dot(*plane_normal, tri->vertices[1]);
   float dot3 = vector3_dot(*plane_normal, tri->vertices[2]);
-
-  // get number of vertices on outside of plane.
   int number_of_points = 0;
   if (dot1 < 0) number_of_points += 1;
   if (dot2 < 0) number_of_points += 1;
@@ -400,46 +389,109 @@ int CLIP_points_outside(Vector3 *plane_normal, Polygon *tri)
   return number_of_points;
 }
 
+/** Return the number of points with positive signed distance to a plane normal
+ * @param index_of_inside index position of point that has +ve distance (if one point is +ve)
+ * @param index_of_outside index position of point that has -ve distance (if one point is -ve)
+ */
+int CLIP_points_inside(Vector3 *plane_normal, Polygon *tri, int *index_of_inside, int *index_of_outside)
+{
+  float dot1 = vector3_dot(*plane_normal, tri->vertices[0]);
+  float dot2 = vector3_dot(*plane_normal, tri->vertices[1]);
+  float dot3 = vector3_dot(*plane_normal, tri->vertices[2]);
+  int number_of_points = 0;
+  if (dot1 > 0) number_of_points += 1;
+  if (dot2 > 0) number_of_points += 1;
+  if (dot3 > 0) number_of_points += 1;
+
+  return number_of_points;
+}
+
+
+/** Return number of triangles to draw
+ * @param plane_normal normal of the plane to clip against
+ * @param tri_in input triangle
+ * @param tri_out output triange, only provided if return value is two.
+ * @return int
+ */
+int CLIP_poly(Vector3 *plane_normal, Polygon *tri_in, Polygon *tri_out)
+{
+  int index_of_inside;
+  int index_of_outside;
+
+  switch (CLIP_points_inside(plane_normal, tri_in, &index_of_inside, &index_of_outside))
+  {
+
+    case (3):
+      return 1;
+    
+    case (0):
+      return 0;
+    
+    case (1):
+      for (int i=0, c=0; i<3; i++)
+      {
+        if (i != index_of_inside)
+        {
+          if (c == 0)
+            tri_in->vertices[i] = CLIP_point_of_intersect((Vector3){0, 0, 0}, *plane_normal, tri_in->vertices[i]);
+          else
+            tri_in->vertices[i] = CLIP_point_of_intersect((Vector3){0, 0, 0}, *plane_normal, tri_in->vertices[i]);
+        }
+      }
+      break;
+
+  }
+
+
+
+}
+
 void draw_polygon(Camera *cam, Polygon *tri)
 {
   Vector3 normals[4] = {cam->l_norm, cam->r_norm, cam->t_norm, cam->b_norm};
 
-  Polygon out1;
-  Polygon out2;
-
-  Polygon tris[3] = {*tri, out1, out2};
-
+  Polygon out1 = *tri;
+  Polygon out2 = *tri;
   bool clipped = false;
 
-  // for each triangle
-  //   for each plane
-  //     clip triangle
-  // draw triangles
+  Polygon clippedtris[9];
 
-  for (int i=0; i<3; i++) // for each polygon
+  bool onepoint = false;
+  bool twopoint = false;
+
+  for (int i=0; i<4; i++) // for each clipping plane
   {
     int n = CLIP_points_outside(&normals[i], tri);
-
-    if (n == 1)
+    switch (n)
     {
-      CLIP_one_outside((Vector3){0, 0, 0}, normals[i], tri, &out1, &out2);
-      triangle_2d(cam, tri->fill, &out1);
-      triangle_2d(cam, tri->fill, &out2);
-      printf("one outside\n");
-      clipped = true;
+      case (1):
+        CLIP_one_outside(cam, (Vector3){0, 0, 0}, normals[i], tri, &out1);
+        printf("one outside\n");
+        onepoint = true;
+        clipped = true;
+        break;
+
+      case (2):
+        CLIP_two_outside((Vector3){0, 0, 0}, normals[i], tri);
+        printf("two outside\n");
+        twopoint = true;
+        clipped = true;
+        break;
+
+      case (3): return;
     }
+  }
 
-    else if (n == 2)
+  if (clipped == true)
+  {
+    if (onepoint)
     {
-      CLIP_two_outside((Vector3){0, 0, 0}, normals[i], tri);
       triangle_2d(cam, tri->fill, tri);
-      printf("two outside\n");
-      clipped = true;
+      triangle_2d(cam, tri->fill, &out1);
     }
-    else if (n >= 3)
+    else if (twopoint)
     {
-      printf("all outside\n");
-      return;
+      triangle_2d(cam, tri->fill, tri);
     }
   }
 

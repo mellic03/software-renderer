@@ -48,6 +48,8 @@ typedef struct Pixel {
 Model load_model(char *filepath);
 void draw_model(Camera cam, Model *model);
 
+void draw_polygon(Camera *cam, Polygon *tri);
+
 void clear_screen(uint8_t r, uint8_t g, uint8_t b);
 void render_screen(SDL_Renderer *ren);
 
