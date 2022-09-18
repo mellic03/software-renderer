@@ -67,7 +67,7 @@ int main(int argc, char** argv)
     
 
 
-    draw_model(cam, &cube);
+    draw_model(cam, &cube, 1);
 
 
 

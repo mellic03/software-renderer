@@ -1,6 +1,7 @@
 #include "vector.h"
 #include <stdio.h>
 #include <math.h>
+#include <stdbool.h>
 
 
 Vector2 vector2_add(Vector2 v1, Vector2 v2)
@@ -70,7 +71,7 @@ float vector3_dist(Vector3 v1, Vector3 v2)
 
 float vector3_dot(Vector3 v1, Vector3 v2)
 {
-  return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
+  return (v1.x*v2.x) + (v1.y*v2.y) + (v1.z*v2.z);
 }
 
 void vector3_normalise(Vector3 *v1)
@@ -79,6 +80,12 @@ void vector3_normalise(Vector3 *v1)
   v1->x /= mag;
   v1->y /= mag;
   v1->z /= mag;
+}
+
+bool vector3_are_same(Vector3 v1, Vector3 v2)
+{
+  float tol = 0.01;
+  return (fabs(v1.x - v2.x) < tol) && (fabs(v1.y - v2.y) < tol) && (fabs(v1.z - v2.z) < tol);
 }
 
 Vector3 vector3_cross(Vector3 v1, Vector3 v2)

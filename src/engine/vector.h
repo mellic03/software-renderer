@@ -1,3 +1,5 @@
+#include <stdbool.h>
+
 #ifndef VECTOR_H
 #define VECTOR_H
 
@@ -26,6 +28,7 @@ float vector3_dist(Vector3 p1, Vector3 p2);
 float vector3_dot(Vector3 v1, Vector3 v2);
 float vector3_angle(Vector3 v1, Vector3 v2);
 void vector3_normalise(Vector3 *v1);
+bool vector3_are_same(Vector3 v1, Vector3 v2);
 
 Vector3 vector3_add(Vector3 v1, Vector3 v2);
 Vector3 vector3_sub(Vector3 v1, Vector3 v2);
