@@ -39,7 +39,6 @@ typedef struct {
   Polygon *polygons; // Array of polygons
   
   Vector3 fill;
-
   SDL_Surface *texture;
 
 } Model;
@@ -63,11 +62,16 @@ void clear_screen(Uint8 r, Uint8 g, Uint8 b);
 void render_screen(SDL_Renderer *ren);
 
 
+int clip_against_plane(Vector3 plane_normal, int poly_count, Polygon *unclipped_triangles, Polygon *clipped_triangles);
+int CLIP_poly(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polygon *tri_out2);
+int CLIP_points_inside(Vector3 plane_normal, Polygon *tri, int *index_of_inside, int *index_of_outside);
+Vector3 CLIP_point_of_intersect(Vector3 plane_normal, Vector3 p1, Vector3 p2, float *t);
+
 
 // INTERNAL
 //-----------------------------------------
 Vector2 project_coordinate(Vector3 *pt);
-int CLIP_poly(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polygon *tri_out2);
+
 
 
 

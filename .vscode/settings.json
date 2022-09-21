@@ -29,6 +29,7 @@
     "pthread.h": "c",
     "*.tcc": "c",
     "future": "c",
-    "time.h": "c"
+    "time.h": "c",
+    "bitset": "c"
   }
 }

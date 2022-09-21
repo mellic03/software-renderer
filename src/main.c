@@ -50,13 +50,6 @@ int main(int argc, char** argv)
   Model plane = load_model("./plane.obj", "./plane.mtl");
   fill_model(&plane, 150, 120, 75);
 
-  Model monkey = load_model("./monkey.obj", "./cube.mtl");
-  rotate_y(monkey, 3.1415);
-  rotate_x(monkey, 3.1415);
-  // fill_model(&monkey, 150, 150, 200);
-  translate_model(&monkey, 0, -5, 5);
-
-
   //------------------------------------------------------------
 
   // Render loop
@@ -72,10 +65,8 @@ int main(int argc, char** argv)
     clear_screen(109, 133, 169);
     input(event, &cam);
 
-    // draw_model(cam, &monkey);
-    draw_model(cam, &plane);
+    // draw_model(cam, &plane);
     draw_model(cam, &cube);
-    rotate_y(monkey, delta_time * 2.5);
 
     cam.pos = vector3_add(cam.pos, cam.vel);
     cam.vel = vector3_scale(cam.vel, 0.7);

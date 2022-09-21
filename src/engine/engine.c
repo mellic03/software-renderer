@@ -308,8 +308,8 @@ void triangle_2d(Camera *cam, Polygon *tri, SDL_Surface *texture)
           z_buffer[SCREEN_WIDTH*y + x] = z_index;
          
           // get interpolated pixel coordinate
-          Uint16 px = (Uint16)((texture->format->BitsPerPixel*3 * (weight_v1*tri->texture_coords[0].x + weight_v2*tri->texture_coords[1].x + weight_v3*tri->texture_coords[2].x)));
-          Uint16 py = (Uint16)((texture->pitch/3 * (weight_v1*tri->texture_coords[0].y + weight_v2*tri->texture_coords[1].y + weight_v3*tri->texture_coords[2].y)));
+          Uint16 px = (Uint16)((75 * (weight_v1*tri->texture_coords[0].x + weight_v2*tri->texture_coords[1].x + weight_v3*tri->texture_coords[2].x)));
+          Uint16 py = (Uint16)((600 * (weight_v1*tri->texture_coords[0].y + weight_v2*tri->texture_coords[1].y + weight_v3*tri->texture_coords[2].y)));
           px %= 600;
           py %= 600;
 
@@ -317,11 +317,8 @@ void triangle_2d(Camera *cam, Polygon *tri, SDL_Surface *texture)
           Uint8 *green = ((Uint8 *)texture->pixels + (py * texture->pitch) + (px * texture->format->BitsPerPixel + 1));
           Uint8 *red   = ((Uint8 *)texture->pixels + (py * texture->pitch) + (px * texture->format->BitsPerPixel + 2));
 
-          Uint8 b = *blue  + (Uint8)tri->fill.x;
-          Uint8 g = *green + (Uint8)tri->fill.x;
-          Uint8 r = *red   + (Uint8)tri->fill.x;
 
-          set_pixel(x, y, r, g, b);
+          set_pixel(x, y, (120 - *red)%255, (120 - *green)%255, (120 - *blue)%255);
         }
       }
     }
@@ -354,7 +351,7 @@ int CLIP_points_inside(Vector3 plane_normal, Polygon *tri, int *index_of_inside,
   if (dot2 > 0) number_of_inside += 1;
   if (dot3 > 0) number_of_inside += 1;
 
-  // printf("d0: %f, d1: %f, d2: %f\n", dot1, dot2, dot3);
+  // printf("d0: %f, d1: %f, d2: %f, count: %d\n", dot1, dot2, dot3, number_of_inside);
 
   if (dot1 > dot2 && dot1 > dot3) *index_of_inside = 0;
   else if (dot2 > dot1 && dot2 > dot3) *index_of_inside = 1;
@@ -366,23 +363,215 @@ int CLIP_points_inside(Vector3 plane_normal, Polygon *tri, int *index_of_inside,
   return number_of_inside;
 }
 
+/** Clip triangles to a plane
+ * @param tri_in input triangle
+ * @param tri_out1 first possible output triangle
+ * @param tri_out2 second possible output triangle
+ * @return number of triangles formed due to clipping
+ */
+int CLIP_poly(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polygon *tri_out2)
+{
+  int index_of_inside = 0;
+  int index_of_outside = 0;
+
+  Vector3 A, B, C;
+  Vector3 A_prime, B_prime, C_prime;
+
+  float t1, t2;
+
+  // number of points inside of plane
+  int n = CLIP_points_inside(plane_normal, tri_in, &index_of_inside, &index_of_outside);
+  // printf("n: %d\n", n);
+  Vector2 tex_Aprime, tex_Bprime, tex_Cprime;
+
+  switch (n)
+  {
+    case (0): return 0; // all outside
+    case (3): return 1; // all inside
+
+    case (1): // two outside, one inside
+      switch (index_of_inside)
+      {
+        case (0):
+          A = tri_in->vertices[0];
+          B = tri_in->vertices[1];
+          C = tri_in->vertices[2];
+
+          B_prime = CLIP_point_of_intersect(plane_normal, A, B, &t1);
+          C_prime = CLIP_point_of_intersect(plane_normal, A, C, &t2);
+          tex_Bprime = (Vector2){ tri_in->texture_coords[0].x + t1*(tri_in->texture_coords[1].x - tri_in->texture_coords[0].x),
+                                  tri_in->texture_coords[0].y + t1*(tri_in->texture_coords[1].y - tri_in->texture_coords[0].y),
+                                  1 };
+          tex_Cprime = (Vector2){ tri_in->texture_coords[0].x + t2*(tri_in->texture_coords[2].x - tri_in->texture_coords[0].x),
+                                  tri_in->texture_coords[0].y + t2*(tri_in->texture_coords[2].y - tri_in->texture_coords[0].y),
+                                  1 };
+
+          tri_in->texture_coords[1] = tex_Bprime;
+          tri_in->texture_coords[2] = tex_Cprime;
+          tri_in->vertices[0] = A;
+          tri_in->vertices[1] = B_prime;
+          tri_in->vertices[2] = C_prime;
+          break;
+
+        case (1):
+          A = tri_in->vertices[1];
+          B = tri_in->vertices[0];
+          C = tri_in->vertices[2];
+
+          B_prime = CLIP_point_of_intersect(plane_normal, A, B, &t1);
+          C_prime = CLIP_point_of_intersect(plane_normal, A, C, &t2);
+          tex_Bprime = (Vector2){ tri_in->texture_coords[1].x + t1*(tri_in->texture_coords[0].x - tri_in->texture_coords[1].x),
+                                  tri_in->texture_coords[1].y + t1*(tri_in->texture_coords[0].y - tri_in->texture_coords[1].y),
+                                  1 };
+          tex_Cprime = (Vector2){ tri_in->texture_coords[1].x + t2*(tri_in->texture_coords[2].x - tri_in->texture_coords[1].x),
+                                  tri_in->texture_coords[1].y + t2*(tri_in->texture_coords[2].y - tri_in->texture_coords[1].y),
+                                  1 };
+
+          tri_in->texture_coords[1] = tex_Bprime;
+          tri_in->texture_coords[2] = tex_Cprime;
+          tri_in->vertices[0] = A;
+          tri_in->vertices[1] = B_prime;
+          tri_in->vertices[2] = C_prime;
+          break;
+
+        case (2):
+          A = tri_in->vertices[2];
+          B = tri_in->vertices[0];
+          C = tri_in->vertices[1];
+
+          B_prime = CLIP_point_of_intersect(plane_normal, A, B, &t1);
+          C_prime = CLIP_point_of_intersect(plane_normal, A, C, &t2);
+          tex_Bprime = (Vector2){ tri_in->texture_coords[2].x + t1*(tri_in->texture_coords[0].x - tri_in->texture_coords[2].x),
+                                  tri_in->texture_coords[2].y + t1*(tri_in->texture_coords[0].y - tri_in->texture_coords[2].y),
+                                  1 };
+          tex_Cprime = (Vector2){ tri_in->texture_coords[2].x + t2*(tri_in->texture_coords[1].x - tri_in->texture_coords[2].x),
+                                  tri_in->texture_coords[2].y + t2*(tri_in->texture_coords[1].y - tri_in->texture_coords[2].y),
+                                  1 };
+
+          tri_in->texture_coords[0] = tex_Bprime;
+          tri_in->texture_coords[1] = tex_Cprime;
+
+          tri_in->vertices[2] = A;
+          tri_in->vertices[0] = B_prime;
+          tri_in->vertices[1] = C_prime;
+          break;
+      }
+
+      return 1;
+
+
+    case (2): // one outside, two inside
+      switch (index_of_outside)
+      {
+        case (0):
+          C = tri_in->vertices[0];
+          A = tri_in->vertices[1];
+          B = tri_in->vertices[2];
+
+          A_prime = CLIP_point_of_intersect(plane_normal, A, C, &t1);
+          B_prime = CLIP_point_of_intersect(plane_normal, B, C, &t2);
+          
+          tex_Aprime = (Vector2){  tri_in->texture_coords[1].x + t1*(tri_in->texture_coords[0].x - tri_in->texture_coords[1].x),
+                                  tri_in->texture_coords[1].y + t1*(tri_in->texture_coords[0].y - tri_in->texture_coords[1].y),
+                                  1 };
+
+          tex_Bprime = (Vector2){  tri_in->texture_coords[2].x + t2*(tri_in->texture_coords[0].x - tri_in->texture_coords[2].x),
+                                  tri_in->texture_coords[2].y + t2*(tri_in->texture_coords[0].y - tri_in->texture_coords[2].y),
+                                  1 };
+
+          tri_out1->texture_coords[0] = tri_in->texture_coords[1];
+          tri_out1->texture_coords[1] = tri_in->texture_coords[2];
+          tri_out1->texture_coords[2] = tex_Aprime;
+
+          tri_out2->texture_coords[0] = tex_Aprime;
+          tri_out2->texture_coords[1] = tri_in->texture_coords[2];
+          tri_out2->texture_coords[2] = tex_Bprime;
+
+          break;
+
+        case (1):
+          C = tri_in->vertices[1];
+          A = tri_in->vertices[0];
+          B = tri_in->vertices[2];
+
+          A_prime = CLIP_point_of_intersect(plane_normal, A, C, &t1);
+          B_prime = CLIP_point_of_intersect(plane_normal, B, C, &t2);
+          
+          tex_Aprime = (Vector2){  tri_in->texture_coords[0].x + t1*(tri_in->texture_coords[1].x - tri_in->texture_coords[0].x),
+                                  tri_in->texture_coords[0].y + t1*(tri_in->texture_coords[1].y - tri_in->texture_coords[0].y),
+                                  1 };
+
+          tex_Bprime = (Vector2){  tri_in->texture_coords[2].x + t2*(tri_in->texture_coords[1].x - tri_in->texture_coords[2].x),
+                                  tri_in->texture_coords[2].y + t2*(tri_in->texture_coords[1].y - tri_in->texture_coords[2].y),
+                                  1 };
+
+          tri_out1->texture_coords[0] = tri_in->texture_coords[0];
+          tri_out1->texture_coords[1] = tri_in->texture_coords[2];
+          tri_out1->texture_coords[2] = tex_Aprime;
+
+          tri_out2->texture_coords[0] = tex_Aprime;
+          tri_out2->texture_coords[1] = tri_in->texture_coords[2];
+          tri_out2->texture_coords[2] = tex_Bprime;
+          break;
+
+
+        case (2):
+          C = tri_in->vertices[2];
+          A = tri_in->vertices[0];
+          B = tri_in->vertices[1];
+
+          A_prime = CLIP_point_of_intersect(plane_normal, A, C, &t1);
+          B_prime = CLIP_point_of_intersect(plane_normal, B, C, &t2);
+
+          tex_Aprime = (Vector2){  tri_in->texture_coords[0].x + t1*(tri_in->texture_coords[2].x - tri_in->texture_coords[0].x),
+                                  tri_in->texture_coords[0].y + t1*(tri_in->texture_coords[2].y - tri_in->texture_coords[0].y),
+                                  1 };
+
+          tex_Bprime = (Vector2){  tri_in->texture_coords[1].x + t2*(tri_in->texture_coords[2].x - tri_in->texture_coords[1].x),
+                                  tri_in->texture_coords[1].y + t2*(tri_in->texture_coords[2].y - tri_in->texture_coords[1].y),
+                                  1 };
+
+          tri_out1->texture_coords[0] = tri_in->texture_coords[0];
+          tri_out1->texture_coords[1] = tri_in->texture_coords[1];
+          tri_out1->texture_coords[2] = tex_Aprime;
+
+          tri_out2->texture_coords[0] = tex_Aprime;
+          tri_out2->texture_coords[1] = tri_in->texture_coords[1];
+          tri_out2->texture_coords[2] = tex_Bprime;
+          
+          break;
+      }
+
+      // u' = u1 + t(u2 - u1);
+
+      tri_out1->vertices[0] = A;
+      tri_out1->vertices[1] = B;
+      tri_out1->vertices[2] = A_prime;
+
+      tri_out2->vertices[0] = A_prime;
+      tri_out2->vertices[1] = B;
+      tri_out2->vertices[2] = B_prime;
+      return 2;
+  }
+
+  return -1;
+}
+
 /** clip a polygon against a plane
  * 
  * @param tris array of polygons to clip. altered by function
  * @param clipped_triangles array of clipped polygons
  * @return number of polygons formed due to clipping
  */
-int CLIP_against_plane(Vector3 plane_normal, int poly_count, Polygon *unclipped_triangles, Polygon *clipped_triangles)
+int clip_against_plane(Vector3 plane_normal, int poly_count, Polygon *unclipped_triangles, Polygon *clipped_triangles)
 {
   int unclipped_index = 0;
   int clipped_index = 0;
 
   while (unclipped_index < poly_count)  
   {
-    Polygon tri1;
-    tri1 = unclipped_triangles[unclipped_index];
-    Polygon tri2;
-    tri2 = unclipped_triangles[unclipped_index];
+    Polygon tri1 = unclipped_triangles[unclipped_index];
+    Polygon tri2 = unclipped_triangles[unclipped_index];
 
     // n == number of triangles formed due to clipping
     int n = CLIP_poly(plane_normal, &unclipped_triangles[unclipped_index], &tri1, &tri2);
@@ -408,167 +597,25 @@ int CLIP_against_plane(Vector3 plane_normal, int poly_count, Polygon *unclipped_
   return clipped_index;
 }
 
-/** Clip triangles to a plane
- * @param tri_in input triangle
- * @param tri_out1 first possible output triangle
- * @param tri_out2 second possible output triangle
- * @return number of triangles formed due to clipping
- */
-int CLIP_poly(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polygon *tri_out2)
+Polygon *clip_against_planes(Camera *cam, int in_size, Polygon *polygons_in, int *out_size)
 {
-  int index_of_inside = 0;
-  int index_of_outside = 0;
+  Polygon *clipped_1 = (Polygon *)malloc(in_size*2 * sizeof(Polygon));
+  int n = clip_against_plane(cam->l_norm, in_size, polygons_in, clipped_1);
 
-  // n ==  number of points inside of plane
-  int n = CLIP_points_inside(plane_normal, tri_in, &index_of_inside, &index_of_outside);
-  Vector3 A, B, C;
-  Vector3 A_prime, B_prime, C_prime;
-  // printf("in: tris[%d], out: tris[%d]\n", index_of_inside, index_of_outside);
+  Polygon *clipped_2 = (Polygon *)malloc(n*2 * sizeof(Polygon));
+  n = clip_against_plane(cam->r_norm, n, clipped_1, clipped_2);
 
-  float t1, t2;
+  Polygon *clipped_3 = (Polygon *)malloc(n*2 * sizeof(Polygon));
+  n = clip_against_plane(cam->t_norm, n, clipped_2, clipped_3);
   
-  switch (n)
-  {
-    case (3):
-      return 1;
-    
-    case (0):
-      return 0;
-    
-    case (1):
-      A = tri_in->vertices[index_of_inside];
-      switch (index_of_inside)
-      {
-        case (0):
-          B_prime = CLIP_point_of_intersect(plane_normal, A, tri_in->vertices[1], &t1);
-          C_prime = CLIP_point_of_intersect(plane_normal, A, tri_in->vertices[2], &t2);
+  Polygon *clipped_4 = (Polygon *)malloc(n*2 * sizeof(Polygon));
+  *out_size = clip_against_plane(cam->b_norm, n, clipped_3, clipped_4);
 
-          tri_in->texture_coords[1].x = tri_in->texture_coords[0].x + t1*(tri_in->texture_coords[1].x - tri_in->texture_coords[0].x);
-          tri_in->texture_coords[1].y = tri_in->texture_coords[0].y + t1*(tri_in->texture_coords[1].y - tri_in->texture_coords[0].y);
-          tri_in->texture_coords[2].x = tri_in->texture_coords[0].x + t2*(tri_in->texture_coords[2].x - tri_in->texture_coords[0].x);
-          tri_in->texture_coords[2].y = tri_in->texture_coords[0].y + t2*(tri_in->texture_coords[2].y - tri_in->texture_coords[0].y);
+  free(clipped_1);
+  free(clipped_2);
+  free(clipped_3);
 
-          tri_in->vertices[1] = B_prime;
-          tri_in->vertices[2] = C_prime;
-          break;
-        
-        case (1):
-          B_prime = CLIP_point_of_intersect(plane_normal, A, tri_in->vertices[0], &t1);
-          C_prime = CLIP_point_of_intersect(plane_normal, A, tri_in->vertices[2], &t2);
-
-          tri_in->texture_coords[0].x = tri_in->texture_coords[1].x + t1*(tri_in->texture_coords[0].x - tri_in->texture_coords[1].x);
-          tri_in->texture_coords[0].y = tri_in->texture_coords[1].y + t1*(tri_in->texture_coords[0].y - tri_in->texture_coords[1].y);
-          tri_in->texture_coords[2].x = tri_in->texture_coords[1].x + t2*(tri_in->texture_coords[2].x - tri_in->texture_coords[1].x);
-          tri_in->texture_coords[2].y = tri_in->texture_coords[1].y + t2*(tri_in->texture_coords[2].y - tri_in->texture_coords[1].y);
-
-          tri_in->vertices[0] = B_prime;
-          tri_in->vertices[2] = C_prime;
-          break;
-
-        case (2):
-          B_prime = CLIP_point_of_intersect(plane_normal, A, tri_in->vertices[0], &t1);
-          C_prime = CLIP_point_of_intersect(plane_normal, A, tri_in->vertices[1], &t2);
-
-          tri_in->texture_coords[1].x = tri_in->texture_coords[2].x + t1*(tri_in->texture_coords[1].x - tri_in->texture_coords[2].x);
-          tri_in->texture_coords[1].y = tri_in->texture_coords[2].y + t1*(tri_in->texture_coords[1].y - tri_in->texture_coords[2].y);
-          tri_in->texture_coords[0].x = tri_in->texture_coords[2].x + t2*(tri_in->texture_coords[0].x - tri_in->texture_coords[2].x);
-          tri_in->texture_coords[0].y = tri_in->texture_coords[2].y + t2*(tri_in->texture_coords[0].y - tri_in->texture_coords[2].y);
-
-          tri_in->vertices[0] = B_prime;
-          tri_in->vertices[1] = C_prime;
-          break;
-      }
-      return 1;
-
-    case (2):
-      C = tri_in->vertices[index_of_outside];
-      switch (index_of_outside)
-      {
-        case (0):
-          A = tri_in->vertices[1];
-          B = tri_in->vertices[2];
-          A_prime = CLIP_point_of_intersect(plane_normal, C, A, &t1);
-          B_prime = CLIP_point_of_intersect(plane_normal, C, B, &t2);
-
-          tri_out1->texture_coords[0] = tri_in->texture_coords[2];
-          tri_out1->texture_coords[1].x = tri_in->texture_coords[0].x + t1*(tri_in->texture_coords[1].x - tri_in->texture_coords[0].x);
-          tri_out1->texture_coords[1].y = tri_in->texture_coords[0].y + t1*(tri_in->texture_coords[1].y - tri_in->texture_coords[0].y);
-          tri_out1->texture_coords[2].x = tri_in->texture_coords[0].x + t2*(tri_in->texture_coords[2].x - tri_in->texture_coords[0].x);
-          tri_out1->texture_coords[2].y = tri_in->texture_coords[0].y + t2*(tri_in->texture_coords[2].y - tri_in->texture_coords[0].y);
-
-          tri_out2->texture_coords[1] = tri_in->texture_coords[2];
-          tri_out2->texture_coords[2].x = tri_in->texture_coords[0].x + t1*(tri_in->texture_coords[1].x - tri_in->texture_coords[0].x);
-          tri_out2->texture_coords[2].y = tri_in->texture_coords[0].y + t1*(tri_in->texture_coords[1].y - tri_in->texture_coords[0].y);
-          tri_out2->texture_coords[0] = tri_in->texture_coords[1];
-
-          tri_out1->vertices[0] = B;
-          tri_out1->vertices[1] = A_prime;
-          tri_out1->vertices[2] = B_prime;
-
-          tri_out2->vertices[0] = A;
-          tri_out2->vertices[1] = B;
-          tri_out2->vertices[2] = A_prime;
-
-          break;
-
-        case (1):
-          A = tri_in->vertices[0];
-          B = tri_in->vertices[2];
-          A_prime = CLIP_point_of_intersect(plane_normal, C, A, &t1);
-          B_prime = CLIP_point_of_intersect(plane_normal, C, B, &t2);
-
-          tri_out1->texture_coords[0] = tri_in->texture_coords[2];
-          tri_out1->texture_coords[1].x = tri_in->texture_coords[1].x + t1*(tri_in->texture_coords[0].x - tri_in->texture_coords[1].x);
-          tri_out1->texture_coords[1].y = tri_in->texture_coords[1].y + t1*(tri_in->texture_coords[0].y - tri_in->texture_coords[1].y);
-          tri_out1->texture_coords[2].x = tri_in->texture_coords[1].x + t2*(tri_in->texture_coords[2].x - tri_in->texture_coords[1].x);
-          tri_out1->texture_coords[2].y = tri_in->texture_coords[1].y + t2*(tri_in->texture_coords[2].y - tri_in->texture_coords[1].y);
-
-          tri_out2->texture_coords[1] = tri_in->texture_coords[2];
-          tri_out2->texture_coords[2].x = tri_in->texture_coords[1].x + t1*(tri_in->texture_coords[0].x - tri_in->texture_coords[1].x);
-          tri_out2->texture_coords[2].y = tri_in->texture_coords[1].y + t1*(tri_in->texture_coords[0].y - tri_in->texture_coords[1].y);
-          tri_out2->texture_coords[0] = tri_in->texture_coords[0];
-
-          tri_out1->vertices[0] = B;
-          tri_out1->vertices[1] = A_prime;
-          tri_out1->vertices[2] = B_prime;
-
-          tri_out2->vertices[0] = A;
-          tri_out2->vertices[1] = B;
-          tri_out2->vertices[2] = A_prime;
-
-          break;
-
-        case (2):
-          A = tri_in->vertices[0];
-          B = tri_in->vertices[1];
-          A_prime = CLIP_point_of_intersect(plane_normal, C, A, &t1);
-          B_prime = CLIP_point_of_intersect(plane_normal, C, B, &t2);
-
-          tri_out1->texture_coords[0] = tri_in->texture_coords[0];
-          tri_out1->texture_coords[1].x = tri_in->texture_coords[2].x + t1*(tri_in->texture_coords[0].x - tri_in->texture_coords[2].x);
-          tri_out1->texture_coords[1].y = tri_in->texture_coords[2].y + t1*(tri_in->texture_coords[0].y - tri_in->texture_coords[2].y);
-          tri_out1->texture_coords[2].x = tri_in->texture_coords[2].x + t2*(tri_in->texture_coords[1].x - tri_in->texture_coords[2].x);
-          tri_out1->texture_coords[2].y = tri_in->texture_coords[2].y + t2*(tri_in->texture_coords[1].y - tri_in->texture_coords[2].y);
-
-          tri_out2->texture_coords[1] = tri_in->texture_coords[1];
-          tri_out2->texture_coords[2].x = tri_in->texture_coords[2].x + t1*(tri_in->texture_coords[1].x - tri_in->texture_coords[2].x);
-          tri_out2->texture_coords[2].y = tri_in->texture_coords[2].y + t1*(tri_in->texture_coords[1].y - tri_in->texture_coords[2].y);
-          tri_out2->texture_coords[0] = tri_in->texture_coords[0];
-
-          tri_out1->vertices[0] = A;
-          tri_out1->vertices[1] = A_prime;
-          tri_out1->vertices[2] = B_prime;
-
-          tri_out2->vertices[0] = A;
-          tri_out2->vertices[1] = B;
-          tri_out2->vertices[2] = B_prime;
-          break;
-      }
-
-
-      return 2;
-  }
-  return -1;
+  return clipped_4;
 }
 
 void draw_model(Camera cam, Model *model)
@@ -601,29 +648,15 @@ void draw_model(Camera cam, Model *model)
     }
   }
 
-  Polygon *clipped_1 = (Polygon *)malloc(frontface_count*2 * sizeof(Polygon));
-  int n = CLIP_against_plane(cam.l_norm, frontface_count, front_faces, clipped_1);
+  int clipped_count;
+  Polygon *clipped_polygons = clip_against_planes(&cam, frontface_count, front_faces, &clipped_count);
 
-  Polygon *clipped_2 = (Polygon *)malloc(n*2 * sizeof(Polygon));
-  n = CLIP_against_plane(cam.r_norm, n, clipped_1, clipped_2);
-
-  Polygon *clipped_3 = (Polygon *)malloc(n*2 * sizeof(Polygon));
-  n = CLIP_against_plane(cam.t_norm, n, clipped_2, clipped_3);
-  
-  Polygon *clipped_4 = (Polygon *)malloc(n*2 * sizeof(Polygon));
-  n = CLIP_against_plane(cam.b_norm, n, clipped_3, clipped_4);
-  
-  for (int i=0; i<n; i++)
-  {
-    triangle_2d(&cam, &clipped_4[i], model->texture);
-  }
+  for (int i=0; i<clipped_count; i++)
+    triangle_2d(&cam, &clipped_polygons[i], model->texture);
 
   free(frontface_indices);
   free(front_faces);
-  free(clipped_1);
-  free(clipped_2);
-  free(clipped_3);
-  free(clipped_4);
+  free(clipped_polygons);
 }
 //-------------------------------------------------------------------------------
 
@@ -634,7 +667,7 @@ Vector2 project_coordinate(Vector3 *pt)
 {
   float nearplane_width = HALF_SCREEN_WIDTH;
   float nearplane_height = HALF_SCREEN_HEIGHT;
-  float nearplane_z = 0.9999;
+  float nearplane_z = 0.999;
 
   float canvas_x = (nearplane_z/pt->z) * pt->x * nearplane_z * nearplane_width;
   float canvas_y = (nearplane_z/pt->z) * pt->y * nearplane_z * nearplane_height;
