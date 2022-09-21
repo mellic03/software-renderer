@@ -330,7 +330,7 @@ void triangle_2d(Camera *cam, Polygon *tri, SDL_Surface *texture)
         float v = (weight_v1*tri->texture_coords[0].y + weight_v2*tri->texture_coords[1].y + weight_v3*tri->texture_coords[2].y);
         float w = (weight_v1*tri->vertices[0].z + weight_v2*tri->vertices[1].z + weight_v3*tri->vertices[2].z);
         
-        float z_reciprocal = w;
+        float z_reciprocal = 1/w;
         float u_correct = u * z_reciprocal;
         float v_correct = v * z_reciprocal;
 
@@ -347,10 +347,11 @@ void triangle_2d(Camera *cam, Polygon *tri, SDL_Surface *texture)
           // float dv2 = tri->texture_coords[2].y - tri->texture_coords[1].y;
           // float dw2 = tri->texture_coords[2].w - tri->texture_coords[1].w;
 
-          Uint16 px = (Uint16)(75 * (u_correct));
-          Uint16 py = (Uint16)(600 * (u_correct));
-          // printf("px: %u, py: %u\n", px, py);
-
+          int px = 75 * (weight_v1*x + weight_v2*x + weight_v3*x);
+          int py = 600 * (weight_v1*y + weight_v2*y + weight_v3*y);
+          // printf("px: %d, py: %d\n", px, py);
+          px %= 600;
+          py %= 600;
           Uint8 *blue  = ((Uint8 *)texture->pixels + ((Uint16)py * texture->pitch) + ((Uint16)px * texture->format->BitsPerPixel + 0));
           Uint8 *green = ((Uint8 *)texture->pixels + ((Uint16)py * texture->pitch) + ((Uint16)px * texture->format->BitsPerPixel + 1));
           Uint8 *red   = ((Uint8 *)texture->pixels + ((Uint16)py * texture->pitch) + ((Uint16)px * texture->format->BitsPerPixel + 2));
@@ -714,7 +715,7 @@ Vector2 project_coordinate(Vector3 *pt)
   canvas_x += HALF_SCREEN_WIDTH;
   canvas_y += HALF_SCREEN_HEIGHT;
 
-  return (Vector2){canvas_x, canvas_y, nearplane_z/pt->z};
+  return (Vector2){canvas_x, canvas_y, pt->z};
 }
 
 
