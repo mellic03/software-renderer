@@ -280,6 +280,24 @@ void triangle_2d(Camera *cam, Polygon *tri, SDL_Surface *texture)
   Vector2 v2 = project_coordinate(&tri->vertices[1]);
   Vector2 v3 = project_coordinate(&tri->vertices[2]);
 
+  Vector2 inv_v1 = (Vector2){v1.x/v1.w, v1.y/v1.w, 1/v1.w};
+  Vector2 inv_v2 = (Vector2){v2.x/v2.w, v2.y/v2.w, 1/v2.w};
+  Vector2 inv_v3 = (Vector2){v3.x/v3.w, v3.y/v3.w, 1/v3.w};
+
+
+  float tex_1_x = tri->texture_coords[0].x / v1.w;
+  float tex_1_y = tri->texture_coords[0].y / v1.w;
+
+  float tex_2_x = tri->texture_coords[1].x / v2.w;
+  float tex_2_y = tri->texture_coords[1].y / v2.w;
+
+  float tex_3_x = tri->texture_coords[2].x / v3.w;
+  float tex_3_y = tri->texture_coords[2].y / v3.w;
+
+  float tex_1_w = 1 / v1.w;
+  float tex_2_w = 1 / v2.w;
+  float tex_3_w = 1 / v3.w;
+
   // line_2d(tri->fill, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1});
   // line_2d(tri->fill, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1});
   // line_2d(tri->fill, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1});
@@ -298,27 +316,46 @@ void triangle_2d(Camera *cam, Polygon *tri, SDL_Surface *texture)
         Vector2 p = (Vector2){x, y, 1};
 
         // barycentric
-        float weight_v1 = ((v2.y-v3.y)*(p.x-v3.x)+(v3.x-v2.x)*(p.y-v3.y))/((v2.y-v3.y)*(v1.x-v3.x)+(v3.x-v2.x)*(v1.y-v3.y));
-        float weight_v2 = ((v3.y-v1.y)*(p.x-v3.x)+(v1.x-v3.x)*(p.y-v3.y))/((v2.y-v3.y)*(v1.x-v3.x)+(v3.x-v2.x)*(v1.y-v3.y));
+        float weight_v1 = ((v2.y-v3.y)*(p.x-v3.x) + (v3.x-v2.x)*(p.y-v3.y)) / ((v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y));
+        float weight_v2 = ((v3.y-v1.y)*(p.x-v3.x) + (v1.x-v3.x)*(p.y-v3.y)) / ((v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y));
         float weight_v3 = 1 - weight_v1 - weight_v2;
         float z_index = tri->vertices[0].z*weight_v1 + tri->vertices[1].z*weight_v2 + tri->vertices[2].z*weight_v3;
+
+        // perspective-corrected
+        float weight_tex_1 = ((tex_2_y-tex_3_y)*(p.x-tex_3_x) + (tex_3_x-tex_2_x)*(p.y-tex_3_y)) / ((tex_2_y-tex_3_y)*(tex_1_x-v3.x) + (tex_3_x-tex_2_x)*(tex_1_y-tex_3_y));
+        float weight_tex_2 = ((tex_3_y-tex_1_y)*(p.x-tex_3_x) + (tex_1_x-tex_3_x)*(p.y-tex_3_y)) / ((tex_2_y-tex_3_y)*(tex_1_x-v3.x) + (tex_3_x-tex_2_x)*(tex_1_y-tex_3_y));
+        float weight_tex_3 = 1 - weight_tex_1 - weight_tex_2;
         
+        float u = (weight_v1*tri->texture_coords[0].x + weight_v2*tri->texture_coords[1].x + weight_v3*tri->texture_coords[2].x);
+        float v = (weight_v1*tri->texture_coords[0].y + weight_v2*tri->texture_coords[1].y + weight_v3*tri->texture_coords[2].y);
+        float w = (weight_v1*tri->vertices[0].z + weight_v2*tri->vertices[1].z + weight_v3*tri->vertices[2].z);
+        
+        float z_reciprocal = w;
+        float u_correct = u * z_reciprocal;
+        float v_correct = v * z_reciprocal;
+
+
         if (z_index < z_buffer[SCREEN_WIDTH*y + x])
         {
           z_buffer[SCREEN_WIDTH*y + x] = z_index;
-         
-          // get interpolated pixel coordinate
-          Uint16 px = (Uint16)((75 * (weight_v1*tri->texture_coords[0].x + weight_v2*tri->texture_coords[1].x + weight_v3*tri->texture_coords[2].x)));
-          Uint16 py = (Uint16)((600 * (weight_v1*tri->texture_coords[0].y + weight_v2*tri->texture_coords[1].y + weight_v3*tri->texture_coords[2].y)));
-          px %= 600;
-          py %= 600;
 
-          Uint8 *blue  = ((Uint8 *)texture->pixels + (py * texture->pitch) + (px * texture->format->BitsPerPixel + 0));
-          Uint8 *green = ((Uint8 *)texture->pixels + (py * texture->pitch) + (px * texture->format->BitsPerPixel + 1));
-          Uint8 *red   = ((Uint8 *)texture->pixels + (py * texture->pitch) + (px * texture->format->BitsPerPixel + 2));
+          // float du1 = tri->texture_coords[1].x - tri->texture_coords[0].x;
+          // float dv1 = tri->texture_coords[1].y - tri->texture_coords[0].y;
+          // float dw1 = tri->texture_coords[1].w - tri->texture_coords[0].w;
 
+          // float du2 = tri->texture_coords[2].x - tri->texture_coords[1].x;
+          // float dv2 = tri->texture_coords[2].y - tri->texture_coords[1].y;
+          // float dw2 = tri->texture_coords[2].w - tri->texture_coords[1].w;
 
-          set_pixel(x, y, (120 - *red)%255, (120 - *green)%255, (120 - *blue)%255);
+          Uint16 px = (Uint16)(75 * (u_correct));
+          Uint16 py = (Uint16)(600 * (u_correct));
+          // printf("px: %u, py: %u\n", px, py);
+
+          Uint8 *blue  = ((Uint8 *)texture->pixels + ((Uint16)py * texture->pitch) + ((Uint16)px * texture->format->BitsPerPixel + 0));
+          Uint8 *green = ((Uint8 *)texture->pixels + ((Uint16)py * texture->pitch) + ((Uint16)px * texture->format->BitsPerPixel + 1));
+          Uint8 *red   = ((Uint8 *)texture->pixels + ((Uint16)py * texture->pitch) + ((Uint16)px * texture->format->BitsPerPixel + 2));
+
+          set_pixel(x, y, *red, *green, *blue);
         }
       }
     }
@@ -342,6 +379,9 @@ Vector3 CLIP_point_of_intersect(Vector3 plane_normal, Vector3 p1, Vector3 p2, fl
  */
 int CLIP_points_inside(Vector3 plane_normal, Polygon *tri, int *index_of_inside, int *index_of_outside)
 {
+  *index_of_inside = 0;
+  *index_of_outside = 0;
+
   float dot1 = vector3_dot(plane_normal, tri->vertices[0]);
   float dot2 = vector3_dot(plane_normal, tri->vertices[1]);
   float dot3 = vector3_dot(plane_normal, tri->vertices[2]);
@@ -427,11 +467,11 @@ int CLIP_poly(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polygon 
                                   tri_in->texture_coords[1].y + t2*(tri_in->texture_coords[2].y - tri_in->texture_coords[1].y),
                                   1 };
 
-          tri_in->texture_coords[1] = tex_Bprime;
-          tri_in->texture_coords[2] = tex_Cprime;
-          tri_in->vertices[0] = A;
-          tri_in->vertices[1] = B_prime;
-          tri_in->vertices[2] = C_prime;
+          tri_in->texture_coords[2] = tex_Bprime;
+          tri_in->texture_coords[0] = tex_Cprime;
+          tri_in->vertices[1] = A;
+          tri_in->vertices[2] = B_prime;
+          tri_in->vertices[0] = C_prime;
           break;
 
         case (2):
@@ -840,6 +880,10 @@ Model load_model(char *filepath, char *material)
 {
   Model model;
   model.pos = (Vector3){0, 0, 0};
+  model.normal_count = 0;
+  model.polygon_count = 0;
+  model.tex_coord_count = 0;
+  model.vertex_count = 0;
 
   FILE *fh = fopen(filepath, "r");
   if (fh == NULL)

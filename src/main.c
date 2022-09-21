@@ -47,7 +47,7 @@ int main(int argc, char** argv)
   // fill_model(&cube, 150, 120, 75);
   translate_model(&cube, 0, -2, 0);
 
-  Model plane = load_model("./plane.obj", "./plane.mtl");
+  Model plane = load_model("./inside.obj", "./inside.mtl");
   fill_model(&plane, 150, 120, 75);
 
   //------------------------------------------------------------
