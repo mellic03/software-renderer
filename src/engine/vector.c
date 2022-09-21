@@ -1,12 +1,12 @@
 #include "vector.h"
 #include <stdio.h>
 #include <math.h>
-#include <stdbool.h>
+
 
 
 Vector2 vector2_add(Vector2 v1, Vector2 v2)
 {
-  return (Vector2){v1.x+v2.x, v1.y+v2.y};
+  return (Vector2){v1.x+v2.x, v1.y+v2.y, 1};
 }
 
 float vector2_dot(Vector2 v1, Vector2 v2)
@@ -30,19 +30,39 @@ float vector2_angle(Vector2 v1, Vector2 v2)
  */
 Vector2 vector2_scale(Vector2 v1, float scalar)
 {
-  return (Vector2){v1.x * scalar, v1.y * scalar};
+  return (Vector2){v1.x * scalar, v1.y * scalar, 1};
 }
 
 Vector2 vector2_sub(Vector2 v1, Vector2 v2)
 {
-  return (Vector2){v1.x-v2.x, v1.y-v2.y};
+  return (Vector2){v1.x-v2.x, v1.y-v2.y, 1};
 }
 
-Vector3 vector3_scale(Vector3 v1, float scalar)
+float vector2_mag(Vector2 v)
 {
-  return (Vector3){v1.x * scalar, v1.y * scalar, v1.z * scalar};
+  return sqrt(v.x*v.x + v.y*v.y);
 }
 
+float vector2_dist(Vector2 v1, Vector2 v2)
+{
+  return sqrt(Sq(v2.x-v1.x) + Sq(v2.y-v1.y));
+}
+
+void vector2_normalise(Vector2 *v1)
+{
+  float mag = vector2_mag(*v1);
+  v1->x /= mag;
+  v1->y /= mag;
+}
+
+/** Move v1 towards v2 by alpha amount
+ */
+Vector2 vector2_lerp(Vector2 v1, Vector2 v2, float alpha)
+{
+  Vector2 dir = vector2_sub(v2, v1);
+  vector2_normalise(&dir);
+  return vector2_add(v1, vector2_scale(dir, alpha));
+}
 
 /** Add v1 and v2
  */
@@ -58,6 +78,11 @@ Vector3 vector3_sub(Vector3 v1, Vector3 v2)
   return (Vector3){v1.x-v2.x, v1.y-v2.y, v1.z-v2.z};
 }
 
+Vector3 vector3_scale(Vector3 v1, float scalar)
+{
+  return (Vector3){v1.x * scalar, v1.y * scalar, v1.z * scalar};
+}
+
 float vector3_mag(Vector3 v)
 {
   return sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
@@ -65,8 +90,7 @@ float vector3_mag(Vector3 v)
 
 float vector3_dist(Vector3 v1, Vector3 v2)
 {
-  Vector3 dir = {v2.x-v1.x, v2.y-v1.y, v2.z-v1.z};
-  return vector3_mag(dir);
+  return sqrt(Sq(v2.x-v1.x) + Sq(v2.y-v1.y) + Sq(v2.z-v1.z));
 }
 
 float vector3_dot(Vector3 v1, Vector3 v2)
@@ -80,12 +104,6 @@ void vector3_normalise(Vector3 *v1)
   v1->x /= mag;
   v1->y /= mag;
   v1->z /= mag;
-}
-
-bool vector3_are_same(Vector3 v1, Vector3 v2)
-{
-  float tol = 0.01;
-  return (fabs(v1.x - v2.x) < tol) && (fabs(v1.y - v2.y) < tol) && (fabs(v1.z - v2.z) < tol);
 }
 
 Vector3 vector3_cross(Vector3 v1, Vector3 v2)
@@ -102,7 +120,7 @@ float vector3_angle(Vector3 v1, Vector3 v2)
   return acosf(cos_angle);
 }
 
-void matrix_mult(int h1, int w1, int h2, int w2, float m1m2[h1][w2], float m1[h1][w1], float m2[h2][w2])
+void matrix_mult(int h1, int w1, int h2, int w2, float m1m2[][w2], float m1[][w1], float m2[][w2])
 {
   if (w1 != h2)
   {

@@ -1,12 +1,12 @@
 #include <SDL2/SDL.h>
 #include <math.h>
+#include <stdlib.h>
 #include <time.h>
 
 #include "engine/engine.h"
 #include "engine/input.h"
 #include "engine/screen.h"
 
-void pixel(SDL_Texture *texture, int x, int y, int r, int g, int b);
 
 int main(int argc, char** argv)
 {
@@ -33,56 +33,67 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  //Create and init the renderer
-  SDL_Renderer* ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_SOFTWARE);
-  if (ren == NULL)
-  {
-    SDL_DestroyWindow( win );
-    return 1;
-  }
-
   SDL_SetRelativeMouseMode(SDL_TRUE);
   SDL_Event event; // no need for new/delete, stack is fine
-  window_texture = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
-  //-------------------------------------------------------
 
+  pixel_array = SDL_GetWindowSurface(win);
 
 
   Camera cam = create_camera();
 
   // Load models
   //------------------------------------------------------------
-  Model cube = load_model("./cube.obj");
-  cube.fill = (Vector3){150, 150, 150};
-  // translate_model(&cube, 0, 0, 10);
+  Model cube = load_model("./cube.obj", "./cube.mtl");
+  // fill_model(&cube, 150, 120, 75);
+  translate_model(&cube, 0, -2, 0);
+
+  Model plane = load_model("./plane.obj", "./plane.mtl");
+  fill_model(&plane, 150, 120, 75);
+
+  Model monkey = load_model("./monkey.obj", "./cube.mtl");
+  rotate_y(monkey, 3.1415);
+  rotate_x(monkey, 3.1415);
+  // fill_model(&monkey, 150, 150, 200);
+  translate_model(&monkey, 0, -5, 5);
+
 
   //------------------------------------------------------------
 
   // Render loop
-  //----------------------------------------------
+  //------------------------------------------------------------
+  clock_t time;
+  double framerate;
+
+  int count = 0;
   while (1)
   {
+    time = clock();
+
     clear_screen(109, 133, 169);
     input(event, &cam);
+
+    // draw_model(cam, &monkey);
+    draw_model(cam, &plane);
+    draw_model(cam, &cube);
+    rotate_y(monkey, delta_time * 2.5);
+
+    cam.pos = vector3_add(cam.pos, cam.vel);
+    cam.vel = vector3_scale(cam.vel, 0.7);
+
+    SDL_UpdateWindowSurface(win);
     
-
-
-    draw_model(cam, &cube, 1);
-
-
-
-    // printf("%f %f %f\n", cam.dir.x, cam.dir.y, cam.dir.z);
-    // printf("%f %f %f\n", cam.pos.x, cam.pos.y, cam.pos.z);
-
-
-
-
-    render_screen(ren);
+    framerate = 1 / ((double)(clock() - time) / CLOCKS_PER_SEC);
+    if (count > 500)
+    {
+      count = 0;
+      printf("FPS: %lf\n", framerate);
+    }
+    delta_time =  1/framerate;
+    count++;
   }
-  //----------------------------------------------
+  //------------------------------------------------------------
 
   //Clean Up
-  SDL_DestroyRenderer(ren);
   SDL_DestroyWindow(win);
   SDL_Quit();
 

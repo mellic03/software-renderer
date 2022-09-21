@@ -28,6 +28,7 @@
     "math.h": "c",
     "pthread.h": "c",
     "*.tcc": "c",
-    "future": "c"
+    "future": "c",
+    "time.h": "c"
   }
 }

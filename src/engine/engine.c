@@ -1,28 +1,38 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include <SDL2/SDL.h>
-#include <cblas.h>
 #include <stdbool.h>
-#include <pthread.h>
 
 #include "vector.h"
 #include "camera.h"
 #include "engine.h"
 #include "screen.h"
 
-uint8_t pixels[SCREEN_WIDTH * SCREEN_HEIGHT * 4] = { 0 };
-int z_buffer[SCREEN_WIDTH * SCREEN_HEIGHT] = { 0 };
-SDL_Texture *window_texture;
+SDL_Surface *pixel_array;
+float z_buffer[SCREEN_WIDTH * SCREEN_HEIGHT] = { 0 };
 
-Vector3 lightsource = {20, 20, -10};
-Vector3 camera_pos; // Needed for qsort()
+Vector3 lightsource = {-50, -50, 10};
+Vector3 camera_pos = {0, 0, 0};
+
+double delta_time;
+
+void set_pixel(int x, int y, Uint8 r, Uint8 g, Uint8 b)
+{
+  Uint8 * const blue  = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 0));
+  *blue = b;
+  Uint8 * const green = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 1));
+  *green = g;
+  Uint8 * const red   = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 2));
+  *red = r;
+}
+
 
 // TRANSFORMATIONS
 //-------------------------------------------------------------------------------
 void translate_model(Model *model, float x, float y, float z)
 {
+  model->pos = vector3_add(model->pos, (Vector3){x, y, z});
+
   for (int i=0; i<model->polygon_count; i++)
     for (int j=0; j<3; j++)
     {
@@ -30,7 +40,6 @@ void translate_model(Model *model, float x, float y, float z)
       model->polygons[i].vertices[j].y += y;
       model->polygons[i].vertices[j].z += z;
     }
-
 }
 
 void translate_point(Vector3 *point, float x, float y, float z)
@@ -74,26 +83,44 @@ void rotate_point(Vector3 *pt, float x, float y, float z)
 
 void rotate_x(Model model, float r)
 {
-  // float rot_x[3][3] = {
-  //   { 1, 0,       0      },
-  //   { 0, cos(r), -sin(r) },
-  //   { 0, sin(r),  cos(r) }
-  // };
+  Vector3 model_pos = model.pos;
+  translate_model(&model, -model.pos.x, -model.pos.y, -model.pos.z);
 
-  // float result[3][1];
+  float rot_x[3][3] = {
+    { 1, 0,       0      },
+    { 0, cos(r), -sin(r) },
+    { 0, sin(r),  cos(r) }
+  };
 
-  // for (int i=0; i<model.vertex_count; i++)
-  // {
-  //   float coord[3][1] = {{model.vertices[i].x}, {model.vertices[i].y}, {model.vertices[i].z}};
-  //   matrix_mult(3, 3, 3, 1, result, rot_x, coord);
-  //   model.vertices[i].x = result[0][0];
-  //   model.vertices[i].y = result[1][0];
-  //   model.vertices[i].z = result[2][0];
-  // }
+  float result[3][1];
+
+  for (int i=0; i<model.polygon_count; i++)
+  {
+    // rotate vertices
+    for (int j=0; j<3; j++)
+    {
+      float coord[3][1] = {{model.polygons[i].vertices[j].x}, {model.polygons[i].vertices[j].y}, {model.polygons[i].vertices[j].z}};
+      matrix_mult(3, 3, 3, 1, result, rot_x, coord);
+      model.polygons[i].vertices[j].x = result[0][0];
+      model.polygons[i].vertices[j].y = result[1][0];
+      model.polygons[i].vertices[j].z = result[2][0];
+    }
+
+    // rotate normals
+    float coord[3][1] = {{model.polygons[i].normal_vector.x}, {model.polygons[i].normal_vector.y}, {model.polygons[i].normal_vector.z}};
+    matrix_mult(3, 3, 3, 1, result, rot_x, coord);
+    model.polygons[i].normal_vector.x = result[0][0];
+    model.polygons[i].normal_vector.y = result[1][0];
+    model.polygons[i].normal_vector.z = result[2][0];
+  }
+  translate_model(&model, model_pos.x, model_pos.y, model_pos.z);
 }
 
 void rotate_y(Model model, float r)
 {
+  Vector3 model_pos = model.pos;
+  translate_model(&model, -model.pos.x, -model.pos.y, -model.pos.z);
+
   float rot_y[3][3] = {
     { cos(r),  0, sin(r) },
     { 0,       1, 0      },
@@ -121,65 +148,63 @@ void rotate_y(Model model, float r)
     model.polygons[i].normal_vector.y = result[1][0];
     model.polygons[i].normal_vector.z = result[2][0];
   }
+  translate_model(&model, model_pos.x, model_pos.y, model_pos.z);
 }
 
 void rotate_z(Model model, float r)
 {
-  // float rot_z[3][3] = {
-  //   { cos(r), -sin(r), 0 },
-  //   { sin(r), cos(r),  0 },
-  //   { 0,      0,       1 }
-  // };
+  Vector3 model_pos = model.pos;
+  translate_model(&model, -model.pos.x, -model.pos.y, -model.pos.z);
 
-  // float result[3][1];
+  float rot_z[3][3] = {
+    { cos(r), -sin(r), 0 },
+    { sin(r), cos(r),  0 },
+    { 0,      0,       1 }
+  };
 
-  // for (int i=0; i<model.vertex_count; i++)
-  // {
-  //   float coord[3][1] = {{model.vertices[i].x}, {model.vertices[i].y}, {model.vertices[i].z}};
-  //   matrix_mult(3, 3, 3, 1, result, rot_z, coord);
-  //   model.vertices[i].x = result[0][0];
-  //   model.vertices[i].y = result[1][0];
-  //   model.vertices[i].z = result[2][0];
-  // }
+  float result[3][1];
+
+  for (int i=0; i<model.polygon_count; i++)
+  {
+    // rotate vertices
+    for (int j=0; j<3; j++)
+    {
+      float coord[3][1] = {{model.polygons[i].vertices[j].x}, {model.polygons[i].vertices[j].y}, {model.polygons[i].vertices[j].z}};
+      matrix_mult(3, 3, 3, 1, result, rot_z, coord);
+      model.polygons[i].vertices[j].x = result[0][0];
+      model.polygons[i].vertices[j].y = result[1][0];
+      model.polygons[i].vertices[j].z = result[2][0];
+    }
+
+    // rotate normals
+    float coord[3][1] = {{model.polygons[i].normal_vector.x}, {model.polygons[i].normal_vector.y}, {model.polygons[i].normal_vector.z}};
+    matrix_mult(3, 3, 3, 1, result, rot_z, coord);
+    model.polygons[i].normal_vector.x = result[0][0];
+    model.polygons[i].normal_vector.y = result[1][0];
+    model.polygons[i].normal_vector.z = result[2][0];
+  }
+  translate_model(&model, model_pos.x, model_pos.y, model_pos.z);
 }
 //-------------------------------------------------------------------------------
 
 // DRAWING
 //-------------------------------------------------------------------------------
-void clear_screen(uint8_t r, uint8_t g, uint8_t b)
+void clear_screen(Uint8 r, Uint8 g, Uint8 b)
 {
   for (int i=0; i<SCREEN_WIDTH; i++)
     for (int j=0; j<SCREEN_HEIGHT; j++)
-    {
-      pixels[3*SCREEN_WIDTH*j + 3*i + 0] = r;
-      pixels[3*SCREEN_WIDTH*j + 3*i + 1] = g;
-      pixels[3*SCREEN_WIDTH*j + 3*i + 2] = b;
-    }
+      set_pixel(i, j, r, g, b);
 
   for (int i=0; i<SCREEN_WIDTH; i++)
     for (int j=0; j<SCREEN_HEIGHT; j++)
-      z_buffer[SCREEN_WIDTH*j + i] = RENDER_DISTANCE*2;
-}
-
-void render_screen(SDL_Renderer *ren)
-{
-  int texture_pitch = 0;
-  void *texture_pixels = NULL;
-  if (SDL_LockTexture(window_texture, NULL, &texture_pixels, &texture_pitch) != 0)
-      SDL_Log("Unable to lock texture: %s", SDL_GetError());
-  else
-    memcpy(texture_pixels, pixels, texture_pitch * SCREEN_HEIGHT);
-  SDL_UnlockTexture(window_texture);
-  SDL_RenderClear(ren);
-  SDL_RenderCopy(ren, window_texture, NULL, NULL);
-  SDL_RenderPresent(ren);
+      z_buffer[SCREEN_WIDTH*j + i] = RENDER_DISTANCE;
 }
 
 void pixel(int x, int y, int r, int g, int b)
 {
-  pixels[3*SCREEN_WIDTH*y + 3*x + 0] = r;
-  pixels[3*SCREEN_WIDTH*y + 3*x + 1] = g;
-  pixels[3*SCREEN_WIDTH*y + 3*x + 2] = b;
+  // pixels[3*SCREEN_WIDTH*y + 3*x + 0] = r;
+  // pixels[3*SCREEN_WIDTH*y + 3*x + 1] = g;
+  // pixels[3*SCREEN_WIDTH*y + 3*x + 2] = b;
 }
 
 bool in_range(float n, float l, float u)
@@ -197,11 +222,11 @@ void line_2d(Vector3 stroke, Vector2 p1, Vector2 p2)
   {
     if (p1.y < p2.y)
       for (int y=p1.y; y<p2.y; y++)
-        pixel((int)p1.x, y, stroke.x, stroke.y, stroke.z);
+        set_pixel((int)p1.x, y, stroke.x, stroke.y, stroke.z);
 
     else if (p1.y > p2.y)
       for (int y=p2.y; y<p1.y; y++)
-        pixel((int)p1.x, y, stroke.x, stroke.y, stroke.z);
+        set_pixel((int)p1.x, y, stroke.x, stroke.y, stroke.z);
   }
 
   // if gradient is not between -1 and 1
@@ -209,11 +234,11 @@ void line_2d(Vector3 stroke, Vector2 p1, Vector2 p2)
   {
     if (p1.y < p2.y)
       for (int y=p1.y; y<p2.y; y++)
-        pixel((int)((y-c)/m), y, stroke.x, stroke.y, stroke.z);
+        set_pixel((int)((y-c)/m), y, stroke.x, stroke.y, stroke.z);
 
     else if (p1.y > p2.y)
       for (int y=p2.y; y<p1.y; y++)
-        pixel((int)((y-c)/m), y, stroke.x, stroke.y, stroke.z);
+        set_pixel((int)((y-c)/m), y, stroke.x, stroke.y, stroke.z);
   }
 
   // if gradient is between -1 and 1
@@ -221,11 +246,11 @@ void line_2d(Vector3 stroke, Vector2 p1, Vector2 p2)
   {
     if (p1.x < p2.x)
       for (int x=p1.x; x<=p2.x; x++)
-        pixel(x, (int)(m*x+c), stroke.x, stroke.y, stroke.z);
+        set_pixel(x, (int)(m*x+c), stroke.x, stroke.y, stroke.z);
 
     else if (p1.x > p2.x)
       for (int x=p2.x; x<=p1.x; x++)
-        pixel(x, (int)(m*x+c), stroke.x, stroke.y, stroke.z);
+        set_pixel(x, (int)(m*x+c), stroke.x, stroke.y, stroke.z);
   }
 }
 
@@ -249,53 +274,69 @@ bool PointInTriangle (Vector2 pt, Vector2 *v1, Vector2 *v2, Vector2 *v3)
   return !(has_neg && has_pos);
 }
 
-void triangle_2d(Camera *cam, Polygon *tri, float z)
+void triangle_2d(Camera *cam, Polygon *tri, SDL_Surface *texture)
 {
-  Vector2 p1 = project_coordinate(&tri->vertices[0]);
-  Vector2 p2 = project_coordinate(&tri->vertices[1]);
-  Vector2 p3 = project_coordinate(&tri->vertices[2]);
+  Vector2 v1 = project_coordinate(&tri->vertices[0]);
+  Vector2 v2 = project_coordinate(&tri->vertices[1]);
+  Vector2 v3 = project_coordinate(&tri->vertices[2]);
 
-  // line_2d((Vector3){0, 0, 0}, p1, p2);
-  // line_2d((Vector3){0, 0, 0}, p2, p3);
-  // line_2d((Vector3){0, 0, 0}, p3, p1);
+  // line_2d(tri->fill, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1});
+  // line_2d(tri->fill, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1});
+  // line_2d(tri->fill, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1});
 
-  int lx = MIN(p1.x, MIN(p2.x, p3.x));
-  int hx = MAX(p1.x, MAX(p2.x, p3.x));
-  int ly = MIN(p1.y, MIN(p2.y, p3.y));
-  int hy = MAX(p1.y, MAX(p2.y, p3.y));
-  
+  int lx = MIN(v1.x, MIN(v2.x, v3.x));
+  int hx = MAX(v1.x, MAX(v2.x, v3.x));
+  int ly = MIN(v1.y, MIN(v2.y, v3.y));
+  int hy = MAX(v1.y, MAX(v2.y, v3.y));
+
   for (int x=lx; x<=hx; x++)
+  {
     for (int y=ly; y<=hy; y++)
-      if (PointInTriangle((Vector2){x, y}, &p1, &p2, &p3) && tri->vertices[0].z)
+    {
+      if (PointInTriangle((Vector2){x, y, 1}, &v1, &v2, &v3))
       {
-        pixel(x, y, tri->fill.x, tri->fill.y, tri->fill.z);
+        Vector2 p = (Vector2){x, y, 1};
+
+        // barycentric
+        float weight_v1 = ((v2.y-v3.y)*(p.x-v3.x)+(v3.x-v2.x)*(p.y-v3.y))/((v2.y-v3.y)*(v1.x-v3.x)+(v3.x-v2.x)*(v1.y-v3.y));
+        float weight_v2 = ((v3.y-v1.y)*(p.x-v3.x)+(v1.x-v3.x)*(p.y-v3.y))/((v2.y-v3.y)*(v1.x-v3.x)+(v3.x-v2.x)*(v1.y-v3.y));
+        float weight_v3 = 1 - weight_v1 - weight_v2;
+        float z_index = tri->vertices[0].z*weight_v1 + tri->vertices[1].z*weight_v2 + tri->vertices[2].z*weight_v3;
+        
+        if (z_index < z_buffer[SCREEN_WIDTH*y + x])
+        {
+          z_buffer[SCREEN_WIDTH*y + x] = z_index;
+         
+          // get interpolated pixel coordinate
+          Uint16 px = (Uint16)((texture->format->BitsPerPixel*3 * (weight_v1*tri->texture_coords[0].x + weight_v2*tri->texture_coords[1].x + weight_v3*tri->texture_coords[2].x)));
+          Uint16 py = (Uint16)((texture->pitch/3 * (weight_v1*tri->texture_coords[0].y + weight_v2*tri->texture_coords[1].y + weight_v3*tri->texture_coords[2].y)));
+          px %= 600;
+          py %= 600;
+
+          Uint8 *blue  = ((Uint8 *)texture->pixels + (py * texture->pitch) + (px * texture->format->BitsPerPixel + 0));
+          Uint8 *green = ((Uint8 *)texture->pixels + (py * texture->pitch) + (px * texture->format->BitsPerPixel + 1));
+          Uint8 *red   = ((Uint8 *)texture->pixels + (py * texture->pitch) + (px * texture->format->BitsPerPixel + 2));
+
+          Uint8 b = *blue  + (Uint8)tri->fill.x;
+          Uint8 g = *green + (Uint8)tri->fill.x;
+          Uint8 r = *red   + (Uint8)tri->fill.x;
+
+          set_pixel(x, y, r, g, b);
+        }
       }
+    }
+  }
 }
 
-Vector3 CLIP_point_of_intersect(Vector3 plane_normal, Vector3 p1, Vector3 p2)
+Vector3 CLIP_point_of_intersect(Vector3 plane_normal, Vector3 p1, Vector3 p2, float *t)
 {
   float ad = vector3_dot(p1, plane_normal);
   float bd = vector3_dot(p2, plane_normal);
-  float t = ( - ad) / (bd - ad);
-
+  *t = (-ad) / (bd - ad);
+  // printf("t: %f\n", *t);
   Vector3 lste = vector3_sub(p2, p1);
-  Vector3 lti = vector3_scale(lste, t);
+  Vector3 lti = vector3_scale(lste, *t);
   return vector3_add(p1, lti);
-}
-
-/** Return the number of points that lay outside the clipping plane.
- */
-int CLIP_points_outside(Vector3 *plane_normal, Polygon *tri)
-{
-  float dot1 = vector3_dot(*plane_normal, tri->vertices[0]);
-  float dot2 = vector3_dot(*plane_normal, tri->vertices[1]);
-  float dot3 = vector3_dot(*plane_normal, tri->vertices[2]);
-  int number_of_points = 0;
-  if (dot1 < 0) number_of_points += 1;
-  if (dot2 < 0) number_of_points += 1;
-  if (dot3 < 0) number_of_points += 1;
-
-  return number_of_points;
 }
 
 /** Return the number of points with positive signed distance to a plane normal
@@ -316,11 +357,11 @@ int CLIP_points_inside(Vector3 plane_normal, Polygon *tri, int *index_of_inside,
   // printf("d0: %f, d1: %f, d2: %f\n", dot1, dot2, dot3);
 
   if (dot1 > dot2 && dot1 > dot3) *index_of_inside = 0;
-  if (dot2 > dot1 && dot2 > dot3) *index_of_inside = 1;
-  if (dot3 > dot1 && dot3 > dot2) *index_of_inside = 2;
+  else if (dot2 > dot1 && dot2 > dot3) *index_of_inside = 1;
+  else if (dot3 > dot1 && dot3 > dot2) *index_of_inside = 2;
   if (dot1 < dot2 && dot1 < dot3) *index_of_outside = 0;
-  if (dot2 < dot1 && dot2 < dot3) *index_of_outside = 1;
-  if (dot3 < dot1 && dot3 < dot2) *index_of_outside = 2;
+  else if (dot2 < dot1 && dot2 < dot3) *index_of_outside = 1;
+  else if (dot3 < dot1 && dot3 < dot2) *index_of_outside = 2;
 
   return number_of_inside;
 }
@@ -339,7 +380,9 @@ int CLIP_against_plane(Vector3 plane_normal, int poly_count, Polygon *unclipped_
   while (unclipped_index < poly_count)  
   {
     Polygon tri1;
+    tri1 = unclipped_triangles[unclipped_index];
     Polygon tri2;
+    tri2 = unclipped_triangles[unclipped_index];
 
     // n == number of triangles formed due to clipping
     int n = CLIP_poly(plane_normal, &unclipped_triangles[unclipped_index], &tri1, &tri2);
@@ -349,13 +392,13 @@ int CLIP_against_plane(Vector3 plane_normal, int poly_count, Polygon *unclipped_
         break;
 
       case (1):
-        memcpy(&clipped_triangles[clipped_index], &unclipped_triangles[unclipped_index], sizeof(Polygon));
+        clipped_triangles[clipped_index] = unclipped_triangles[unclipped_index];
         clipped_index += 1;
         break;
       
       case (2):
-        memcpy(&clipped_triangles[clipped_index], &tri1, sizeof(Polygon));
-        memcpy(&clipped_triangles[clipped_index+1], &tri2, sizeof(Polygon));
+        clipped_triangles[clipped_index] = tri1;
+        clipped_triangles[clipped_index+1] = tri2;
         clipped_index += 2;
         break;
     }
@@ -364,7 +407,6 @@ int CLIP_against_plane(Vector3 plane_normal, int poly_count, Polygon *unclipped_
   
   return clipped_index;
 }
-
 
 /** Clip triangles to a plane
  * @param tri_in input triangle
@@ -381,9 +423,10 @@ int CLIP_poly(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polygon 
   int n = CLIP_points_inside(plane_normal, tri_in, &index_of_inside, &index_of_outside);
   Vector3 A, B, C;
   Vector3 A_prime, B_prime, C_prime;
-  bool flag;
   // printf("in: tris[%d], out: tris[%d]\n", index_of_inside, index_of_outside);
 
+  float t1, t2;
+  
   switch (n)
   {
     case (3):
@@ -394,90 +437,175 @@ int CLIP_poly(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polygon 
     
     case (1):
       A = tri_in->vertices[index_of_inside];
-      flag = true;
-      for (int i=0; i<3; i++)
+      switch (index_of_inside)
       {
-        if (i != index_of_inside)
-        {
-          if (flag)
-          {
-            flag = false;
-            B_prime = CLIP_point_of_intersect(plane_normal, A, tri_in->vertices[i]);
-          }
-          else if (!flag)
-          {
-            C_prime = CLIP_point_of_intersect(plane_normal, A, tri_in->vertices[i]); 
-          }
-        }
+        case (0):
+          B_prime = CLIP_point_of_intersect(plane_normal, A, tri_in->vertices[1], &t1);
+          C_prime = CLIP_point_of_intersect(plane_normal, A, tri_in->vertices[2], &t2);
+
+          tri_in->texture_coords[1].x = tri_in->texture_coords[0].x + t1*(tri_in->texture_coords[1].x - tri_in->texture_coords[0].x);
+          tri_in->texture_coords[1].y = tri_in->texture_coords[0].y + t1*(tri_in->texture_coords[1].y - tri_in->texture_coords[0].y);
+          tri_in->texture_coords[2].x = tri_in->texture_coords[0].x + t2*(tri_in->texture_coords[2].x - tri_in->texture_coords[0].x);
+          tri_in->texture_coords[2].y = tri_in->texture_coords[0].y + t2*(tri_in->texture_coords[2].y - tri_in->texture_coords[0].y);
+
+          tri_in->vertices[1] = B_prime;
+          tri_in->vertices[2] = C_prime;
+          break;
+        
+        case (1):
+          B_prime = CLIP_point_of_intersect(plane_normal, A, tri_in->vertices[0], &t1);
+          C_prime = CLIP_point_of_intersect(plane_normal, A, tri_in->vertices[2], &t2);
+
+          tri_in->texture_coords[0].x = tri_in->texture_coords[1].x + t1*(tri_in->texture_coords[0].x - tri_in->texture_coords[1].x);
+          tri_in->texture_coords[0].y = tri_in->texture_coords[1].y + t1*(tri_in->texture_coords[0].y - tri_in->texture_coords[1].y);
+          tri_in->texture_coords[2].x = tri_in->texture_coords[1].x + t2*(tri_in->texture_coords[2].x - tri_in->texture_coords[1].x);
+          tri_in->texture_coords[2].y = tri_in->texture_coords[1].y + t2*(tri_in->texture_coords[2].y - tri_in->texture_coords[1].y);
+
+          tri_in->vertices[0] = B_prime;
+          tri_in->vertices[2] = C_prime;
+          break;
+
+        case (2):
+          B_prime = CLIP_point_of_intersect(plane_normal, A, tri_in->vertices[0], &t1);
+          C_prime = CLIP_point_of_intersect(plane_normal, A, tri_in->vertices[1], &t2);
+
+          tri_in->texture_coords[1].x = tri_in->texture_coords[2].x + t1*(tri_in->texture_coords[1].x - tri_in->texture_coords[2].x);
+          tri_in->texture_coords[1].y = tri_in->texture_coords[2].y + t1*(tri_in->texture_coords[1].y - tri_in->texture_coords[2].y);
+          tri_in->texture_coords[0].x = tri_in->texture_coords[2].x + t2*(tri_in->texture_coords[0].x - tri_in->texture_coords[2].x);
+          tri_in->texture_coords[0].y = tri_in->texture_coords[2].y + t2*(tri_in->texture_coords[0].y - tri_in->texture_coords[2].y);
+
+          tri_in->vertices[0] = B_prime;
+          tri_in->vertices[1] = C_prime;
+          break;
       }
-      tri_in->vertices[0] = A;
-      tri_in->vertices[1] = B_prime;
-      tri_in->vertices[2] = C_prime;
       return 1;
 
     case (2):
       C = tri_in->vertices[index_of_outside];
-
       switch (index_of_outside)
       {
         case (0):
           A = tri_in->vertices[1];
           B = tri_in->vertices[2];
-          A_prime = CLIP_point_of_intersect(plane_normal, C, A );
-          B_prime = CLIP_point_of_intersect(plane_normal, C, B );
+          A_prime = CLIP_point_of_intersect(plane_normal, C, A, &t1);
+          B_prime = CLIP_point_of_intersect(plane_normal, C, B, &t2);
+
+          tri_out1->texture_coords[0] = tri_in->texture_coords[2];
+          tri_out1->texture_coords[1].x = tri_in->texture_coords[0].x + t1*(tri_in->texture_coords[1].x - tri_in->texture_coords[0].x);
+          tri_out1->texture_coords[1].y = tri_in->texture_coords[0].y + t1*(tri_in->texture_coords[1].y - tri_in->texture_coords[0].y);
+          tri_out1->texture_coords[2].x = tri_in->texture_coords[0].x + t2*(tri_in->texture_coords[2].x - tri_in->texture_coords[0].x);
+          tri_out1->texture_coords[2].y = tri_in->texture_coords[0].y + t2*(tri_in->texture_coords[2].y - tri_in->texture_coords[0].y);
+
+          tri_out2->texture_coords[1] = tri_in->texture_coords[2];
+          tri_out2->texture_coords[2].x = tri_in->texture_coords[0].x + t1*(tri_in->texture_coords[1].x - tri_in->texture_coords[0].x);
+          tri_out2->texture_coords[2].y = tri_in->texture_coords[0].y + t1*(tri_in->texture_coords[1].y - tri_in->texture_coords[0].y);
+          tri_out2->texture_coords[0] = tri_in->texture_coords[1];
+
+          tri_out1->vertices[0] = B;
+          tri_out1->vertices[1] = A_prime;
+          tri_out1->vertices[2] = B_prime;
+
+          tri_out2->vertices[0] = A;
+          tri_out2->vertices[1] = B;
+          tri_out2->vertices[2] = A_prime;
+
           break;
 
         case (1):
           A = tri_in->vertices[0];
           B = tri_in->vertices[2];
-          A_prime = CLIP_point_of_intersect(plane_normal, C, A );
-          B_prime = CLIP_point_of_intersect(plane_normal, C, B );
+          A_prime = CLIP_point_of_intersect(plane_normal, C, A, &t1);
+          B_prime = CLIP_point_of_intersect(plane_normal, C, B, &t2);
+
+          tri_out1->texture_coords[0] = tri_in->texture_coords[2];
+          tri_out1->texture_coords[1].x = tri_in->texture_coords[1].x + t1*(tri_in->texture_coords[0].x - tri_in->texture_coords[1].x);
+          tri_out1->texture_coords[1].y = tri_in->texture_coords[1].y + t1*(tri_in->texture_coords[0].y - tri_in->texture_coords[1].y);
+          tri_out1->texture_coords[2].x = tri_in->texture_coords[1].x + t2*(tri_in->texture_coords[2].x - tri_in->texture_coords[1].x);
+          tri_out1->texture_coords[2].y = tri_in->texture_coords[1].y + t2*(tri_in->texture_coords[2].y - tri_in->texture_coords[1].y);
+
+          tri_out2->texture_coords[1] = tri_in->texture_coords[2];
+          tri_out2->texture_coords[2].x = tri_in->texture_coords[1].x + t1*(tri_in->texture_coords[0].x - tri_in->texture_coords[1].x);
+          tri_out2->texture_coords[2].y = tri_in->texture_coords[1].y + t1*(tri_in->texture_coords[0].y - tri_in->texture_coords[1].y);
+          tri_out2->texture_coords[0] = tri_in->texture_coords[0];
+
+          tri_out1->vertices[0] = B;
+          tri_out1->vertices[1] = A_prime;
+          tri_out1->vertices[2] = B_prime;
+
+          tri_out2->vertices[0] = A;
+          tri_out2->vertices[1] = B;
+          tri_out2->vertices[2] = A_prime;
+
           break;
 
         case (2):
           A = tri_in->vertices[0];
           B = tri_in->vertices[1];
-          A_prime = CLIP_point_of_intersect(plane_normal, C, A );
-          B_prime = CLIP_point_of_intersect(plane_normal, C, B );
+          A_prime = CLIP_point_of_intersect(plane_normal, C, A, &t1);
+          B_prime = CLIP_point_of_intersect(plane_normal, C, B, &t2);
+
+          tri_out1->texture_coords[0] = tri_in->texture_coords[0];
+          tri_out1->texture_coords[1].x = tri_in->texture_coords[2].x + t1*(tri_in->texture_coords[0].x - tri_in->texture_coords[2].x);
+          tri_out1->texture_coords[1].y = tri_in->texture_coords[2].y + t1*(tri_in->texture_coords[0].y - tri_in->texture_coords[2].y);
+          tri_out1->texture_coords[2].x = tri_in->texture_coords[2].x + t2*(tri_in->texture_coords[1].x - tri_in->texture_coords[2].x);
+          tri_out1->texture_coords[2].y = tri_in->texture_coords[2].y + t2*(tri_in->texture_coords[1].y - tri_in->texture_coords[2].y);
+
+          tri_out2->texture_coords[1] = tri_in->texture_coords[1];
+          tri_out2->texture_coords[2].x = tri_in->texture_coords[2].x + t1*(tri_in->texture_coords[1].x - tri_in->texture_coords[2].x);
+          tri_out2->texture_coords[2].y = tri_in->texture_coords[2].y + t1*(tri_in->texture_coords[1].y - tri_in->texture_coords[2].y);
+          tri_out2->texture_coords[0] = tri_in->texture_coords[0];
+
+          tri_out1->vertices[0] = A;
+          tri_out1->vertices[1] = A_prime;
+          tri_out1->vertices[2] = B_prime;
+
+          tri_out2->vertices[0] = A;
+          tri_out2->vertices[1] = B;
+          tri_out2->vertices[2] = B_prime;
           break;
       }
 
-      memcpy(&tri_out1->vertices[0], &A, sizeof(Vector3));
-      memcpy(&tri_out1->vertices[1], &A_prime, sizeof(Vector3));
-      memcpy(&tri_out1->vertices[2], &B_prime, sizeof(Vector3));
-      
-      memcpy(&tri_out2->vertices[0], &A, sizeof(Vector3));
-      memcpy(&tri_out2->vertices[1], &B, sizeof(Vector3));
-      memcpy(&tri_out2->vertices[2], &B_prime, sizeof(Vector3));
 
       return 2;
   }
+  return -1;
 }
 
-
-void draw_model(Camera cam, Model *model, int fill)
+void draw_model(Camera cam, Model *model)
 {
-  Polygon *unclipped_polygons = (Polygon *)malloc(model->polygon_count * sizeof(Polygon));
-  for (int i=0; i<model->polygon_count; i++)
-    memcpy(&unclipped_polygons[i], &model->polygons[i], sizeof(Polygon));
+  int *frontface_indices = (int *)malloc(model->polygon_count * sizeof(int));
+  int frontface_count = 0;
 
   for (int i=0; i<model->polygon_count; i++)
+    if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], cam.pos), model->polygons[i].normal_vector) < 0)
+      frontface_indices[frontface_count++] = i;
+  
+  Polygon *front_faces = (Polygon *)malloc(frontface_count * sizeof(Polygon));
+  for (int i=0; i<frontface_count; i++)
+    front_faces[i] = model->polygons[frontface_indices[i]];
+
+  for (int i=0; i<frontface_count; i++)
   {
     for (int j=0; j<3; j++)
     {
-      unclipped_polygons[i].vertices[j].x -= cam.pos.x;
-      unclipped_polygons[i].vertices[j].y -= cam.pos.y;
-      unclipped_polygons[i].vertices[j].z -= cam.pos.z;
-      rotate_point(&unclipped_polygons[i].vertices[j], 0, cam.R.y, 0);
-      rotate_point(&unclipped_polygons[i].vertices[j], cam.R.x, 0, 0);
+      front_faces[i].vertices[j].x -= cam.pos.x;
+      front_faces[i].vertices[j].y -= cam.pos.y;
+      front_faces[i].vertices[j].z -= cam.pos.z;
+      rotate_point(&front_faces[i].vertices[j], 0, cam.rot.y, 0);
+      rotate_point(&front_faces[i].vertices[j], cam.rot.x, 0, 0);
+  
+      float angle = vector3_angle(front_faces[i].normal_vector, lightsource);
+      front_faces[i].fill.x = (2*angle);
+      front_faces[i].fill.y = (2*angle);
+      front_faces[i].fill.z = (2*angle);
     }
   }
 
-  Polygon *clipped_polygons = (Polygon *)malloc(model->polygon_count*2 * sizeof(Polygon));
-  int n = CLIP_against_plane(cam.l_norm, model->polygon_count, unclipped_polygons, clipped_polygons);
+  Polygon *clipped_1 = (Polygon *)malloc(frontface_count*2 * sizeof(Polygon));
+  int n = CLIP_against_plane(cam.l_norm, frontface_count, front_faces, clipped_1);
 
   Polygon *clipped_2 = (Polygon *)malloc(n*2 * sizeof(Polygon));
-  n = CLIP_against_plane(cam.r_norm, n, clipped_polygons, clipped_2);
+  n = CLIP_against_plane(cam.r_norm, n, clipped_1, clipped_2);
 
   Polygon *clipped_3 = (Polygon *)malloc(n*2 * sizeof(Polygon));
   n = CLIP_against_plane(cam.t_norm, n, clipped_2, clipped_3);
@@ -485,16 +613,14 @@ void draw_model(Camera cam, Model *model, int fill)
   Polygon *clipped_4 = (Polygon *)malloc(n*2 * sizeof(Polygon));
   n = CLIP_against_plane(cam.b_norm, n, clipped_3, clipped_4);
   
-  float angle;
   for (int i=0; i<n; i++)
   {
-    triangle_2d(&cam, &clipped_4[i], clipped_4->vertices[i].z);
+    triangle_2d(&cam, &clipped_4[i], model->texture);
   }
 
-
-
-  free(unclipped_polygons);
-  free(clipped_polygons);
+  free(frontface_indices);
+  free(front_faces);
+  free(clipped_1);
   free(clipped_2);
   free(clipped_3);
   free(clipped_4);
@@ -502,102 +628,22 @@ void draw_model(Camera cam, Model *model, int fill)
 //-------------------------------------------------------------------------------
 
 /** Project a 3D world coordinate onto a 2D screen coordinate.
+ * z coordinate is preserved for z-buffering.
  */
 Vector2 project_coordinate(Vector3 *pt)
 {
-  // 3d to 2d transform
-  //-----------------------------------
-  float nearplane_width = 500;
-  float nearplane_height = 500;
-  float nearplane_z = 1;
+  float nearplane_width = HALF_SCREEN_WIDTH;
+  float nearplane_height = HALF_SCREEN_HEIGHT;
+  float nearplane_z = 0.9999;
 
   float canvas_x = (nearplane_z/pt->z) * pt->x * nearplane_z * nearplane_width;
   float canvas_y = (nearplane_z/pt->z) * pt->y * nearplane_z * nearplane_height;
   canvas_x += HALF_SCREEN_WIDTH;
   canvas_y += HALF_SCREEN_HEIGHT;
-  //-----------------------------------
 
-  return (Vector2){canvas_x, canvas_y};
+  return (Vector2){canvas_x, canvas_y, nearplane_z/pt->z};
 }
 
-Vector2 project_coordinate_cblas(Camera cam, Vector3 pt)
-{
-  float m1[9] = {
-    1, 0,            0,
-    0, cos(cam.R.x), -sin(cam.R.x),
-    0, sin(cam.R.x), cos(cam.R.x) 
-  };
-
-  float m2[9] = {
-    cos(cam.R.y),  0,  -sin(cam.R.y),
-    0,             1,  0,
-    sin(cam.R.y),  0,  cos(cam.R.y)  
-  };
-
-  float m3[9] = {
-    cos(cam.R.z),  sin(cam.R.z), 0,
-    -sin(cam.R.z), cos(cam.R.z), 0,
-    0,             0,            1
-  };
-
-  float m4[3] = {
-    pt.x - cam.pos.x,
-    pt.y - cam.pos.y, 
-    pt.z - cam.pos.z
-  };
-
-  float d_0[9];
-  float d_1[3];
-  float d[3];
-
-  cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans,
-  3, // number of rows in matrix a
-  3, // number of columns in matrix b
-  3, // number of columns in matrix a
-  1, // scalar for matrix a
-  m1, // matrix a
-  3, // first dimension of matrix a
-  m2, // matrix b
-  3, // first dimension of matrix b
-  0, // scalar for matrix c
-  d_0, // matrix c (output)
-  3 // number of rows for matrix c
-  );
-
-  cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans,
-  3, // number of rows in matrix a
-  1, // number of columns in matrix b
-  3, // number of columns in matrix a
-  1, // scalar for matrix a
-  m3, // matrix a
-  3, // first dimension of matrix a
-  m4, // matrix b
-  3, // first dimension of matrix b
-  0, // scalar for matrix c
-  d_1, // matrix c (output)
-  3 // number of rows for matrix c
-  );
-
-  cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans,
-  3, // number of rows in matrix a
-  1, // number of columns in matrix b
-  3, // number of columns in matrix a
-  1, // scalar for matrix a
-  d_0, // matrix a 
-  3, // first dimension of matrix a
-  d_1, // matrix b
-  3, // first dimension of matrix b
-  0, // scalar for matrix c
-  d, // matrix c (output)
-  3 // number of rows for matrix c
-  );
-
-  Vector2 screen_point;
-  screen_point.x = (cam.fov/d[2]) * d[0] + HALF_SCREEN_WIDTH;
-  screen_point.y = (-cam.fov/d[2]) * d[1] + HALF_SCREEN_HEIGHT;
-
-  return screen_point;
-}
 
 // FILE I/O
 //-------------------------------------------------------------------------------
@@ -616,13 +662,15 @@ void count_polygons(FILE *fh, Model *model)
       model->vertex_count += 1;
     else if (buffer[0] == 'v' && buffer[1] == 'n')
       model->normal_count += 1;
+    else if (buffer[0] == 'v' && buffer[1] == 't')
+      model->tex_coord_count += 1;
   }
   rewind(fh);
 }
 
 void extract_vert_text_norm(int dest[3], char *src)
 {
-  for (int i=0; i<strlen(src); i++)
+  for (size_t i=0; i<strlen(src)-1; i++)
     if (src[i] == '/')
       src[i] == ' ';
 
@@ -636,6 +684,7 @@ void load_polygons(FILE *fh, Model model, Polygon *polygons)
 
   char space[] = " ";
   char slash[] = "/";
+  char *token;
 
   Vector3 *vertices = (Vector3 *)malloc(model.vertex_count * sizeof(Vector3));
   int vertex_index = 0;
@@ -643,13 +692,16 @@ void load_polygons(FILE *fh, Model model, Polygon *polygons)
   Vector3 *normals = (Vector3 *)malloc(model.normal_count * sizeof(Vector3));
   int normal_index = 0;
 
+  Vector2 *tex_coords = (Vector2 *)malloc(model.tex_coord_count * sizeof(Vector2));
+  int tex_coord_index = 0;
+
   // load all vertices and normals into memory first
   while (fgets(buffer, 64, fh) != NULL)
   {
     // Line with vertex
     if (buffer[0] == 'v' && buffer[1] == ' ')
     {
-      char *token = strtok(buffer, space);
+      token = strtok(buffer, space);
       float temp[3];
       for (int i=0; i<3; i++)
       {
@@ -665,15 +717,27 @@ void load_polygons(FILE *fh, Model model, Polygon *polygons)
     // Line with vertex normal
     else if (buffer[0] == 'v' && buffer[1] == 'n')
     {
-      char *token = strtok(buffer, space);
+      token = strtok(buffer, space);
       float temp[3];
       for (int i=0; i<3; i++)
       {
         token = strtok(NULL, space);
         temp[i] = atof(token);
       }
-      memcpy(&normals[normal_index++], &(Vector3){temp[0], temp[1], temp[2]}, sizeof(Vector3));
+      normals[normal_index++] = (Vector3){temp[0], temp[1], temp[2]};
     }
+
+    // Line with texture coordinate
+    else if (buffer[0] == 'v' && buffer[1] == 't')
+    {
+      token = strtok(buffer, space);
+      token = strtok(NULL, space);
+      tex_coords[tex_coord_index].x = atof(token);
+      token = strtok(NULL, space);
+      tex_coords[tex_coord_index].y = atof(token);
+      tex_coord_index += 1;
+    }
+
   }
   rewind(fh);
 
@@ -683,39 +747,65 @@ void load_polygons(FILE *fh, Model model, Polygon *polygons)
   {
     if (buffer[0] == 'f' && buffer[1] == ' ')
     {
-      char *token = strtok(buffer, space); // token == "f"
+      token = strtok(buffer, space); // token == "f"
       int temp[3];
 
       for (int i=0; i<3; i++)
       {
         token = strtok(NULL, space); // token == "xxx/xxx/xxx"
         extract_vert_text_norm(temp, token);
-        memcpy(&polygons[polygon_index].vertices[i], &vertices[temp[0]-1], sizeof(Vector3));
+        polygons[polygon_index].vertices[i] = vertices[temp[0]-1];
+        polygons[polygon_index].texture_coords[i] = tex_coords[temp[1]-1];
       }
-      memcpy(&polygons[polygon_index].normal_vector, &normals[temp[2]-1], sizeof(Vector3));
-      polygons[polygon_index].fill = (Vector3){200, 200, 200};
+      polygons[polygon_index].normal_vector =normals[temp[2]-1];
       polygon_index += 1;
     }
   }
 
   free(vertices);
   free(normals);
+  free(tex_coords);
+}
 
-  // for (int i=0; i<model.polygon_count; i++)
-  // {
-  //   for (int j=0; j<3; j++)
-  //     printf("V: %f %f %f, ", polygons[i].vertices[j].x, polygons[i].vertices[j].y, polygons[i].vertices[j].z);
-  //   printf("\n");
-  // }
+void load_material(FILE *fh, Model *model)
+{
+  char space[] = " ";
+  char buffer[64];
+  while (fgets(buffer, 64, fh) != NULL)
+  {
+    if (buffer[0] == 'K' && buffer[1] == 'd')
+    {
+      char *token = strtok(buffer, space);
+      float temp[3];
+      for (int i=0; i<3; i++)
+      {
+        token = strtok(NULL, space);
+        temp[i] = atof(token);
+      }
+      model->fill.x = temp[0] * 255;
+      model->fill.y = temp[1] * 255;
+      model->fill.z = temp[2] * 255;
+      break;
+    }
+
+    if (buffer[0] == 'm' && buffer[1] == 'a') // filepath to texture
+    {
+      char *token = strtok(buffer, space);
+      token = strtok(NULL, space);
+      for (size_t i=0; i<strlen(token); i++)
+        if (token[i] == '\n')
+          token[i] = '\0';
+      model->texture = SDL_LoadBMP(token);
+      printf("FILE: %s\n", token);
+    }
+  }
 }
 
 /** Load an obj file
  */
-Model load_model(char *filepath)
+Model load_model(char *filepath, char *material)
 {
   Model model;
-  model.fill = (Vector3){255, 255, 255};
-  model.stroke = (Vector3){255, 255, 255};
   model.pos = (Vector3){0, 0, 0};
 
   FILE *fh = fopen(filepath, "r");
@@ -727,9 +817,27 @@ Model load_model(char *filepath)
   model.polygons = (Polygon *)malloc(model.polygon_count * sizeof(Polygon)); // Array of polygons
 
   load_polygons(fh, model, model.polygons);
-
   fclose(fh);
+
+  FILE *fh2 = fopen(material, "r");
+  if (fh2 == NULL)
+    printf("Error opening %s\n", material);
+  load_material(fh2, &model);
+  fclose(fh2);
+
+  fill_model(&model, model.fill.x, model.fill.y, model.fill.z);
+
   return model;
+}
+
+void fill_model(Model *model, int r, int g, int b)
+{
+  for (int i=0; i<model->polygon_count; i++)
+  {
+    model->polygons[i].fill.x = r;
+    model->polygons[i].fill.y = g;
+    model->polygons[i].fill.z = b;
+  }
 }
 //-------------------------------------------------------------------------------
 
