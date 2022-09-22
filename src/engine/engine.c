@@ -11,7 +11,7 @@
 SDL_Surface *pixel_array;
 float z_buffer[SCREEN_WIDTH * SCREEN_HEIGHT] = { 0 };
 
-Vector3 lightsource = {-50, -50, 10};
+Vector3 lightsource = {0, -100, -100};
 Vector3 camera_pos = {0, 0, 0};
 
 double delta_time;
@@ -274,33 +274,34 @@ bool PointInTriangle (Vector2 pt, Vector2 *v1, Vector2 *v2, Vector2 *v3)
   return !(has_neg && has_pos);
 }
 
+Vector3 calculate_barycentric(Vector2 pt, Vector2 v1, Vector2 v2, Vector2 v3)
+{
+  float weight_v1 = ((v2.y-v3.y)*(pt.x-v3.x) + (v3.x-v2.x)*(pt.y-v3.y)) / ((v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y));
+  float weight_v2 = ((v3.y-v1.y)*(pt.x-v3.x) + (v1.x-v3.x)*(pt.y-v3.y)) / ((v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y));
+  float weight_v3 = 1 - weight_v1 - weight_v2;
+  return (Vector3){weight_v1, weight_v2, weight_v3};
+}
+
 void triangle_2d(Camera *cam, Polygon *tri, SDL_Surface *texture)
 {
   Vector2 v1 = project_coordinate(&tri->vertices[0]);
   Vector2 v2 = project_coordinate(&tri->vertices[1]);
   Vector2 v3 = project_coordinate(&tri->vertices[2]);
 
-  Vector2 inv_v1 = (Vector2){v1.x/v1.w, v1.y/v1.w, 1/v1.w};
-  Vector2 inv_v2 = (Vector2){v2.x/v2.w, v2.y/v2.w, 1/v2.w};
-  Vector2 inv_v3 = (Vector2){v3.x/v3.w, v3.y/v3.w, 1/v3.w};
+  tri->texture_coords[0].x /= v1.w;
+  tri->texture_coords[0].y /= v1.w;
 
+  tri->texture_coords[1].x /= v2.w;
+  tri->texture_coords[1].y /= v2.w;
+  
+  tri->texture_coords[2].x /= v3.w;
+  tri->texture_coords[2].y /= v3.w;
 
-  float tex_1_x = tri->texture_coords[0].x / v1.w;
-  float tex_1_y = tri->texture_coords[0].y / v1.w;
+  line_2d(tri->fill, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1});
+  line_2d(tri->fill, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1});
+  line_2d(tri->fill, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1});
 
-  float tex_2_x = tri->texture_coords[1].x / v2.w;
-  float tex_2_y = tri->texture_coords[1].y / v2.w;
-
-  float tex_3_x = tri->texture_coords[2].x / v3.w;
-  float tex_3_y = tri->texture_coords[2].y / v3.w;
-
-  float tex_1_w = 1 / v1.w;
-  float tex_2_w = 1 / v2.w;
-  float tex_3_w = 1 / v3.w;
-
-  // line_2d(tri->fill, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1});
-  // line_2d(tri->fill, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1});
-  // line_2d(tri->fill, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1});
+  Uint8 fill = tri->fill.x;
 
   int lx = MIN(v1.x, MIN(v2.x, v3.x));
   int hx = MAX(v1.x, MAX(v2.x, v3.x));
@@ -313,50 +314,38 @@ void triangle_2d(Camera *cam, Polygon *tri, SDL_Surface *texture)
     {
       if (PointInTriangle((Vector2){x, y, 1}, &v1, &v2, &v3))
       {
-        Vector2 p = (Vector2){x, y, 1};
+        Vector2 pt = (Vector2){x, y, 1};
 
         // barycentric
-        float weight_v1 = ((v2.y-v3.y)*(p.x-v3.x) + (v3.x-v2.x)*(p.y-v3.y)) / ((v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y));
-        float weight_v2 = ((v3.y-v1.y)*(p.x-v3.x) + (v1.x-v3.x)*(p.y-v3.y)) / ((v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y));
-        float weight_v3 = 1 - weight_v1 - weight_v2;
-        float z_index = tri->vertices[0].z*weight_v1 + tri->vertices[1].z*weight_v2 + tri->vertices[2].z*weight_v3;
-
-        // perspective-corrected
-        float weight_tex_1 = ((tex_2_y-tex_3_y)*(p.x-tex_3_x) + (tex_3_x-tex_2_x)*(p.y-tex_3_y)) / ((tex_2_y-tex_3_y)*(tex_1_x-v3.x) + (tex_3_x-tex_2_x)*(tex_1_y-tex_3_y));
-        float weight_tex_2 = ((tex_3_y-tex_1_y)*(p.x-tex_3_x) + (tex_1_x-tex_3_x)*(p.y-tex_3_y)) / ((tex_2_y-tex_3_y)*(tex_1_x-v3.x) + (tex_3_x-tex_2_x)*(tex_1_y-tex_3_y));
-        float weight_tex_3 = 1 - weight_tex_1 - weight_tex_2;
-        
-        float u = (weight_v1*tri->texture_coords[0].x + weight_v2*tri->texture_coords[1].x + weight_v3*tri->texture_coords[2].x);
-        float v = (weight_v1*tri->texture_coords[0].y + weight_v2*tri->texture_coords[1].y + weight_v3*tri->texture_coords[2].y);
-        float w = (weight_v1*tri->vertices[0].z + weight_v2*tri->vertices[1].z + weight_v3*tri->vertices[2].z);
-        
-        float z_reciprocal = 1/w;
-        float u_correct = u * z_reciprocal;
-        float v_correct = v * z_reciprocal;
-
+        Vector3 weights = calculate_barycentric(pt, v1, v2, v3);
+        float z_index = weights.x*tri->vertices[0].z + weights.y*tri->vertices[1].z + weights.z*tri->vertices[2].z;
 
         if (z_index < z_buffer[SCREEN_WIDTH*y + x])
         {
           z_buffer[SCREEN_WIDTH*y + x] = z_index;
 
-          // float du1 = tri->texture_coords[1].x - tri->texture_coords[0].x;
-          // float dv1 = tri->texture_coords[1].y - tri->texture_coords[0].y;
-          // float dw1 = tri->texture_coords[1].w - tri->texture_coords[0].w;
+          float y_inv = y;
 
-          // float du2 = tri->texture_coords[2].x - tri->texture_coords[1].x;
-          // float dv2 = tri->texture_coords[2].y - tri->texture_coords[1].y;
-          // float dw2 = tri->texture_coords[2].w - tri->texture_coords[1].w;
+          float uf = weights.x*tri->texture_coords[0].x + weights.y*tri->texture_coords[1].x + weights.z*tri->texture_coords[2].x;
+          float vf = weights.x*tri->texture_coords[0].y + weights.y*tri->texture_coords[1].y + weights.z*tri->texture_coords[2].y;
 
-          int px = 75 * (weight_v1*x + weight_v2*x + weight_v3*x);
-          int py = 600 * (weight_v1*y + weight_v2*y + weight_v3*y);
-          // printf("px: %d, py: %d\n", px, py);
-          px %= 600;
-          py %= 600;
-          Uint8 *blue  = ((Uint8 *)texture->pixels + ((Uint16)py * texture->pitch) + ((Uint16)px * texture->format->BitsPerPixel + 0));
-          Uint8 *green = ((Uint8 *)texture->pixels + ((Uint16)py * texture->pitch) + ((Uint16)px * texture->format->BitsPerPixel + 1));
-          Uint8 *red   = ((Uint8 *)texture->pixels + ((Uint16)py * texture->pitch) + ((Uint16)px * texture->format->BitsPerPixel + 2));
+          uf *= z_index;
+          vf *= z_index;
 
-          set_pixel(x, y, *red, *green, *blue);
+          uf *= 75;
+          vf *= 600;
+
+          int u = (int)uf;
+          int v = (int)vf;
+          
+          u %= 75;
+          v %= 600;
+
+          Uint8 *blue  = ((Uint8 *)texture->pixels + (v * texture->pitch) + (u * texture->format->BitsPerPixel + 0));
+          Uint8 *green = ((Uint8 *)texture->pixels + (v * texture->pitch) + (u * texture->format->BitsPerPixel + 1));
+          Uint8 *red   = ((Uint8 *)texture->pixels + (v * texture->pitch) + (u * texture->format->BitsPerPixel + 2));
+
+          set_pixel(x, y, *red+fill, *green+fill, *blue+fill);
         }
       }
     }
@@ -380,9 +369,6 @@ Vector3 CLIP_point_of_intersect(Vector3 plane_normal, Vector3 p1, Vector3 p2, fl
  */
 int CLIP_points_inside(Vector3 plane_normal, Polygon *tri, int *index_of_inside, int *index_of_outside)
 {
-  *index_of_inside = 0;
-  *index_of_outside = 0;
-
   float dot1 = vector3_dot(plane_normal, tri->vertices[0]);
   float dot2 = vector3_dot(plane_normal, tri->vertices[1]);
   float dot3 = vector3_dot(plane_normal, tri->vertices[2]);
@@ -640,16 +626,16 @@ int clip_against_plane(Vector3 plane_normal, int poly_count, Polygon *unclipped_
 
 Polygon *clip_against_planes(Camera *cam, int in_size, Polygon *polygons_in, int *out_size)
 {
-  Polygon *clipped_1 = (Polygon *)malloc(in_size*2 * sizeof(Polygon));
+  Polygon *clipped_1 = (Polygon *)calloc(in_size*2, sizeof(Polygon));
   int n = clip_against_plane(cam->l_norm, in_size, polygons_in, clipped_1);
 
-  Polygon *clipped_2 = (Polygon *)malloc(n*2 * sizeof(Polygon));
+  Polygon *clipped_2 = (Polygon *)calloc(n*2, sizeof(Polygon));
   n = clip_against_plane(cam->r_norm, n, clipped_1, clipped_2);
 
-  Polygon *clipped_3 = (Polygon *)malloc(n*2 * sizeof(Polygon));
+  Polygon *clipped_3 = (Polygon *)calloc(n*2, sizeof(Polygon));
   n = clip_against_plane(cam->t_norm, n, clipped_2, clipped_3);
   
-  Polygon *clipped_4 = (Polygon *)malloc(n*2 * sizeof(Polygon));
+  Polygon *clipped_4 = (Polygon *)calloc(n*2, sizeof(Polygon));
   *out_size = clip_against_plane(cam->b_norm, n, clipped_3, clipped_4);
 
   free(clipped_1);
@@ -661,14 +647,14 @@ Polygon *clip_against_planes(Camera *cam, int in_size, Polygon *polygons_in, int
 
 void draw_model(Camera cam, Model *model)
 {
-  int *frontface_indices = (int *)malloc(model->polygon_count * sizeof(int));
+  int *frontface_indices = (int *)calloc(model->polygon_count, sizeof(int));
   int frontface_count = 0;
 
   for (int i=0; i<model->polygon_count; i++)
     if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], cam.pos), model->polygons[i].normal_vector) < 0)
       frontface_indices[frontface_count++] = i;
   
-  Polygon *front_faces = (Polygon *)malloc(frontface_count * sizeof(Polygon));
+  Polygon *front_faces = (Polygon *)calloc(frontface_count, sizeof(Polygon));
   for (int i=0; i<frontface_count; i++)
     front_faces[i] = model->polygons[frontface_indices[i]];
 
@@ -683,9 +669,9 @@ void draw_model(Camera cam, Model *model)
       rotate_point(&front_faces[i].vertices[j], cam.rot.x, 0, 0);
   
       float angle = vector3_angle(front_faces[i].normal_vector, lightsource);
-      front_faces[i].fill.x = (2*angle);
-      front_faces[i].fill.y = (2*angle);
-      front_faces[i].fill.z = (2*angle);
+      front_faces[i].fill.x = (5*angle);
+      front_faces[i].fill.y = (5*angle);
+      front_faces[i].fill.z = (5*angle);
     }
   }
 
@@ -700,6 +686,20 @@ void draw_model(Camera cam, Model *model)
   free(clipped_polygons);
 }
 //-------------------------------------------------------------------------------
+
+Vector2 project_texture(Vector2 texture, float z)
+{
+  float nearplane_width = HALF_SCREEN_WIDTH;
+  float nearplane_height = HALF_SCREEN_HEIGHT;
+  float nearplane_z = 0.999;
+
+  float canvas_x = (nearplane_z/z) * texture.x * nearplane_z * nearplane_width;
+  float canvas_y = (nearplane_z/z) * texture.y * nearplane_z * nearplane_height;
+  canvas_x += HALF_SCREEN_WIDTH;
+  canvas_y += HALF_SCREEN_HEIGHT;
+
+  return (Vector2){canvas_x, canvas_y, z};
+}
 
 /** Project a 3D world coordinate onto a 2D screen coordinate.
  * z coordinate is preserved for z-buffering.
@@ -760,13 +760,13 @@ void load_polygons(FILE *fh, Model model, Polygon *polygons)
   char slash[] = "/";
   char *token;
 
-  Vector3 *vertices = (Vector3 *)malloc(model.vertex_count * sizeof(Vector3));
+  Vector3 *vertices = (Vector3 *)calloc(model.vertex_count, sizeof(Vector3));
   int vertex_index = 0;
 
-  Vector3 *normals = (Vector3 *)malloc(model.normal_count * sizeof(Vector3));
+  Vector3 *normals = (Vector3 *)calloc(model.normal_count, sizeof(Vector3));
   int normal_index = 0;
 
-  Vector2 *tex_coords = (Vector2 *)malloc(model.tex_coord_count * sizeof(Vector2));
+  Vector2 *tex_coords = (Vector2 *)calloc(model.tex_coord_count, sizeof(Vector2));
   int tex_coord_index = 0;
 
   // load all vertices and normals into memory first
@@ -892,7 +892,7 @@ Model load_model(char *filepath, char *material)
 
   count_polygons(fh, &model);
 
-  model.polygons = (Polygon *)malloc(model.polygon_count * sizeof(Polygon)); // Array of polygons
+  model.polygons = (Polygon *)calloc(model.polygon_count, sizeof(Polygon)); // Array of polygons
 
   load_polygons(fh, model, model.polygons);
   fclose(fh);

@@ -38,18 +38,15 @@ int main(int argc, char** argv)
 
   pixel_array = SDL_GetWindowSurface(win);
 
-
   Camera cam = create_camera();
 
   // Load models
   //------------------------------------------------------------
   Model cube = load_model("./cube.obj", "./cube.mtl");
   // fill_model(&cube, 150, 120, 75);
-  translate_model(&cube, 0, -2, 0);
+  // translate_model(&cube, 0, -2, 0);
 
-  Model plane = load_model("./inside.obj", "./inside.mtl");
-  fill_model(&plane, 150, 120, 75);
-
+  Model plane = load_model("./plane.obj", "./plane.mtl");
   //------------------------------------------------------------
 
   // Render loop
