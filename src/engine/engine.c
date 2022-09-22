@@ -687,19 +687,7 @@ void draw_model(Camera cam, Model *model)
 }
 //-------------------------------------------------------------------------------
 
-Vector2 project_texture(Vector2 texture, float z)
-{
-  float nearplane_width = HALF_SCREEN_WIDTH;
-  float nearplane_height = HALF_SCREEN_HEIGHT;
-  float nearplane_z = 0.999;
 
-  float canvas_x = (nearplane_z/z) * texture.x * nearplane_z * nearplane_width;
-  float canvas_y = (nearplane_z/z) * texture.y * nearplane_z * nearplane_height;
-  canvas_x += HALF_SCREEN_WIDTH;
-  canvas_y += HALF_SCREEN_HEIGHT;
-
-  return (Vector2){canvas_x, canvas_y, z};
-}
 
 /** Project a 3D world coordinate onto a 2D screen coordinate.
  * z coordinate is preserved for z-buffering.
