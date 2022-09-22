@@ -290,12 +290,15 @@ void triangle_2d(Camera *cam, Polygon *tri, SDL_Surface *texture)
 
   tri->texture_coords[0].x /= v1.w;
   tri->texture_coords[0].y /= v1.w;
+  float invz1 = 1/v1.w;
 
   tri->texture_coords[1].x /= v2.w;
   tri->texture_coords[1].y /= v2.w;
+  float invz2 = 1/v2.w;
   
   tri->texture_coords[2].x /= v3.w;
   tri->texture_coords[2].y /= v3.w;
+  float invz3 = 1/v3.w;
 
   line_2d(tri->fill, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1});
   line_2d(tri->fill, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1});
@@ -324,13 +327,12 @@ void triangle_2d(Camera *cam, Polygon *tri, SDL_Surface *texture)
         {
           z_buffer[SCREEN_WIDTH*y + x] = z_index;
 
-          float y_inv = y;
-
           float uf = weights.x*tri->texture_coords[0].x + weights.y*tri->texture_coords[1].x + weights.z*tri->texture_coords[2].x;
           float vf = weights.x*tri->texture_coords[0].y + weights.y*tri->texture_coords[1].y + weights.z*tri->texture_coords[2].y;
+          float invz = weights.x*invz1 + weights.y*invz2 + weights.z*invz3;
 
-          uf *= z_index;
-          vf *= z_index;
+          uf /= invz;
+          vf /= invz;
 
           uf *= 75;
           vf *= 600;
