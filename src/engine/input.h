@@ -4,11 +4,17 @@
 #include <SDL2/SDL.h>
 #include "engine.h"
 
+int toggle = 0;
+
 void input(SDL_Event event, Camera *cam)
 {
   const Uint8 *state = SDL_GetKeyboardState(NULL);
 
-  camera_pos = cam->pos;
+  cam->pos = vector3_add(cam->pos, cam->vel);
+  cam->vel = vector3_scale(cam->vel, 0.9);
+
+  if (cam->pos.y < -5)
+    cam->vel.y += delta_time;
 
   if (state[SDL_SCANCODE_W])
   {
@@ -38,7 +44,7 @@ void input(SDL_Event event, Camera *cam)
   }
 
   if (state[SDL_SCANCODE_SPACE])
-    cam->pos.y -= delta_time * cam->speed * 2;
+    cam->vel = vector3_add(cam->vel, (Vector3){0, -delta_time, 0});
   else if (state[SDL_SCANCODE_LCTRL])
     cam->pos.y += delta_time * cam->speed * 2;
 
@@ -68,6 +74,11 @@ void input(SDL_Event event, Camera *cam)
       cam->dir.y = sin(-cam->rot.x);
       cam->dir.z = cos(-cam->rot.y);
     }
+    
+    if (event.type == SDL_MOUSEBUTTONDOWN)
+      toggle = 1;
+    else if (event.type == SDL_MOUSEBUTTONUP)
+      toggle = 0;
   }
 }
 

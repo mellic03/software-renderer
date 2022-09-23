@@ -34,19 +34,27 @@ int main(int argc, char** argv)
   }
 
   SDL_SetRelativeMouseMode(SDL_TRUE);
-  SDL_Event event; // no need for new/delete, stack is fine
-
+  SDL_Event event;
   pixel_array = SDL_GetWindowSurface(win);
 
   Camera cam = create_camera();
 
   // Load models
   //------------------------------------------------------------
-  Model cube = load_model("./cube.obj", "./cube.mtl");
-  // fill_model(&cube, 150, 120, 75);
-  // translate_model(&cube, 0, -2, 0);
+  Model floor = load_model("./floor.obj", "./floor.mtl");
+  translate_model(&floor, 0, -3, 0);
+  rotate_y(&floor, 3.14);
 
-  Model plane = load_model("./plane.obj", "./plane.mtl");
+  Model grass = load_model("./grass.obj", "./grass.mtl");
+  translate_model(&grass, 0, -3, 0);
+  rotate_y(&grass, 3.14);
+
+  Model cube = load_model("./cube.obj", "./cube.mtl");
+  translate_model(&cube, -5, -4, -2);
+  rotate_y(&cube, 3.14);
+
+  Model monkey = load_model("./monkey.obj", "./monkey.mtl");
+  translate_model(&monkey, 5, -4, -2);
   //------------------------------------------------------------
 
   // Render loop
@@ -58,18 +66,31 @@ int main(int argc, char** argv)
   while (1)
   {
     time = clock();
-
     clear_screen(109, 133, 169);
     input(event, &cam);
 
-    // draw_model(cam, &plane);
+    draw_model(cam, &floor);
+    draw_model(cam, &grass);
     draw_model(cam, &cube);
+    draw_model(cam, &monkey);
 
-    cam.pos = vector3_add(cam.pos, cam.vel);
-    cam.vel = vector3_scale(cam.vel, 0.7);
+    rotate_x(&cube, delta_time*0.5);
+    rotate_y(&cube, delta_time);
+    rotate_y(&monkey, delta_time);
+
+
+    if (toggle == 1 && vector3_dist((vector3_add(cam.pos, cam.dir)), cube.pos) < 2)
+    {
+      Vector3 t = vector3_add(cam.pos, vector3_scale((Vector3){cam.dir.x, -cam.dir.y, cam.dir.z}, 2));
+      Vector3 dir = vector3_sub(t, cube.pos);
+      translate_model(&cube, dir.x, dir.y, dir.z);
+    }
+
+
+
+
 
     SDL_UpdateWindowSurface(win);
-    
     framerate = 1 / ((double)(clock() - time) / CLOCKS_PER_SEC);
     if (count > 500)
     {
@@ -81,7 +102,6 @@ int main(int argc, char** argv)
   }
   //------------------------------------------------------------
 
-  //Clean Up
   SDL_DestroyWindow(win);
   SDL_Quit();
 

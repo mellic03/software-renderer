@@ -7,11 +7,11 @@
 Camera create_camera(void)
 {
   Camera cam;
-  cam.pos = (Vector3){0, 0, -4};
+  cam.pos = (Vector3){0, -4.5, -4};
   cam.dir = (Vector3){0, 0, 1};
   cam.rot = (Vector3){0, 0, 0};
 
-  cam.speed = 5;
+  cam.speed = 1;
 
   cam.near_norm = (Vector3){0, 0, 1};
   cam.far_norm = (Vector3){0, 0, -1};
