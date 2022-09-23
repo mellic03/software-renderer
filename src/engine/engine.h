@@ -52,7 +52,7 @@ void fill_model(Model *model, int r, int g, int b);
 
 void rotate_x(Model *model, float rotation);
 void rotate_y(Model *model, float r);
-void rotate_z(Model *model, float r);
+void rotate_z(Model model, float r);
 void rotate_point(Vector3 *pt, float x, float y, float z);
 void translate_model(Model *model, float x, float y, float z);
 void set_position_model(Model *model, Vector3 pos);
