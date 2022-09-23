@@ -76,7 +76,7 @@ int main(int argc, char** argv)
 
     rotate_x(&cube, delta_time*0.5);
     rotate_y(&cube, delta_time);
-    rotate_y(&monkey, delta_time);
+    rotate_z(&monkey, delta_time);
 
 
     if (toggle == 1 && vector3_dist((vector3_add(cam.pos, cam.dir)), cube.pos) < 2)

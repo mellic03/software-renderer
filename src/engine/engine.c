@@ -2,6 +2,7 @@
 #include <string.h>
 #include <SDL2/SDL.h>
 #include <stdbool.h>
+#include <cblas.h>
 
 #include "vector.h"
 #include "camera.h"
@@ -79,32 +80,32 @@ void rotate_x(Model *model, float r)
   Vector3 model_pos = model->pos;
   translate_model(model, -model_pos.x, -model_pos.y, -model_pos.z);
 
-  float rot_x[3][3] = {
-    { 1, 0,       0      },
-    { 0, cos(r), -sin(r) },
-    { 0, sin(r),  cos(r) }
+  float rot_x[9] = {
+    1, 0,       0     ,
+    0, cos(r), -sin(r),
+    0, sin(r),  cos(r)
   };
 
-  float result[3][1];
+  float result[3];
 
   for (int i=0; i<model->polygon_count; i++)
   {
     // rotate vertices
     for (int j=0; j<3; j++)
     {
-      float coord[3][1] = {{model->polygons[i].vertices[j].x}, {model->polygons[i].vertices[j].y}, {model->polygons[i].vertices[j].z}};
-      matrix_mult(3, 3, 3, 1, result, rot_x, coord);
-      model->polygons[i].vertices[j].x = result[0][0];
-      model->polygons[i].vertices[j].y = result[1][0];
-      model->polygons[i].vertices[j].z = result[2][0];
+      float coord[3] = {model->polygons[i].vertices[j].x, model->polygons[i].vertices[j].y, model->polygons[i].vertices[j].z};
+      cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, 3, 1, 3, 1, rot_x, 3, coord, 3, 0, result, 3);
+      model->polygons[i].vertices[j].x = result[0];
+      model->polygons[i].vertices[j].y = result[1];
+      model->polygons[i].vertices[j].z = result[2];
     }
 
     // rotate normals
-    float coord[3][1] = {{model->polygons[i].normal_vector.x}, {model->polygons[i].normal_vector.y}, {model->polygons[i].normal_vector.z}};
-    matrix_mult(3, 3, 3, 1, result, rot_x, coord);
-    model->polygons[i].normal_vector.x = result[0][0];
-    model->polygons[i].normal_vector.y = result[1][0];
-    model->polygons[i].normal_vector.z = result[2][0];
+    float coord[3] = {model->polygons[i].normal_vector.x, model->polygons[i].normal_vector.y, model->polygons[i].normal_vector.z};
+    cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, 3, 1, 3, 1, rot_x, 3, coord, 3, 0, result, 3);
+    model->polygons[i].normal_vector.x = result[0];
+    model->polygons[i].normal_vector.y = result[1];
+    model->polygons[i].normal_vector.z = result[2];
   }
   translate_model(model, model_pos.x, model_pos.y, model_pos.z);
 }
@@ -114,69 +115,69 @@ void rotate_y(Model *model, float r)
   Vector3 model_pos = model->pos;
   translate_model(model, -model_pos.x, -model_pos.y, -model_pos.z);
 
-  float rot_y[3][3] = {
-    { cos(r),  0, sin(r) },
-    { 0,       1, 0      },
-    { -sin(r), 0, cos(r) }
+  float rot_y[9] = {
+    cos(r),  0, sin(r),
+    0,       1, 0     ,
+    -sin(r), 0, cos(r)
   };
 
-  float result[3][1];
+  float result[3];
 
   for (int i=0; i<model->polygon_count; i++)
   {
     // rotate vertices
     for (int j=0; j<3; j++)
     {
-      float coord[3][1] = {{model->polygons[i].vertices[j].x}, {model->polygons[i].vertices[j].y}, {model->polygons[i].vertices[j].z}};
-      matrix_mult(3, 3, 3, 1, result, rot_y, coord);
-      model->polygons[i].vertices[j].x = result[0][0];
-      model->polygons[i].vertices[j].y = result[1][0];
-      model->polygons[i].vertices[j].z = result[2][0];
+      float coord[3] = {model->polygons[i].vertices[j].x, model->polygons[i].vertices[j].y, model->polygons[i].vertices[j].z};
+      cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, 3, 1, 3, 1, rot_y, 3, coord, 3, 0, result, 3);
+      model->polygons[i].vertices[j].x = result[0];
+      model->polygons[i].vertices[j].y = result[1];
+      model->polygons[i].vertices[j].z = result[2];
     }
 
     // rotate normals
-    float coord[3][1] = {{model->polygons[i].normal_vector.x}, {model->polygons[i].normal_vector.y}, {model->polygons[i].normal_vector.z}};
-    matrix_mult(3, 3, 3, 1, result, rot_y, coord);
-    model->polygons[i].normal_vector.x = result[0][0];
-    model->polygons[i].normal_vector.y = result[1][0];
-    model->polygons[i].normal_vector.z = result[2][0];
+    float coord[3] = {model->polygons[i].normal_vector.x, model->polygons[i].normal_vector.y, model->polygons[i].normal_vector.z};
+    cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, 3, 1, 3, 1, rot_y, 3, coord, 3, 0, result, 3);
+    model->polygons[i].normal_vector.x = result[0];
+    model->polygons[i].normal_vector.y = result[1];
+    model->polygons[i].normal_vector.z = result[2];
   }
   translate_model(model, model_pos.x, model_pos.y, model_pos.z);
 }
 
-void rotate_z(Model model, float r)
+void rotate_z(Model *model, float r)
 {
-  Vector3 model_pos = model.pos;
-  translate_model(&model, -model.pos.x, -model.pos.y, -model.pos.z);
+  Vector3 model_pos = model->pos;
+  translate_model(model, -model_pos.x, -model_pos.y, -model_pos.z);
 
-  float rot_z[3][3] = {
-    { cos(r), -sin(r), 0 },
-    { sin(r), cos(r),  0 },
-    { 0,      0,       1 }
+  float rot_z[9] = {
+    cos(r), -sin(r), 0,
+    sin(r), cos(r),  0,
+    0,      0,       1
   };
 
-  float result[3][1];
+  float result[3];
 
-  for (int i=0; i<model.polygon_count; i++)
+  for (int i=0; i<model->polygon_count; i++)
   {
     // rotate vertices
     for (int j=0; j<3; j++)
     {
-      float coord[3][1] = {{model.polygons[i].vertices[j].x}, {model.polygons[i].vertices[j].y}, {model.polygons[i].vertices[j].z}};
-      matrix_mult(3, 3, 3, 1, result, rot_z, coord);
-      model.polygons[i].vertices[j].x = result[0][0];
-      model.polygons[i].vertices[j].y = result[1][0];
-      model.polygons[i].vertices[j].z = result[2][0];
+      float coord[3] = {model->polygons[i].vertices[j].x, model->polygons[i].vertices[j].y, model->polygons[i].vertices[j].z};
+      cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, 3, 1, 3, 1, rot_z, 3, coord, 3, 0, result, 3);
+      model->polygons[i].vertices[j].x = result[0];
+      model->polygons[i].vertices[j].y = result[1];
+      model->polygons[i].vertices[j].z = result[2];
     }
 
     // rotate normals
-    float coord[3][1] = {{model.polygons[i].normal_vector.x}, {model.polygons[i].normal_vector.y}, {model.polygons[i].normal_vector.z}};
-    matrix_mult(3, 3, 3, 1, result, rot_z, coord);
-    model.polygons[i].normal_vector.x = result[0][0];
-    model.polygons[i].normal_vector.y = result[1][0];
-    model.polygons[i].normal_vector.z = result[2][0];
+    float coord[3] = {model->polygons[i].normal_vector.x, model->polygons[i].normal_vector.y, model->polygons[i].normal_vector.z};
+    cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, 3, 1, 3, 1, rot_z, 3, coord, 3, 0, result, 3);
+    model->polygons[i].normal_vector.x = result[0];
+    model->polygons[i].normal_vector.y = result[1];
+    model->polygons[i].normal_vector.z = result[2];
   }
-  translate_model(&model, model_pos.x, model_pos.y, model_pos.z);
+  translate_model(model, model_pos.x, model_pos.y, model_pos.z);
 }
 //-------------------------------------------------------------------------------
 
@@ -853,8 +854,6 @@ void load_material(FILE *fh, Model *model)
   }
 }
 
-/** Load an obj file
- */
 Model load_model(char *filepath, char *material)
 {
   Model model;
@@ -917,4 +916,3 @@ void fill_model(Model *model, int r, int g, int b)
   }
 }
 //-------------------------------------------------------------------------------
-
