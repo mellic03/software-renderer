@@ -5,6 +5,8 @@
 #include "engine.h"
 
 int toggle = 0;
+float something = 0.0;
+int height = 0;
 
 void input(SDL_Event event, Camera *cam)
 {
@@ -13,8 +15,13 @@ void input(SDL_Event event, Camera *cam)
   cam->pos = vector3_add(cam->pos, cam->vel);
   cam->vel = vector3_scale(cam->vel, 0.9);
 
+  cam->pos.y = 0.2*(sin(something)) + height;
+  something += cam->vel.z + cam->vel.x;
+
   if (cam->pos.y < -5)
     cam->vel.y += delta_time;
+  else if (cam->pos.y > -5)
+    cam->vel.y -= delta_time;
 
   if (state[SDL_SCANCODE_W])
   {
@@ -45,9 +52,15 @@ void input(SDL_Event event, Camera *cam)
 
   if (state[SDL_SCANCODE_SPACE])
     cam->vel = vector3_add(cam->vel, (Vector3){0, -delta_time, 0});
-  else if (state[SDL_SCANCODE_LCTRL])
-    cam->pos.y += delta_time * cam->speed * 2;
+  if (state[SDL_SCANCODE_LCTRL])
+    height = 1;
+  else
+    height = 0;
 
+  if (state[SDL_SCANCODE_LSHIFT])
+    cam->speed = 2;
+  else
+    cam->speed = 1;
 
 
   while(SDL_PollEvent(&event))

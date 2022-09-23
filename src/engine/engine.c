@@ -21,7 +21,7 @@ void translate_model(Model *model, float x, float y, float z)
 {
   model->pos = vector3_add(model->pos, (Vector3){x, y, z});
 
-  for (int i=0; i<model->polygon_count; i++)
+  for (int i=0; i<model->poly_count; i++)
     for (int j=0; j<3; j++)
     {
       model->polygons[i].vertices[j].x += x;
@@ -87,7 +87,7 @@ void rotate_x(Model *model, float r)
 
   float result[3][1];
 
-  for (int i=0; i<model->polygon_count; i++)
+  for (int i=0; i<model->poly_count; i++)
   {
     // rotate vertices
     for (int j=0; j<3; j++)
@@ -122,7 +122,7 @@ void rotate_y(Model *model, float r)
 
   float result[3][1];
 
-  for (int i=0; i<model->polygon_count; i++)
+  for (int i=0; i<model->poly_count; i++)
   {
     // rotate vertices
     for (int j=0; j<3; j++)
@@ -158,7 +158,7 @@ void rotate_z(Model model, float r)
 
   float result[3][1];
 
-  for (int i=0; i<model.polygon_count; i++)
+  for (int i=0; i<model.poly_count; i++)
   {
     // rotate vertices
     for (int j=0; j<3; j++)
@@ -286,16 +286,16 @@ void triangle_2d(Camera *cam, Polygon *tri, SDL_Surface *texture)
   Vector2 v2 = project_coordinate(&tri->vertices[1]);
   Vector2 v3 = project_coordinate(&tri->vertices[2]);
 
-  float invu1 = tri->texture_coords[0].x / v1.w;
-  float invv1 = tri->texture_coords[0].y / v1.w;
+  float invu1 = tri->uvs[0].x / v1.w;
+  float invv1 = tri->uvs[0].y / v1.w;
   float invz1 = 1/v1.w;
 
-  float invu2 = tri->texture_coords[1].x / v2.w;
-  float invv2 = tri->texture_coords[1].y / v2.w;
+  float invu2 = tri->uvs[1].x / v2.w;
+  float invv2 = tri->uvs[1].y / v2.w;
   float invz2 = 1/v2.w;
   
-  float invu3 = tri->texture_coords[2].x / v3.w;
-  float invv3 = tri->texture_coords[2].y / v3.w;
+  float invu3 = tri->uvs[2].x / v3.w;
+  float invv3 = tri->uvs[2].y / v3.w;
   float invz3 = 1/v3.w;
 
   // line_2d(tri->fill, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1});
@@ -425,15 +425,15 @@ int clip_polygon(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polyg
 
           B_prime = line_plane_intersect(plane_normal, A, B, &t1);
           C_prime = line_plane_intersect(plane_normal, A, C, &t2);
-          tex_Bprime = (Vector2){ tri_in->texture_coords[0].x + t1*(tri_in->texture_coords[1].x - tri_in->texture_coords[0].x),
-                                  tri_in->texture_coords[0].y + t1*(tri_in->texture_coords[1].y - tri_in->texture_coords[0].y),
+          tex_Bprime = (Vector2){ tri_in->uvs[0].x + t1*(tri_in->uvs[1].x - tri_in->uvs[0].x),
+                                  tri_in->uvs[0].y + t1*(tri_in->uvs[1].y - tri_in->uvs[0].y),
                                   1 };
-          tex_Cprime = (Vector2){ tri_in->texture_coords[0].x + t2*(tri_in->texture_coords[2].x - tri_in->texture_coords[0].x),
-                                  tri_in->texture_coords[0].y + t2*(tri_in->texture_coords[2].y - tri_in->texture_coords[0].y),
+          tex_Cprime = (Vector2){ tri_in->uvs[0].x + t2*(tri_in->uvs[2].x - tri_in->uvs[0].x),
+                                  tri_in->uvs[0].y + t2*(tri_in->uvs[2].y - tri_in->uvs[0].y),
                                   1 };
 
-          tri_in->texture_coords[1] = tex_Bprime;
-          tri_in->texture_coords[2] = tex_Cprime;
+          tri_in->uvs[1] = tex_Bprime;
+          tri_in->uvs[2] = tex_Cprime;
           tri_in->vertices[0] = A;
           tri_in->vertices[1] = B_prime;
           tri_in->vertices[2] = C_prime;
@@ -446,15 +446,15 @@ int clip_polygon(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polyg
 
           B_prime = line_plane_intersect(plane_normal, A, B, &t1);
           C_prime = line_plane_intersect(plane_normal, A, C, &t2);
-          tex_Bprime = (Vector2){ tri_in->texture_coords[1].x + t1*(tri_in->texture_coords[0].x - tri_in->texture_coords[1].x),
-                                  tri_in->texture_coords[1].y + t1*(tri_in->texture_coords[0].y - tri_in->texture_coords[1].y),
+          tex_Bprime = (Vector2){ tri_in->uvs[1].x + t1*(tri_in->uvs[0].x - tri_in->uvs[1].x),
+                                  tri_in->uvs[1].y + t1*(tri_in->uvs[0].y - tri_in->uvs[1].y),
                                   1 };
-          tex_Cprime = (Vector2){ tri_in->texture_coords[1].x + t2*(tri_in->texture_coords[2].x - tri_in->texture_coords[1].x),
-                                  tri_in->texture_coords[1].y + t2*(tri_in->texture_coords[2].y - tri_in->texture_coords[1].y),
+          tex_Cprime = (Vector2){ tri_in->uvs[1].x + t2*(tri_in->uvs[2].x - tri_in->uvs[1].x),
+                                  tri_in->uvs[1].y + t2*(tri_in->uvs[2].y - tri_in->uvs[1].y),
                                   1 };
 
-          tri_in->texture_coords[2] = tex_Bprime;
-          tri_in->texture_coords[0] = tex_Cprime;
+          tri_in->uvs[2] = tex_Bprime;
+          tri_in->uvs[0] = tex_Cprime;
           tri_in->vertices[1] = A;
           tri_in->vertices[2] = B_prime;
           tri_in->vertices[0] = C_prime;
@@ -467,15 +467,15 @@ int clip_polygon(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polyg
 
           B_prime = line_plane_intersect(plane_normal, A, B, &t1);
           C_prime = line_plane_intersect(plane_normal, A, C, &t2);
-          tex_Bprime = (Vector2){ tri_in->texture_coords[2].x + t1*(tri_in->texture_coords[0].x - tri_in->texture_coords[2].x),
-                                  tri_in->texture_coords[2].y + t1*(tri_in->texture_coords[0].y - tri_in->texture_coords[2].y),
+          tex_Bprime = (Vector2){ tri_in->uvs[2].x + t1*(tri_in->uvs[0].x - tri_in->uvs[2].x),
+                                  tri_in->uvs[2].y + t1*(tri_in->uvs[0].y - tri_in->uvs[2].y),
                                   1 };
-          tex_Cprime = (Vector2){ tri_in->texture_coords[2].x + t2*(tri_in->texture_coords[1].x - tri_in->texture_coords[2].x),
-                                  tri_in->texture_coords[2].y + t2*(tri_in->texture_coords[1].y - tri_in->texture_coords[2].y),
+          tex_Cprime = (Vector2){ tri_in->uvs[2].x + t2*(tri_in->uvs[1].x - tri_in->uvs[2].x),
+                                  tri_in->uvs[2].y + t2*(tri_in->uvs[1].y - tri_in->uvs[2].y),
                                   1 };
 
-          tri_in->texture_coords[0] = tex_Bprime;
-          tri_in->texture_coords[1] = tex_Cprime;
+          tri_in->uvs[0] = tex_Bprime;
+          tri_in->uvs[1] = tex_Cprime;
 
           tri_in->vertices[2] = A;
           tri_in->vertices[0] = B_prime;
@@ -497,21 +497,21 @@ int clip_polygon(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polyg
           A_prime = line_plane_intersect(plane_normal, A, C, &t1);
           B_prime = line_plane_intersect(plane_normal, B, C, &t2);
           
-          tex_Aprime = (Vector2){  tri_in->texture_coords[1].x + t1*(tri_in->texture_coords[0].x - tri_in->texture_coords[1].x),
-                                  tri_in->texture_coords[1].y + t1*(tri_in->texture_coords[0].y - tri_in->texture_coords[1].y),
+          tex_Aprime = (Vector2){  tri_in->uvs[1].x + t1*(tri_in->uvs[0].x - tri_in->uvs[1].x),
+                                  tri_in->uvs[1].y + t1*(tri_in->uvs[0].y - tri_in->uvs[1].y),
                                   1 };
 
-          tex_Bprime = (Vector2){  tri_in->texture_coords[2].x + t2*(tri_in->texture_coords[0].x - tri_in->texture_coords[2].x),
-                                  tri_in->texture_coords[2].y + t2*(tri_in->texture_coords[0].y - tri_in->texture_coords[2].y),
+          tex_Bprime = (Vector2){  tri_in->uvs[2].x + t2*(tri_in->uvs[0].x - tri_in->uvs[2].x),
+                                  tri_in->uvs[2].y + t2*(tri_in->uvs[0].y - tri_in->uvs[2].y),
                                   1 };
 
-          tri_out1->texture_coords[0] = tri_in->texture_coords[1];
-          tri_out1->texture_coords[1] = tri_in->texture_coords[2];
-          tri_out1->texture_coords[2] = tex_Aprime;
+          tri_out1->uvs[0] = tri_in->uvs[1];
+          tri_out1->uvs[1] = tri_in->uvs[2];
+          tri_out1->uvs[2] = tex_Aprime;
 
-          tri_out2->texture_coords[0] = tex_Aprime;
-          tri_out2->texture_coords[1] = tri_in->texture_coords[2];
-          tri_out2->texture_coords[2] = tex_Bprime;
+          tri_out2->uvs[0] = tex_Aprime;
+          tri_out2->uvs[1] = tri_in->uvs[2];
+          tri_out2->uvs[2] = tex_Bprime;
 
           break;
 
@@ -523,21 +523,21 @@ int clip_polygon(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polyg
           A_prime = line_plane_intersect(plane_normal, A, C, &t1);
           B_prime = line_plane_intersect(plane_normal, B, C, &t2);
           
-          tex_Aprime = (Vector2){  tri_in->texture_coords[0].x + t1*(tri_in->texture_coords[1].x - tri_in->texture_coords[0].x),
-                                  tri_in->texture_coords[0].y + t1*(tri_in->texture_coords[1].y - tri_in->texture_coords[0].y),
+          tex_Aprime = (Vector2){  tri_in->uvs[0].x + t1*(tri_in->uvs[1].x - tri_in->uvs[0].x),
+                                  tri_in->uvs[0].y + t1*(tri_in->uvs[1].y - tri_in->uvs[0].y),
                                   1 };
 
-          tex_Bprime = (Vector2){  tri_in->texture_coords[2].x + t2*(tri_in->texture_coords[1].x - tri_in->texture_coords[2].x),
-                                  tri_in->texture_coords[2].y + t2*(tri_in->texture_coords[1].y - tri_in->texture_coords[2].y),
+          tex_Bprime = (Vector2){  tri_in->uvs[2].x + t2*(tri_in->uvs[1].x - tri_in->uvs[2].x),
+                                  tri_in->uvs[2].y + t2*(tri_in->uvs[1].y - tri_in->uvs[2].y),
                                   1 };
 
-          tri_out1->texture_coords[0] = tri_in->texture_coords[0];
-          tri_out1->texture_coords[1] = tri_in->texture_coords[2];
-          tri_out1->texture_coords[2] = tex_Aprime;
+          tri_out1->uvs[0] = tri_in->uvs[0];
+          tri_out1->uvs[1] = tri_in->uvs[2];
+          tri_out1->uvs[2] = tex_Aprime;
 
-          tri_out2->texture_coords[0] = tex_Aprime;
-          tri_out2->texture_coords[1] = tri_in->texture_coords[2];
-          tri_out2->texture_coords[2] = tex_Bprime;
+          tri_out2->uvs[0] = tex_Aprime;
+          tri_out2->uvs[1] = tri_in->uvs[2];
+          tri_out2->uvs[2] = tex_Bprime;
           break;
 
 
@@ -549,21 +549,21 @@ int clip_polygon(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polyg
           A_prime = line_plane_intersect(plane_normal, A, C, &t1);
           B_prime = line_plane_intersect(plane_normal, B, C, &t2);
 
-          tex_Aprime = (Vector2){  tri_in->texture_coords[0].x + t1*(tri_in->texture_coords[2].x - tri_in->texture_coords[0].x),
-                                  tri_in->texture_coords[0].y + t1*(tri_in->texture_coords[2].y - tri_in->texture_coords[0].y),
+          tex_Aprime = (Vector2){  tri_in->uvs[0].x + t1*(tri_in->uvs[2].x - tri_in->uvs[0].x),
+                                  tri_in->uvs[0].y + t1*(tri_in->uvs[2].y - tri_in->uvs[0].y),
                                   1 };
 
-          tex_Bprime = (Vector2){  tri_in->texture_coords[1].x + t2*(tri_in->texture_coords[2].x - tri_in->texture_coords[1].x),
-                                  tri_in->texture_coords[1].y + t2*(tri_in->texture_coords[2].y - tri_in->texture_coords[1].y),
+          tex_Bprime = (Vector2){  tri_in->uvs[1].x + t2*(tri_in->uvs[2].x - tri_in->uvs[1].x),
+                                  tri_in->uvs[1].y + t2*(tri_in->uvs[2].y - tri_in->uvs[1].y),
                                   1 };
 
-          tri_out1->texture_coords[0] = tri_in->texture_coords[0];
-          tri_out1->texture_coords[1] = tri_in->texture_coords[1];
-          tri_out1->texture_coords[2] = tex_Aprime;
+          tri_out1->uvs[0] = tri_in->uvs[0];
+          tri_out1->uvs[1] = tri_in->uvs[1];
+          tri_out1->uvs[2] = tex_Aprime;
 
-          tri_out2->texture_coords[0] = tex_Aprime;
-          tri_out2->texture_coords[1] = tri_in->texture_coords[1];
-          tri_out2->texture_coords[2] = tex_Bprime;
+          tri_out2->uvs[0] = tex_Aprime;
+          tri_out2->uvs[1] = tri_in->uvs[1];
+          tri_out2->uvs[2] = tex_Bprime;
           
           break;
       }
@@ -646,10 +646,10 @@ Polygon *clip_against_planes(Camera *cam, int in_size, Polygon *polygons_in, int
 
 void draw_model(Camera cam, Model *model)
 {
-  int *frontface_indices = (int *)calloc(model->polygon_count, sizeof(int));
+  int *frontface_indices = (int *)calloc(model->poly_count, sizeof(int));
   int frontface_count = 0;
 
-  for (int i=0; i<model->polygon_count; i++)
+  for (int i=0; i<model->poly_count; i++)
     if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], cam.pos), model->polygons[i].normal_vector) < 0)
       frontface_indices[frontface_count++] = i;
   
@@ -673,7 +673,7 @@ void draw_model(Camera cam, Model *model)
   Polygon *clipped_polygons = clip_against_planes(&cam, frontface_count, front_faces, &clipped_count);
 
   for (int i=0; i<clipped_count; i++)
-    triangle_2d(&cam, &clipped_polygons[i], model->texture);
+    triangle_2d(&cam, &clipped_polygons[i], model->materials[clipped_polygons[i].mat_index]);
 
   free(frontface_indices);
   free(front_faces);
@@ -702,21 +702,25 @@ Vector2 project_coordinate(Vector3 *pt)
 //-------------------------------------------------------------------------------
 void count_polygons(FILE *fh, Model *model)
 {
-  model->polygon_count = 0;
+  model->poly_count = 0;
   model->vertex_count = 0;
   model->normal_count = 0;
+  model->uv_count = 0;
+  model->mat_count = 0;
 
   char buffer[64];
   while (fgets(buffer, 64, fh) != NULL)
   {
     if (buffer[0] == 'f' && buffer[1] == ' ')
-      model->polygon_count += 1;
+      model->poly_count += 1;
     else if (buffer[0] == 'v' && buffer[1] == ' ')
       model->vertex_count += 1;
     else if (buffer[0] == 'v' && buffer[1] == 'n')
       model->normal_count += 1;
     else if (buffer[0] == 'v' && buffer[1] == 't')
-      model->tex_coord_count += 1;
+      model->uv_count += 1;
+    else if (buffer[0] == 'u' && buffer[1] == 's')
+      model->mat_count += 1;
   }
   rewind(fh);
 }
@@ -745,8 +749,13 @@ void load_polygons(FILE *fh, Model model, Polygon *polygons)
   Vector3 *normals = (Vector3 *)calloc(model.normal_count, sizeof(Vector3));
   int normal_index = 0;
 
-  Vector2 *tex_coords = (Vector2 *)calloc(model.tex_coord_count, sizeof(Vector2));
+  Vector2 *tex_coords = (Vector2 *)calloc(model.uv_count, sizeof(Vector2));
   int tex_coord_index = 0;
+
+  char **mat_names = (char **)malloc(model.mat_count * sizeof(char *));
+  for (int i=0; i<model.mat_count; i++)
+    mat_names[i] = (char *)malloc(64 * sizeof(char)); // max 64 chars for filename
+  int mat_index = 0;
 
   // load all vertices and normals into memory first
   while (fgets(buffer, 64, fh) != NULL)
@@ -791,11 +800,20 @@ void load_polygons(FILE *fh, Model model, Polygon *polygons)
       tex_coord_index += 1;
     }
 
+    // line with new material
+    else if (buffer[0] == 'u' && buffer[1] == 's')
+    {
+      token = strtok(buffer, space);
+      token = strtok(buffer, space);
+      strcpy(mat_names[mat_index], token);
+      mat_index += 1;
+    }
   }
   rewind(fh);
 
   // Create polygons
   int polygon_index = 0;
+  mat_index = -1; // usemtl always before vertices
   while (fgets(buffer, 64, fh) != NULL)
   {
     if (buffer[0] == 'f' && buffer[1] == ' ')
@@ -808,38 +826,34 @@ void load_polygons(FILE *fh, Model model, Polygon *polygons)
         token = strtok(NULL, space); // token == "xxx/xxx/xxx"
         extract_vert_text_norm(temp, token);
         polygons[polygon_index].vertices[i] = vertices[temp[0]-1];
-        polygons[polygon_index].texture_coords[i] = tex_coords[temp[1]-1];
+        polygons[polygon_index].uvs[i] = tex_coords[temp[1]-1];
       }
       polygons[polygon_index].normal_vector =normals[temp[2]-1];
+      polygons[polygon_index].mat_index = mat_index;
       polygon_index += 1;
     }
+
+    // line with new material
+    else if (buffer[0] == 'u' && buffer[1] == 's')
+    {
+      mat_index += 1;
+    }
+
   }
 
   free(vertices);
   free(normals);
   free(tex_coords);
+  free(mat_names);
 }
 
 void load_material(FILE *fh, Model *model)
 {
   char space[] = " ";
   char buffer[64];
+  int mat_index = model->mat_count-1;
   while (fgets(buffer, 64, fh) != NULL)
   {
-    if (buffer[0] == 'K' && buffer[1] == 'd')
-    {
-      char *token = strtok(buffer, space);
-      float temp[3];
-      for (int i=0; i<3; i++)
-      {
-        token = strtok(NULL, space);
-        temp[i] = atof(token);
-      }
-      model->fill.x = temp[0] * 255;
-      model->fill.y = temp[1] * 255;
-      model->fill.z = temp[2] * 255;
-      break;
-    }
 
     if (buffer[0] == 'm' && buffer[1] == 'a') // filepath to texture
     {
@@ -848,7 +862,9 @@ void load_material(FILE *fh, Model *model)
       for (size_t i=0; i<strlen(token); i++)
         if (token[i] == '\n')
           token[i] = '\0';
-      model->texture = SDL_LoadBMP(token);
+
+      model->materials[mat_index] = SDL_LoadBMP(token);
+      mat_index -= 1;
       printf("FILE: %s\n", token);
     }
   }
@@ -861,8 +877,8 @@ Model load_model(char *filepath, char *material)
   Model model;
   model.pos = (Vector3){0, 0, 0};
   model.normal_count = 0;
-  model.polygon_count = 0;
-  model.tex_coord_count = 0;
+  model.poly_count = 0;
+  model.uv_count = 0;
   model.vertex_count = 0;
 
   FILE *fh = fopen(filepath, "r");
@@ -871,7 +887,8 @@ Model load_model(char *filepath, char *material)
 
   count_polygons(fh, &model);
 
-  model.polygons = (Polygon *)calloc(model.polygon_count, sizeof(Polygon)); // Array of polygons
+  model.polygons = (Polygon *)calloc(model.poly_count, sizeof(Polygon)); // Array of polygons
+  model.materials = (SDL_Surface **)malloc(model.mat_count * sizeof(SDL_Surface *)); // Array of sdl surfaces
 
   load_polygons(fh, model, model.polygons);
   fclose(fh);
@@ -882,26 +899,16 @@ Model load_model(char *filepath, char *material)
   load_material(fh2, &model);
   fclose(fh2);
 
-  fill_model(&model, model.fill.x, model.fill.y, model.fill.z);
 
   // for each polygon, if tex coord < 0, add 1 until greater than 0.
   // if > 1, subtract 1 until < 1.
   // then multiply u by width and v by height.
-  for (int i=0; i<model.polygon_count; i++)
+  for (int i=0; i<model.poly_count; i++)
   {
     for (int j=0; j<3; j++)
     {
-      // while (model.polygons[i].texture_coords[j].x < 0.0)
-      //   model.polygons[i].texture_coords[j].x += 1.0;
-      // while (model.polygons[i].texture_coords[j].x > 1.0)
-      //   model.polygons[i].texture_coords[j].x -= 1.0;
-      model.polygons[i].texture_coords[j].x *= model.texture->w;
-
-      // while (model.polygons[i].texture_coords[j].y < 0.0)
-      //   model.polygons[i].texture_coords[j].y += 1.0;
-      // while (model.polygons[i].texture_coords[j].y > 1.0)
-      //   model.polygons[i].texture_coords[j].y -= 1.0;
-      model.polygons[i].texture_coords[j].y *= model.texture->h;
+      model.polygons[i].uvs[j].x *= model.materials[model.polygons[i].mat_index]->w;
+      model.polygons[i].uvs[j].y *= model.materials[model.polygons[i].mat_index]->h;
     }
   }
 
@@ -910,7 +917,7 @@ Model load_model(char *filepath, char *material)
 
 void fill_model(Model *model, int r, int g, int b)
 {
-  for (int i=0; i<model->polygon_count; i++)
+  for (int i=0; i<model->poly_count; i++)
   {
     model->polygons[i].fill.x = r;
     model->polygons[i].fill.y = g;

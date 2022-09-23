@@ -26,20 +26,24 @@ typedef struct {
   Vector3 vertices[3];
   Vector3 normal_vector;
   Vector3 fill;
-  Vector2 texture_coords[3];
+  Vector2 uvs[3];
+  int mat_index; // index of material to use
 } Polygon;
 
 typedef struct {
+  
   Vector3 pos;
+
   int vertex_count;
   int normal_count;
-  int tex_coord_count;
-  int polygon_count;
+  int uv_count;
 
+  int poly_count;
   Polygon *polygons; // Array of polygons
   
-  Vector3 fill;
-  SDL_Surface *texture;
+  int mat_count;
+  char **mat_names;
+  SDL_Surface **materials;
 
 } Model;
 

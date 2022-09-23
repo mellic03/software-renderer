@@ -42,19 +42,9 @@ int main(int argc, char** argv)
   // Load models
   //------------------------------------------------------------
   Model floor = load_model("./floor.obj", "./floor.mtl");
-  translate_model(&floor, 0, -3, 0);
+  translate_model(&floor, 0, 0, 20);
   rotate_y(&floor, 3.14);
 
-  Model grass = load_model("./grass.obj", "./grass.mtl");
-  translate_model(&grass, 0, -3, 0);
-  rotate_y(&grass, 3.14);
-
-  Model cube = load_model("./cube.obj", "./cube.mtl");
-  translate_model(&cube, -5, -4, -2);
-  rotate_y(&cube, 3.14);
-
-  Model monkey = load_model("./monkey.obj", "./monkey.mtl");
-  translate_model(&monkey, 5, -4, -2);
   //------------------------------------------------------------
 
   // Render loop
@@ -70,23 +60,14 @@ int main(int argc, char** argv)
     input(event, &cam);
 
     draw_model(cam, &floor);
-    draw_model(cam, &grass);
-    draw_model(cam, &cube);
-    draw_model(cam, &monkey);
-
-    rotate_x(&cube, delta_time*0.5);
-    rotate_y(&cube, delta_time);
 
 
-    if (toggle == 1 && vector3_dist((vector3_add(cam.pos, cam.dir)), cube.pos) < 2)
-    {
-      Vector3 t = vector3_add(cam.pos, vector3_scale((Vector3){cam.dir.x, -cam.dir.y, cam.dir.z}, 2));
-      Vector3 dir = vector3_sub(t, cube.pos);
-      translate_model(&cube, dir.x, dir.y, dir.z);
-    }
-
-
-
+    // if (toggle == 1 && vector3_dist((vector3_add(cam.pos, cam.dir)), cube.pos) < 2)
+    // {
+    //   Vector3 t = vector3_add(cam.pos, vector3_scale((Vector3){cam.dir.x, -cam.dir.y, cam.dir.z}, 2));
+    //   Vector3 dir = vector3_sub(t, cube.pos);
+    //   translate_model(&cube, dir.x, dir.y, dir.z);
+    // }
 
 
     SDL_UpdateWindowSurface(win);
