@@ -44,6 +44,8 @@ int main(int argc, char** argv)
   Model floor = load_model("./floor.obj", "./floor.mtl");
   translate_model(&floor, 0, 0, 20);
   rotate_y(&floor, 3.14);
+  // Model sphere = load_model("./sphere.obj", "./sphere.mtl");
+  // translate_model(&sphere, 0, 0, 50);
 
   //------------------------------------------------------------
 

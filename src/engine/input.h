@@ -6,7 +6,7 @@
 
 int toggle = 0;
 float something = 0.0;
-int height = 0;
+
 
 void input(SDL_Event event, Camera *cam)
 {
@@ -15,52 +15,32 @@ void input(SDL_Event event, Camera *cam)
   cam->pos = vector3_add(cam->pos, cam->vel);
   cam->vel = vector3_scale(cam->vel, 0.9);
 
-  cam->pos.y = 0.2*(sin(something)) + height;
-  something += cam->vel.z + cam->vel.x;
+  // cam->pos.y = 0.2*(sin(something)) + height;
+  // something += cam->vel.z + cam->vel.x;
 
-  if (cam->pos.y < -5)
-    cam->vel.y += delta_time;
-  else if (cam->pos.y > -5)
-    cam->vel.y -= delta_time;
+  // if (cam->pos.y < -5)
+  //   cam->vel.y += delta_time;
+  // else if (cam->pos.y > -5)
+  //   cam->vel.y -= delta_time;
 
   if (state[SDL_SCANCODE_W])
-  {
     cam->vel = vector3_add(cam->vel, vector3_scale((Vector3){cam->speed * cos(cam->rot.y + 3.1415 / 2), 0, cam->speed * sin(cam->rot.y + 3.1415 / 2)}, delta_time));
-    // cam->pos.z += delta_time * cam->speed * sin(cam->rot.y + 3.1415 / 2);
-    // cam->pos.x += delta_time * cam->speed * cos(cam->rot.y + 3.1415 / 2);
-  }
   else if (state[SDL_SCANCODE_S])
-  {
     cam->vel = vector3_add(cam->vel, vector3_scale((Vector3){-cam->speed * cos(cam->rot.y+3.14/2), 0, -cam->speed * sin(cam->rot.y+3.14/2)}, delta_time));
 
-    // cam->pos.x -= delta_time * cam->speed * cos(cam->rot.y+3.14/2);
-    // cam->pos.z -= delta_time * cam->speed * sin(cam->rot.y+3.14/2);
-  }
   if (state[SDL_SCANCODE_A])
-  {
     cam->vel = vector3_add(cam->vel, vector3_scale((Vector3){-cam->speed * cos(cam->rot.y), 0, -cam->speed * sin(cam->rot.y)}, delta_time));
-    // cam->pos.x -= delta_time * cam->speed * cos(cam->rot.y);
-    // cam->pos.z -= delta_time * cam->speed * sin(cam->rot.y);
-  }
   else if (state[SDL_SCANCODE_D])
-  {
     cam->vel = vector3_add(cam->vel, vector3_scale((Vector3){cam->speed * cos(cam->rot.y), 0, cam->speed * sin(cam->rot.y)}, delta_time));
-
-    // cam->pos.x += delta_time * cam->speed * cos(cam->rot.y);
-    // cam->pos.z += delta_time * cam->speed * sin(cam->rot.y);       
-  }
 
   if (state[SDL_SCANCODE_SPACE])
     cam->vel = vector3_add(cam->vel, (Vector3){0, -delta_time, 0});
   if (state[SDL_SCANCODE_LCTRL])
-    height = 1;
-  else
-    height = 0;
+    cam->vel = vector3_add(cam->vel, (Vector3){0, delta_time, 0});
 
-  if (state[SDL_SCANCODE_LSHIFT])
-    cam->speed = 2;
-  else
-    cam->speed = 1;
+  if (state[SDL_SCANCODE_Q])
+    cam->rot.z -= 0.01;
+
 
 
   while(SDL_PollEvent(&event))

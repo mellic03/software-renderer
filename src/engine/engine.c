@@ -64,14 +64,16 @@ void rotate_point(Vector3 *pt, float x, float y, float z)
 
   float output[3][1];
   float output2[3][1];
+  float output3[3][1];
 
   float pt_as_arr[3][1] = {{pt->x}, {pt->y}, {pt->z}};
   matrix_mult(3, 3, 3, 1, output, rot_x, pt_as_arr);
   matrix_mult(3, 3, 3, 1, output2, rot_y, output);
+  matrix_mult(3, 3, 3, 1, output3, rot_z, output2);
 
-  pt->x = output2[0][0];
-  pt->y = output2[1][0];
-  pt->z = output2[2][0];
+  pt->x = output3[0][0];
+  pt->y = output3[1][0];
+  pt->z = output3[2][0];
 }
 
 void rotate_x(Model *model, float r)
@@ -252,99 +254,63 @@ void line_2d(Vector3 stroke, Vector2 p1, Vector2 p2)
   }
 }
 
-float sign(Vector2 p1, Vector2 *p2, Vector2 *p3)
+Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3)
 {
-  return (p1.x - p3->x) * (p2->y - p3->y) - (p2->x - p3->x) * (p1.y - p3->y);
-}
-
-bool point_in_triangle (Vector2 pt, Vector2 *v1, Vector2 *v2, Vector2 *v3)
-{
-  float d1, d2, d3;
-  bool has_neg, has_pos;
-
-  d1 = sign(pt, v1, v2);
-  d2 = sign(pt, v2, v3);
-  d3 = sign(pt, v3, v1);
-
-  has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
-  has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
-
-  return !(has_neg && has_pos);
-}
-
-Vector3 calculate_barycentric(Vector2 pt, Vector2 v1, Vector2 v2, Vector2 v3)
-{
-  float weight_v1 = ((v2.y-v3.y)*(pt.x-v3.x) + (v3.x-v2.x)*(pt.y-v3.y)) / ((v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y));
-  float weight_v2 = ((v3.y-v1.y)*(pt.x-v3.x) + (v1.x-v3.x)*(pt.y-v3.y)) / ((v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y));
+  float weight_v1 = ((v2.y-v3.y)*(x-v3.x) + (v3.x-v2.x)*(y-v3.y)) / ((v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y));
+  float weight_v2 = ((v3.y-v1.y)*(x-v3.x) + (v1.x-v3.x)*(y-v3.y)) / ((v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y));
   float weight_v3 = 1 - weight_v1 - weight_v2;
   return (Vector3){weight_v1, weight_v2, weight_v3};
 }
 
-void triangle_2d(Camera *cam, Polygon *tri, SDL_Surface *texture)
+void triangle_2d(Camera *cam, Polygon tri, SDL_Surface *texture)
 {
-  Vector2 v1 = project_coordinate(&tri->vertices[0]);
-  Vector2 v2 = project_coordinate(&tri->vertices[1]);
-  Vector2 v3 = project_coordinate(&tri->vertices[2]);
+  Vector2 v1 = project_coordinate(&tri.vertices[0]);
+  Vector2 v2 = project_coordinate(&tri.vertices[1]);
+  Vector2 v3 = project_coordinate(&tri.vertices[2]);
 
-  float invu1 = tri->uvs[0].x / v1.w;
-  float invv1 = tri->uvs[0].y / v1.w;
-  float invz1 = 1/v1.w;
+  tri.uvs[0].x *= v1.w,    tri.uvs[1].x *= v2.w,    tri.uvs[2].x *= v3.w;
+  tri.uvs[0].y *= v1.w,    tri.uvs[1].y *= v2.w,    tri.uvs[2].y *= v3.w;
+  float invz1 = v1.w,      invz2 = v2.w,            invz3 = v3.w;
 
-  float invu2 = tri->uvs[1].x / v2.w;
-  float invv2 = tri->uvs[1].y / v2.w;
-  float invz2 = 1/v2.w;
-  
-  float invu3 = tri->uvs[2].x / v3.w;
-  float invv3 = tri->uvs[2].y / v3.w;
-  float invz3 = 1/v3.w;
+  // line_2d((Vector3){0, 0, 0}, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1});
+  // line_2d((Vector3){0, 0, 0}, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1});
+  // line_2d((Vector3){0, 0, 0}, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1});
 
-  // line_2d(tri->fill, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1});
-  // line_2d(tri->fill, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1});
-  // line_2d(tri->fill, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1});
+  Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
+  Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
+  Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
+  Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
 
-  Uint8 fill = tri->fill.x;
+  Vector3 weights;
+  float z_index, invz;
+  Uint16 u, v;
 
-  int lx = MIN(v1.x, MIN(v2.x, v3.x));
-  int hx = MAX(v1.x, MAX(v2.x, v3.x));
-  int ly = MIN(v1.y, MIN(v2.y, v3.y));
-  int hy = MAX(v1.y, MAX(v2.y, v3.y));
+  Uint16 x, y;
 
-  Uint8 count = 0;
-
-  for (int x=lx; x<=hx; x++)
+  for (x=lx; x<=hx; x++)
   {
-    for (int y=ly; y<=hy; y++)
+    for (y=ly; y<=hy; y++)
     {
-      if (point_in_triangle((Vector2){x, y, 1}, &v1, &v2, &v3))
+      weights = calculate_barycentric(x, y, v1, v2, v3);
+      
+      if (weights.x >= 0 && weights.y >= 0 && weights.z >= 0)
       {
-        Vector2 pt = (Vector2){x, y, 1};
-
-        // barycentric
-        Vector3 weights = calculate_barycentric(pt, v1, v2, v3);
-        float z_index = weights.x*(1/tri->vertices[0].z) + weights.y*(1/tri->vertices[1].z) + weights.z*(1/tri->vertices[2].z);
+        z_index = weights.x*invz1 + weights.y*invz2 + weights.z*invz3;
 
         if (z_index > z_buffer[SCREEN_WIDTH*y + x])
         {
           z_buffer[SCREEN_WIDTH*y + x] = z_index;
 
-          float uf = weights.x*invu1 + weights.y*invu2 + weights.z*invu3;
-          float vf = weights.x*invv1 + weights.y*invv2 + weights.z*invv3;
-          float invz = weights.x*invz1 + weights.y*invz2 + weights.z*invz3;
+          invz = weights.x*invz1 + weights.y*invz2 + weights.z*invz3;
 
-          uf /= invz;
-          vf /= invz;
+          u = (Uint16)((weights.x*tri.uvs[0].x + weights.y*tri.uvs[1].x + weights.z*tri.uvs[2].x) / invz) % texture->w;
+          v = (Uint16)((weights.x*tri.uvs[0].y + weights.y*tri.uvs[1].y + weights.z*tri.uvs[2].y) / invz) % texture->h;
           
-          int u = (int)uf;
-          int v = (int)vf;
-
-          u %= texture->w, u = abs(u);
-          v %= texture->h, v = abs(v);
-
-          Uint8 *blue  = ((Uint8 *)texture->pixels + (v * texture->pitch) + (u * texture->format->BytesPerPixel + 0));
-          Uint8 *green = ((Uint8 *)texture->pixels + (v * texture->pitch) + (u * texture->format->BytesPerPixel + 1));
-          Uint8 *red   = ((Uint8 *)texture->pixels + (v * texture->pitch) + (u * texture->format->BytesPerPixel + 2));
-
-          pixel(x, y, *red, *green, *blue);
+          pixel(x, y,
+            *((Uint8 *)texture->pixels + (v * texture->pitch) + (u * texture->format->BytesPerPixel + 2)),
+            *((Uint8 *)texture->pixels + (v * texture->pitch) + (u * texture->format->BytesPerPixel + 1)),
+            *((Uint8 *)texture->pixels + (v * texture->pitch) + (u * texture->format->BytesPerPixel + 0))
+          );
         }
       }
     }
@@ -666,6 +632,7 @@ void draw_model(Camera cam, Model *model)
       front_faces[i].vertices[j].z -= cam.pos.z;
       rotate_point(&front_faces[i].vertices[j], 0, cam.rot.y, 0);
       rotate_point(&front_faces[i].vertices[j], cam.rot.x, 0, 0);
+      rotate_point(&front_faces[i].vertices[j], 0, 0, cam.rot.z);
     }
   }
 
@@ -673,7 +640,7 @@ void draw_model(Camera cam, Model *model)
   Polygon *clipped_polygons = clip_against_planes(&cam, frontface_count, front_faces, &clipped_count);
 
   for (int i=0; i<clipped_count; i++)
-    triangle_2d(&cam, &clipped_polygons[i], model->materials[clipped_polygons[i].mat_index]);
+    triangle_2d(&cam, clipped_polygons[i], model->materials[clipped_polygons[i].mat_index]);
 
   free(frontface_indices);
   free(front_faces);
@@ -695,7 +662,7 @@ Vector2 project_coordinate(Vector3 *pt)
   canvas_x += HALF_SCREEN_WIDTH;
   canvas_y += HALF_SCREEN_HEIGHT;
 
-  return (Vector2){canvas_x, canvas_y, pt->z};
+  return (Vector2){canvas_x, canvas_y, 1/pt->z};
 }
 
 // FILE I/O
