@@ -254,12 +254,11 @@ void line_2d(Vector3 stroke, Vector2 p1, Vector2 p2)
   }
 }
 
-Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3)
+void calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3, float *w1, float *w2, float *w3)
 {
-  float weight_v1 = ((v2.y-v3.y)*(x-v3.x) + (v3.x-v2.x)*(y-v3.y)) / ((v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y));
-  float weight_v2 = ((v3.y-v1.y)*(x-v3.x) + (v1.x-v3.x)*(y-v3.y)) / ((v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y));
-  float weight_v3 = 1 - weight_v1 - weight_v2;
-  return (Vector3){weight_v1, weight_v2, weight_v3};
+  *w1 = ((v2.y-v3.y)*(x-v3.x) + (v3.x-v2.x)*(y-v3.y)) / ((v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y));
+  *w2 = ((v3.y-v1.y)*(x-v3.x) + (v1.x-v3.x)*(y-v3.y)) / ((v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y));
+  *w3 = 1 - *w1 - *w2;
 }
 
 void triangle_2d(Camera *cam, Polygon tri, SDL_Surface *texture)
@@ -268,9 +267,12 @@ void triangle_2d(Camera *cam, Polygon tri, SDL_Surface *texture)
   Vector2 v2 = project_coordinate(&tri.vertices[1]);
   Vector2 v3 = project_coordinate(&tri.vertices[2]);
 
-  tri.uvs[0].x *= v1.w,    tri.uvs[1].x *= v2.w,    tri.uvs[2].x *= v3.w;
-  tri.uvs[0].y *= v1.w,    tri.uvs[1].y *= v2.w,    tri.uvs[2].y *= v3.w;
-  float invz1 = v1.w,      invz2 = v2.w,            invz3 = v3.w;
+  __m128 _reg_uv_x = _mm_set_ps(tri.uvs[0].x, tri.uvs[1].x, tri.uvs[2].x, 0);
+  __m128 _reg_uv_y = _mm_set_ps(tri.uvs[0].y, tri.uvs[1].y, tri.uvs[2].y, 0);
+  __m128 _reg_invz = _mm_set_ps(v1.w,         v2.w,         v3.w,         0);
+
+  _reg_uv_x = _mm_mul_ps(_reg_uv_x, _reg_invz);
+  _reg_uv_y = _mm_mul_ps(_reg_uv_y, _reg_invz);
 
   // line_2d((Vector3){0, 0, 0}, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1});
   // line_2d((Vector3){0, 0, 0}, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1});
@@ -281,35 +283,32 @@ void triangle_2d(Camera *cam, Polygon tri, SDL_Surface *texture)
   Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
   Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
 
-  Vector3 weights;
-  float z_index, invz;
-  Uint16 u, v;
-
-  Uint16 x, y;
+  Uint16 x, y, u, v;
+  float weight_v1 = 0, weight_v2 = 0, weight_v3 = 0;
+  float z_index;
 
   for (x=lx; x<=hx; x++)
   {
     for (y=ly; y<=hy; y++)
     {
-      weights = calculate_barycentric(x, y, v1, v2, v3);
-      
-      if (weights.x >= 0 && weights.y >= 0 && weights.z >= 0)
+      calculate_barycentric(x, y, v1, v2, v3, &weight_v1, &weight_v2, &weight_v3);
+      if (weight_v1 >= 0 && weight_v2 >= 0 && weight_v3 >= 0)
       {
-        z_index = weights.x*invz1 + weights.y*invz2 + weights.z*invz3;
+        z_index = weight_v1*_reg_invz[3] + weight_v2*_reg_invz[2] + weight_v3*_reg_invz[1];
 
         if (z_index > z_buffer[SCREEN_WIDTH*y + x])
         {
           z_buffer[SCREEN_WIDTH*y + x] = z_index;
 
-          invz = weights.x*invz1 + weights.y*invz2 + weights.z*invz3;
+          u = (Uint16)((weight_v1*_reg_uv_x[3] + weight_v2*_reg_uv_x[2] + weight_v3*_reg_uv_x[1]) / z_index) % texture->w;
+          v = (Uint16)((weight_v1*_reg_uv_y[3] + weight_v2*_reg_uv_y[2] + weight_v3*_reg_uv_y[1]) / z_index) % texture->h;
 
-          u = (Uint16)((weights.x*tri.uvs[0].x + weights.y*tri.uvs[1].x + weights.z*tri.uvs[2].x) / invz) % texture->w;
-          v = (Uint16)((weights.x*tri.uvs[0].y + weights.y*tri.uvs[1].y + weights.z*tri.uvs[2].y) / invz) % texture->h;
-          
+          u *= texture->format->BytesPerPixel;
+
           pixel(x, y,
-            *((Uint8 *)texture->pixels + (v * texture->pitch) + (u * texture->format->BytesPerPixel + 2)),
-            *((Uint8 *)texture->pixels + (v * texture->pitch) + (u * texture->format->BytesPerPixel + 1)),
-            *((Uint8 *)texture->pixels + (v * texture->pitch) + (u * texture->format->BytesPerPixel + 0))
+            *((Uint8 *)texture->pixels + v*texture->pitch + u+2),
+            *((Uint8 *)texture->pixels + v*texture->pitch + u+1),
+            *((Uint8 *)texture->pixels + v*texture->pitch + u+0)
           );
         }
       }
