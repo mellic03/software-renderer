@@ -1,8 +1,8 @@
 #include <SDL2/SDL.h>
 
-#include "vector.h"
 #include "camera.h"
-#include "screen.h"
+#include "../math/vector.h"
+#include "../screen.h"
 
 #ifndef ENGINE_H
 #define ENGINE_H
@@ -16,10 +16,7 @@
 //----------------------------------------
 extern SDL_Surface *pixel_array;
 extern double delta_time;
-
 extern Vector3 lightsource;
-
-extern Vector3 camera_pos;
 //----------------------------------------
 
 typedef struct {
@@ -50,7 +47,7 @@ typedef struct {
 
 void pixel(int x, int y, Uint8 r, Uint8 g, Uint8 b);
 
-Model load_model(char *filepath, char *material);
+Model load_model(char *filepath);
 void draw_model(Camera cam, Model *model);
 void fill_model(Model *model, int r, int g, int b);
 
@@ -63,7 +60,6 @@ void set_position_model(Model *model, Vector3 pos);
 
 void clear_screen(Uint8 r, Uint8 g, Uint8 b);
 void render_screen(SDL_Renderer *ren);
-
 
 
 // INTERNAL

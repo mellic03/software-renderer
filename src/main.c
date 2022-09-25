@@ -1,9 +1,11 @@
-#include <SDL2/SDL.h>
 #include <math.h>
+#include <pthread.h>
+#include <SDL2/SDL.h>
 #include <stdlib.h>
+#include <sys/time.h>
 #include <time.h>
 
-#include "engine/engine.h"
+#include "engine/graphics/engine.h"
 #include "engine/input.h"
 #include "engine/screen.h"
 
@@ -41,27 +43,32 @@ int main(int argc, char** argv)
 
   // Load models
   //------------------------------------------------------------
-  Model floor = load_model("./floor.obj", "./floor.mtl");
-  translate_model(&floor, 0, 0, 20);
-  rotate_y(&floor, 3.14);
+  Model map = load_model("src/assets/map");
+  translate_model(&map, 0, 0, 20);
+  rotate_y(&map, 3.14);
   // Model sphere = load_model("./sphere.obj", "./sphere.mtl");
   // translate_model(&sphere, 0, 0, 50);
 
   //------------------------------------------------------------
 
+
   // Render loop
   //------------------------------------------------------------
-  clock_t time;
-  double framerate;
 
+  struct timeval sometime1;
+  struct timeval sometime2;
+  double framerate;
   int count = 0;
+
   while (1)
   {
-    time = clock();
+    gettimeofday(&sometime1, NULL);
+
+    // time = clock();
     clear_screen(109, 133, 169);
     input(event, &cam);
 
-    draw_model(cam, &floor);
+    draw_model(cam, &map);
 
 
     // if (toggle == 1 && vector3_dist((vector3_add(cam.pos, cam.dir)), cube.pos) < 2)
@@ -73,13 +80,18 @@ int main(int argc, char** argv)
 
 
     SDL_UpdateWindowSurface(win);
-    framerate = 1 / ((double)(clock() - time) / CLOCKS_PER_SEC);
+
+    gettimeofday(&sometime2, NULL);
+    if (sometime2.tv_usec < sometime1.tv_usec)
+      sometime2.tv_usec += 1000000;
+    delta_time = (double)(sometime2.tv_usec - sometime1.tv_usec) / 1000000;
+
+    framerate = 1 / delta_time;
     if (count > 500)
     {
       count = 0;
       printf("FPS: %lf\n", framerate);
     }
-    delta_time =  1/framerate;
     count++;
   }
   //------------------------------------------------------------

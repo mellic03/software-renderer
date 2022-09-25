@@ -2,7 +2,7 @@
 #define INPUT_H
 
 #include <SDL2/SDL.h>
-#include "engine.h"
+#include "./graphics/engine.h"
 
 int toggle = 0;
 float something = 0.0;

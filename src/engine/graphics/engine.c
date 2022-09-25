@@ -1,12 +1,25 @@
-#include <stdlib.h>
-#include <string.h>
-#include <SDL2/SDL.h>
-#include <stdbool.h>
 
-#include "vector.h"
-#include "camera.h"
+#ifdef __unix__
+  #include <SDL2/SDL.h>
+
+#elif defined(_WIN32) || defined(WIN32)
+  #include <SDL.h>
+
+#endif
+
+#include <math.h>
+#include <pthread.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <x86intrin.h>
+
+
 #include "engine.h"
-#include "screen.h"
+#include "camera.h"
+#include "../math/vector.h"
+#include "../screen.h"
 
 SDL_Surface *pixel_array;
 float z_buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
@@ -14,6 +27,10 @@ float z_buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
 Vector3 lightsource = {0, -100, -100};
 
 double delta_time;
+
+pthread_t thread1;
+pthread_t thread2;
+
 
 // TRANSFORMATIONS
 //-------------------------------------------------------------------------------
@@ -28,11 +45,6 @@ void translate_model(Model *model, float x, float y, float z)
       model->polygons[i].vertices[j].y += y;
       model->polygons[i].vertices[j].z += z;
     }
-}
-
-void set_position_model(Model *model, Vector3 pos)
-{
-
 }
 
 void translate_point(Vector3 *point, float x, float y, float z)
@@ -181,11 +193,11 @@ void rotate_z(Model model, float r)
   }
   translate_model(&model, model_pos.x, model_pos.y, model_pos.z);
 }
+
 //-------------------------------------------------------------------------------
 
 // DRAWING
 //-------------------------------------------------------------------------------
-
 void clear_screen(Uint8 r, Uint8 g, Uint8 b)
 {
   for (int i=0; i<SCREEN_WIDTH; i++)
@@ -261,15 +273,15 @@ void calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3, flo
   *w3 = 1 - *w1 - *w2;
 }
 
-void triangle_2d(Camera *cam, Polygon tri, SDL_Surface *texture)
+void triangle_2d(Camera *cam, Polygon tri, SDL_Surface **textures, int texture_index)
 {
   Vector2 v1 = project_coordinate(&tri.vertices[0]);
   Vector2 v2 = project_coordinate(&tri.vertices[1]);
   Vector2 v3 = project_coordinate(&tri.vertices[2]);
 
-  __m128 _reg_uv_x = _mm_set_ps(tri.uvs[0].x, tri.uvs[1].x, tri.uvs[2].x, 0);
-  __m128 _reg_uv_y = _mm_set_ps(tri.uvs[0].y, tri.uvs[1].y, tri.uvs[2].y, 0);
-  __m128 _reg_invz = _mm_set_ps(v1.w,         v2.w,         v3.w,         0);
+  __m128 _reg_uv_x = _mm_set_ps(tri.uvs[0].x, tri.uvs[1].x, tri.uvs[2].x, 1);
+  __m128 _reg_uv_y = _mm_set_ps(tri.uvs[0].y, tri.uvs[1].y, tri.uvs[2].y, 1);
+  __m128 _reg_invz = _mm_set_ps(v1.w,         v2.w,         v3.w,         1);
 
   _reg_uv_x = _mm_mul_ps(_reg_uv_x, _reg_invz);
   _reg_uv_y = _mm_mul_ps(_reg_uv_y, _reg_invz);
@@ -283,33 +295,92 @@ void triangle_2d(Camera *cam, Polygon tri, SDL_Surface *texture)
   Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
   Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
 
-  Uint16 x, y, u, v;
+  Uint16 x=0, y=0, u=0, v=0;
   float weight_v1 = 0, weight_v2 = 0, weight_v3 = 0;
   float z_index;
 
+  float v2y_take_v3y = v2.y - v3.y;
+  float v3x_take_v2x = v3.x - v2.x;
+  float v3y_take_v1y = v3.y - v1.y;
+  float v1x_take_v3x = v1.x - v3.x;
+  float denom = (v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y);
+
+  float remainder = 4 - (hy-ly)%4;
+
+  __m128 reg1, reg2, reg3, reg4, numerator_1, numerator_2, weight1, weight2, weight3;
+  __m128 _identity = _mm_set_ps(1, 1, 1, 1);
+  __m128 _v2y_take_v3y = _mm_set_ps(v2y_take_v3y, v2y_take_v3y, v2y_take_v3y, v2y_take_v3y);
+  __m128 _v3x_take_v2x = _mm_set_ps(v3x_take_v2x, v3x_take_v2x, v3x_take_v2x, v3x_take_v2x);
+  __m128 _v3y_take_v1y = _mm_set_ps(v3y_take_v1y, v3y_take_v1y, v3y_take_v1y, v3y_take_v1y);
+  __m128 _v1x_take_v3x = _mm_set_ps(v1x_take_v3x, v1x_take_v3x, v1x_take_v3x, v1x_take_v3x);
+  __m128 _denom = _mm_set_ps(denom, denom, denom, denom);
+
   for (x=lx; x<=hx; x++)
   {
-    for (y=ly; y<=hy; y++)
+    for (y=ly; y<=hy-0; y+=4)
     {
-      calculate_barycentric(x, y, v1, v2, v3, &weight_v1, &weight_v2, &weight_v3);
-      if (weight_v1 >= 0 && weight_v2 >= 0 && weight_v3 >= 0)
+      float y_take_v3y = y - v3.y;
+      float x_take_v3x = x - v3.x;
+
+      // Calculate barycentric coordinates
+      //--------------------------------------------------------------------------------
+      reg2 = _mm_set_ps(x_take_v3x,   x_take_v3x,   x_take_v3x,   x_take_v3x);
+      reg4 = _mm_set_ps(y_take_v3y+3, y_take_v3y+2, y_take_v3y+1, y_take_v3y+0);
+
+      numerator_1 = _mm_add_ps( _mm_mul_ps(_v2y_take_v3y, reg2), _mm_mul_ps(_v3x_take_v2x, reg4));
+      numerator_2 = _mm_add_ps(_mm_mul_ps(_v3y_take_v1y, reg2), _mm_mul_ps(_v1x_take_v3x, reg4));
+
+      weight1 = _mm_div_ps(numerator_1, _denom);
+      weight2 = _mm_div_ps(numerator_2, _denom);
+
+      weight3 = _mm_sub_ps(_identity, weight1);
+      weight3 = _mm_sub_ps(weight3, weight2);
+      //--------------------------------------------------------------------------------
+
+      reg1 = _mm_set_ps(_reg_invz[3], _reg_invz[3], _reg_invz[3], _reg_invz[3]); 
+      reg2 = _mm_mul_ps(weight1, reg1);
+
+      reg1 = _mm_set_ps(_reg_invz[2], _reg_invz[2], _reg_invz[2], _reg_invz[2]); 
+      reg3 = _mm_mul_ps(weight2, reg1);
+
+      reg1 = _mm_set_ps(_reg_invz[1], _reg_invz[1], _reg_invz[1], _reg_invz[1]); 
+      reg4 = _mm_mul_ps(weight3, reg1);
+
+      // reg2                 reg3                 reg4
+      // weight1[3]*invz[3] + weight2[3]*invz[2] + weight3[3]*invz[1];
+      // weight1[2]*invz[3] + weight2[2]*invz[2] + weight3[2]*invz[1];
+      // weight1[1]*invz[3] + weight2[1]*invz[2] + weight3[1]*invz[1];
+      // weight1[0]*invz[3] + weight2[0]*invz[2] + weight3[0]*invz[1];
+
+      reg1 = _mm_add_ps(reg2, reg3);
+      reg1 = _mm_add_ps(reg4, reg1);
+
+      reg2 = _mm_div_ps(_identity, reg1);
+
+      for (int k=3; k>=0; k--)
       {
-        z_index = weight_v1*_reg_invz[3] + weight_v2*_reg_invz[2] + weight_v3*_reg_invz[1];
-
-        if (z_index > z_buffer[SCREEN_WIDTH*y + x])
+        if (weight1[k] >= 0 && weight2[k] >= 0 && weight3[k] >= 0)
         {
-          z_buffer[SCREEN_WIDTH*y + x] = z_index;
+          z_index = reg1[k];
+          int tex_indx = texture_index;
+          if (reg2[k] > 20)
+            tex_indx += 3;
 
-          u = (Uint16)((weight_v1*_reg_uv_x[3] + weight_v2*_reg_uv_x[2] + weight_v3*_reg_uv_x[1]) / z_index) % texture->w;
-          v = (Uint16)((weight_v1*_reg_uv_y[3] + weight_v2*_reg_uv_y[2] + weight_v3*_reg_uv_y[1]) / z_index) % texture->h;
+          if (z_index > z_buffer[SCREEN_WIDTH*(y+k) + x])
+          {
+            z_buffer[SCREEN_WIDTH*(y+k) + x] = z_index;
 
-          u *= texture->format->BytesPerPixel;
+            u = (Uint16)((weight1[k]*_reg_uv_x[3] + weight2[k]*_reg_uv_x[2] + weight3[k]*_reg_uv_x[1]) / z_index) % textures[tex_indx]->w;
+            v = (Uint16)((weight1[k]*_reg_uv_y[3] + weight2[k]*_reg_uv_y[2] + weight3[k]*_reg_uv_y[1]) / z_index) % textures[tex_indx]->h;
 
-          pixel(x, y,
-            *((Uint8 *)texture->pixels + v*texture->pitch + u+2),
-            *((Uint8 *)texture->pixels + v*texture->pitch + u+1),
-            *((Uint8 *)texture->pixels + v*texture->pitch + u+0)
-          );
+            u *= textures[tex_indx]->format->BytesPerPixel;
+
+            pixel(x, (y+k),
+              *((Uint8 *)textures[tex_indx]->pixels + v*textures[tex_indx]->pitch + u+2),
+              *((Uint8 *)textures[tex_indx]->pixels + v*textures[tex_indx]->pitch + u+1),
+              *((Uint8 *)textures[tex_indx]->pixels + v*textures[tex_indx]->pitch + u+0)
+            );
+          }
         }
       }
     }
@@ -609,6 +680,30 @@ Polygon *clip_against_planes(Camera *cam, int in_size, Polygon *polygons_in, int
   return clipped_4;
 }
 
+struct wrapper {
+  Camera *cam;
+  int poly_count;
+  Polygon *polygons;
+  SDL_Surface **textures;
+  int start, stop;
+};
+
+void *render_polygons_pthread(void *ptr)
+{
+  struct wrapper *w1 = (struct wrapper *)ptr;
+  for (int i=w1->start; i<w1->stop; i++)
+    triangle_2d(w1->cam, w1->polygons[i], w1->textures, w1->polygons[i].mat_index);
+
+  pthread_exit(NULL);
+}
+
+pthread_t thread1, thread2, thread3, thread4;
+struct wrapper wrap1;
+struct wrapper wrap2;
+struct wrapper wrap3;
+struct wrapper wrap4;
+
+
 void draw_model(Camera cam, Model *model)
 {
   int *frontface_indices = (int *)calloc(model->poly_count, sizeof(int));
@@ -638,8 +733,62 @@ void draw_model(Camera cam, Model *model)
   int clipped_count;
   Polygon *clipped_polygons = clip_against_planes(&cam, frontface_count, front_faces, &clipped_count);
 
-  for (int i=0; i<clipped_count; i++)
-    triangle_2d(&cam, clipped_polygons[i], model->materials[clipped_polygons[i].mat_index]);
+  // Multithreading
+  //------------------------------------------------------------------
+  wrap1.cam = (Camera *)malloc(sizeof(Camera));
+  wrap1.poly_count = clipped_count;
+  wrap1.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
+  wrap1.textures = model->materials;
+  wrap1.start = 0;
+  wrap1.stop = clipped_count/4;
+  memcpy(wrap1.cam, &cam, sizeof(Camera));
+  memcpy(wrap1.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
+
+  wrap2.cam = (Camera *)malloc(sizeof(Camera));
+  wrap2.poly_count = clipped_count;
+  wrap2.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
+  wrap2.textures = model->materials;
+  wrap2.start = clipped_count/4;
+  wrap2.stop = clipped_count/2;
+  memcpy(wrap2.cam, &cam, sizeof(Camera));
+  memcpy(wrap2.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
+
+  wrap3.cam = (Camera *)malloc(sizeof(Camera));
+  wrap3.poly_count = clipped_count;
+  wrap3.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
+  wrap3.textures = model->materials;
+  wrap3.start = clipped_count/2;
+  wrap3.stop = 3*clipped_count/4;
+  memcpy(wrap3.cam, &cam, sizeof(Camera));
+  memcpy(wrap3.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
+
+  wrap4.cam = (Camera *)malloc(sizeof(Camera));
+  wrap4.poly_count = clipped_count;
+  wrap4.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
+  wrap4.textures = model->materials;
+  wrap4.start = 3*clipped_count/4;
+  wrap4.stop = clipped_count;
+  memcpy(wrap4.cam, &cam, sizeof(Camera));
+  memcpy(wrap4.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
+
+  pthread_create(&thread1, NULL, render_polygons_pthread, &wrap1);
+  pthread_create(&thread2, NULL, render_polygons_pthread, &wrap2);
+  pthread_create(&thread3, NULL, render_polygons_pthread, &wrap3);
+  pthread_create(&thread4, NULL, render_polygons_pthread, &wrap4);
+
+  pthread_join(thread1, NULL);
+  pthread_join(thread2, NULL);
+  pthread_join(thread3, NULL);
+  pthread_join(thread4, NULL);
+
+  free(wrap1.polygons);
+  free(wrap2.polygons);
+  free(wrap3.polygons);
+  free(wrap4.polygons);
+  //------------------------------------------------------------------
+
+  // for (int i=0; i<clipped_count; i++)
+  //   triangle_2d(&cam, clipped_polygons[i], model->materials[clipped_polygons[i].mat_index]);
 
   free(frontface_indices);
   free(front_faces);
@@ -813,14 +962,16 @@ void load_polygons(FILE *fh, Model model, Polygon *polygons)
   free(mat_names);
 }
 
-void load_material(FILE *fh, Model *model)
+void load_material(FILE *fh, char *filepath, Model *model)
 {
   char space[] = " ";
   char buffer[64];
   int mat_index = model->mat_count-1;
+
+  char *filepath_copy = (char *)malloc(128 * sizeof(char));
+
   while (fgets(buffer, 64, fh) != NULL)
   {
-
     if (buffer[0] == 'm' && buffer[1] == 'a') // filepath to texture
     {
       char *token = strtok(buffer, space);
@@ -829,16 +980,31 @@ void load_material(FILE *fh, Model *model)
         if (token[i] == '\n')
           token[i] = '\0';
 
-      model->materials[mat_index] = SDL_LoadBMP(token);
+      // load 100% image
+      strcpy(filepath_copy, filepath);
+      strcat(filepath_copy, "/");
+      strcat(filepath_copy, token);
+      printf("FILE: %s\n", filepath_copy);
+      model->materials[mat_index] = SDL_LoadBMP(filepath_copy);
+
+      // load 50% image
+      strcpy(filepath_copy, filepath);
+      strcat(filepath_copy, "/");
+      strcat(filepath_copy, token);
+      strcat(filepath_copy, "50");
+      model->materials[mat_index + model->mat_count] = SDL_LoadBMP(filepath_copy);
+
       mat_index -= 1;
-      printf("FILE: %s\n", token);
     }
   }
+
+
+  free(filepath_copy);
 }
 
 /** Load an obj file
  */
-Model load_model(char *filepath, char *material)
+Model load_model(char *filepath)
 {
   Model model;
   model.pos = (Vector3){0, 0, 0};
@@ -847,22 +1013,36 @@ Model load_model(char *filepath, char *material)
   model.uv_count = 0;
   model.vertex_count = 0;
 
-  FILE *fh = fopen(filepath, "r");
+  char *last = strrchr(filepath, '/');
+
+  char *filepath_obj = (char *)malloc(128 * sizeof(char));
+  char *filepath_mtl = (char *)malloc(128 * sizeof(char));
+  char *filepath_slash = (char *)malloc(128 * sizeof(char));
+  strcpy(filepath_slash, filepath);
+
+  strcpy(filepath_obj, filepath);
+  strcpy(filepath_mtl, filepath);
+  strcat(filepath_obj, last);
+  strcat(filepath_obj, ".obj");
+  strcat(filepath_mtl, last);
+  strcat(filepath_mtl, ".mtl");
+
+  FILE *fh = fopen(filepath_obj, "r");
   if (fh == NULL)
-    printf("Error opening %s\n", filepath);
+    printf("Error opening %s\n", filepath_obj);
 
   count_polygons(fh, &model);
 
   model.polygons = (Polygon *)calloc(model.poly_count, sizeof(Polygon)); // Array of polygons
-  model.materials = (SDL_Surface **)malloc(model.mat_count * sizeof(SDL_Surface *)); // Array of sdl surfaces
+  model.materials = (SDL_Surface **)malloc(model.mat_count*2 * sizeof(SDL_Surface *)); // Array of sdl surfaces
 
   load_polygons(fh, model, model.polygons);
   fclose(fh);
 
-  FILE *fh2 = fopen(material, "r");
+  FILE *fh2 = fopen(filepath_mtl, "r");
   if (fh2 == NULL)
-    printf("Error opening %s\n", material);
-  load_material(fh2, &model);
+    printf("Error opening %s\n", filepath_mtl);  
+  load_material(fh2, filepath_slash, &model);
   fclose(fh2);
 
 
@@ -877,6 +1057,10 @@ Model load_model(char *filepath, char *material)
       model.polygons[i].uvs[j].y *= model.materials[model.polygons[i].mat_index]->h;
     }
   }
+
+  free(filepath_obj);
+  free(filepath_mtl);
+  free(filepath_slash);
 
   return model;
 }
