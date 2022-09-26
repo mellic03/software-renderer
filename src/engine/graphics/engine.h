@@ -21,7 +21,7 @@ extern Vector3 lightsource;
 
 typedef struct {
   Vector3 vertices[3];
-  Vector3 normal_vector;
+  Vector3 face_normal;
   Vector3 fill;
   Vector2 uvs[3];
   int mat_index; // index of material to use

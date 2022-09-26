@@ -1,7 +1,12 @@
 #ifndef INPUT_H
 #define INPUT_H
 
-#include <SDL2/SDL.h>
+#ifdef __unix__
+  #include <SDL2/SDL.h>
+#elif defined(_WIN32) || defined(WIN32)
+  #include <SDL.h>
+#endif
+
 #include "./graphics/engine.h"
 
 int toggle = 0;
@@ -38,8 +43,10 @@ void input(SDL_Event event, Camera *cam)
   if (state[SDL_SCANCODE_LCTRL])
     cam->vel = vector3_add(cam->vel, (Vector3){0, delta_time, 0});
 
-  if (state[SDL_SCANCODE_Q])
-    cam->rot.z -= 0.01;
+  if (state[SDL_SCANCODE_UP])
+    lightsource.y -= 0.01;
+  if (state[SDL_SCANCODE_DOWN])
+    lightsource.y += 0.01;
 
 
 
@@ -64,7 +71,7 @@ void input(SDL_Event event, Camera *cam)
       else if (cam->rot.x < 0)
         cam->rot.x += 6.28;
       cam->dir.x = sin(-cam->rot.y);
-      cam->dir.y = sin(-cam->rot.x);
+      cam->dir.y = sin(cam->rot.x);
       cam->dir.z = cos(-cam->rot.y);
     }
     

@@ -30,6 +30,7 @@
     "*.tcc": "c",
     "future": "c",
     "time.h": "c",
-    "bitset": "c"
+    "bitset": "c",
+    "avx512vlbf16intrin.h": "c"
   }
 }

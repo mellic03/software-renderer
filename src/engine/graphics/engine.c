@@ -114,11 +114,11 @@ void rotate_x(Model *model, float r)
     }
 
     // rotate normals
-    float coord[3][1] = {{model->polygons[i].normal_vector.x}, {model->polygons[i].normal_vector.y}, {model->polygons[i].normal_vector.z}};
+    float coord[3][1] = {{model->polygons[i].face_normal.x}, {model->polygons[i].face_normal.y}, {model->polygons[i].face_normal.z}};
     matrix_mult(3, 3, 3, 1, result, rot_x, coord);
-    model->polygons[i].normal_vector.x = result[0][0];
-    model->polygons[i].normal_vector.y = result[1][0];
-    model->polygons[i].normal_vector.z = result[2][0];
+    model->polygons[i].face_normal.x = result[0][0];
+    model->polygons[i].face_normal.y = result[1][0];
+    model->polygons[i].face_normal.z = result[2][0];
   }
   translate_model(model, model_pos.x, model_pos.y, model_pos.z);
 }
@@ -149,11 +149,11 @@ void rotate_y(Model *model, float r)
     }
 
     // rotate normals
-    float coord[3][1] = {{model->polygons[i].normal_vector.x}, {model->polygons[i].normal_vector.y}, {model->polygons[i].normal_vector.z}};
+    float coord[3][1] = {{model->polygons[i].face_normal.x}, {model->polygons[i].face_normal.y}, {model->polygons[i].face_normal.z}};
     matrix_mult(3, 3, 3, 1, result, rot_y, coord);
-    model->polygons[i].normal_vector.x = result[0][0];
-    model->polygons[i].normal_vector.y = result[1][0];
-    model->polygons[i].normal_vector.z = result[2][0];
+    model->polygons[i].face_normal.x = result[0][0];
+    model->polygons[i].face_normal.y = result[1][0];
+    model->polygons[i].face_normal.z = result[2][0];
   }
   translate_model(model, model_pos.x, model_pos.y, model_pos.z);
 }
@@ -185,11 +185,11 @@ void rotate_z(Model model, float r)
     }
 
     // rotate normals
-    float coord[3][1] = {{model.polygons[i].normal_vector.x}, {model.polygons[i].normal_vector.y}, {model.polygons[i].normal_vector.z}};
+    float coord[3][1] = {{model.polygons[i].face_normal.x}, {model.polygons[i].face_normal.y}, {model.polygons[i].face_normal.z}};
     matrix_mult(3, 3, 3, 1, result, rot_z, coord);
-    model.polygons[i].normal_vector.x = result[0][0];
-    model.polygons[i].normal_vector.y = result[1][0];
-    model.polygons[i].normal_vector.z = result[2][0];
+    model.polygons[i].face_normal.x = result[0][0];
+    model.polygons[i].face_normal.y = result[1][0];
+    model.polygons[i].face_normal.z = result[2][0];
   }
   translate_model(&model, model_pos.x, model_pos.y, model_pos.z);
 }
@@ -710,7 +710,7 @@ void draw_model(Camera cam, Model *model)
   int frontface_count = 0;
 
   for (int i=0; i<model->poly_count; i++)
-    if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], cam.pos), model->polygons[i].normal_vector) < 0)
+    if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], cam.pos), model->polygons[i].face_normal) < 0)
       frontface_indices[frontface_count++] = i;
   
   Polygon *front_faces = (Polygon *)calloc(frontface_count, sizeof(Polygon));
@@ -943,7 +943,7 @@ void load_polygons(FILE *fh, Model model, Polygon *polygons)
         polygons[polygon_index].vertices[i] = vertices[temp[0]-1];
         polygons[polygon_index].uvs[i] = tex_coords[temp[1]-1];
       }
-      polygons[polygon_index].normal_vector =normals[temp[2]-1];
+      polygons[polygon_index].face_normal =normals[temp[2]-1];
       polygons[polygon_index].mat_index = mat_index;
       polygon_index += 1;
     }

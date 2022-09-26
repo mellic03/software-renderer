@@ -1,9 +1,16 @@
+#ifdef __unix__
+  #include <SDL2/SDL.h>
+#elif defined(_WIN32) || defined(WIN32)
+  #define SDL_MAIN_HANDLED
+  #include <SDL.h>
+#endif
+
 #include <math.h>
 #include <pthread.h>
-#include <SDL2/SDL.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
+#include <stdio.h>
 
 #include "engine/graphics/engine.h"
 #include "engine/input.h"
@@ -46,8 +53,8 @@ int main(int argc, char** argv)
   Model map = load_model("src/assets/map");
   translate_model(&map, 0, 0, 20);
   rotate_y(&map, 3.14);
-  // Model sphere = load_model("./sphere.obj", "./sphere.mtl");
-  // translate_model(&sphere, 0, 0, 50);
+
+  Model sphere = load_model("./src/assets/sphere");
 
   //------------------------------------------------------------
 
@@ -63,8 +70,6 @@ int main(int argc, char** argv)
   while (1)
   {
     gettimeofday(&sometime1, NULL);
-
-    // time = clock();
     clear_screen(109, 133, 169);
     input(event, &cam);
 
@@ -87,7 +92,7 @@ int main(int argc, char** argv)
     delta_time = (double)(sometime2.tv_usec - sometime1.tv_usec) / 1000000;
 
     framerate = 1 / delta_time;
-    if (count > 500)
+    if (count > 100)
     {
       count = 0;
       printf("FPS: %lf\n", framerate);
