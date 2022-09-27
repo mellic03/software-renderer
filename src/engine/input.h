@@ -44,9 +44,9 @@ void input(SDL_Event event, Camera *cam)
     cam->vel = vector3_add(cam->vel, (Vector3){0, delta_time, 0});
 
   if (state[SDL_SCANCODE_UP])
-    lightsource.y -= 0.01;
+    lightsource.y -= 0.05;
   if (state[SDL_SCANCODE_DOWN])
-    lightsource.y += 0.01;
+    lightsource.y += 0.05;
 
 
 

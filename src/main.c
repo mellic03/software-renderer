@@ -50,9 +50,9 @@ int main(int argc, char** argv)
 
   // Load models
   //------------------------------------------------------------
-  Model map = load_model("src/assets/map");
-  translate_model(&map, 0, 0, 20);
-  rotate_y(&map, 3.14);
+  // Model map = load_model("src/assets/map");
+  // translate_model(&map, 0, 0, 20);
+  // rotate_y(&map, 3.14);
 
   Model sphere = load_model("./src/assets/sphere");
 
@@ -73,7 +73,7 @@ int main(int argc, char** argv)
     clear_screen(109, 133, 169);
     input(event, &cam);
 
-    draw_model(cam, &map);
+    draw_model(cam, &sphere);
 
 
     // if (toggle == 1 && vector3_dist((vector3_add(cam.pos, cam.dir)), cube.pos) < 2)

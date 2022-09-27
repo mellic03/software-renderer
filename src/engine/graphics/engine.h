@@ -21,6 +21,7 @@ extern Vector3 lightsource;
 
 typedef struct {
   Vector3 vertices[3];
+  int vertex_indices[3]; // Used only in load_polygons for generating vertex normals  
   Vector3 face_normal;
   Vector3 fill;
   Vector2 uvs[3];
@@ -34,6 +35,8 @@ typedef struct {
   int vertex_count;
   int normal_count;
   int uv_count;
+
+  Vector3 *vertex_normals;
 
   int poly_count;
   Polygon *polygons; // Array of polygons
