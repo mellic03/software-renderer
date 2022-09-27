@@ -304,9 +304,9 @@ void triangle_2d(Camera *cam, Model *model, Polygon tri, SDL_Surface **textures,
   Vector2 v2 = project_coordinate(&tri.vertices[1]);
   Vector2 v3 = project_coordinate(&tri.vertices[2]);
 
-  float dot1 = -atan(vector3_angle(model->vertex_normals[tri.vertex_indices[0]], lightsource));
-  float dot2 = -atan(vector3_angle(model->vertex_normals[tri.vertex_indices[1]], lightsource));
-  float dot3 = -atan(vector3_angle(model->vertex_normals[tri.vertex_indices[2]], lightsource));
+  float dot1 = atan(vector3_angle(model->vertex_normals[tri.vertex_indices[0]], lightsource));
+  float dot2 = atan(vector3_angle(model->vertex_normals[tri.vertex_indices[1]], lightsource));
+  float dot3 = atan(vector3_angle(model->vertex_normals[tri.vertex_indices[2]], lightsource));
 
 
   __m128 _reg_uv_x = _mm_set_ps(tri.uvs[0].x, tri.uvs[1].x, tri.uvs[2].x, 1);
