@@ -44,9 +44,14 @@ void input(SDL_Event event, Camera *cam)
     cam->vel = vector3_add(cam->vel, (Vector3){0, delta_time, 0});
 
   if (state[SDL_SCANCODE_UP])
-    lightsource.y -= 0.05;
+    rotate_point(&lightsource, 0.01, 0, 0);
   if (state[SDL_SCANCODE_DOWN])
-    lightsource.y += 0.05;
+    rotate_point(&lightsource, -0.01, 0, 0);
+  if (state[SDL_SCANCODE_LEFT])
+    rotate_point(&lightsource, 0, 0.01, 0);
+  if (state[SDL_SCANCODE_RIGHT])
+    rotate_point(&lightsource, 0, -0.01, 0);
+
 
 
 

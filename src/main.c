@@ -50,12 +50,14 @@ int main(int argc, char** argv)
 
   // Load models
   //------------------------------------------------------------
-  Model map = load_model("src/assets/map");
-  translate_model(&map, 0, 0, 20);
-  rotate_y(&map, 3.14);
+  Model map = load_model("src/assets/map2");
+  translate_model(&map, 0, -5.1, 0);
+  rotate_y(&map, 3.1415);
 
-  Model sphere = load_model("./src/assets/sphere");
+  Model cube = load_model("src/assets/cube");
 
+  Model light = load_model("./src/assets/sphere");
+  scale(&light, 5);
   //------------------------------------------------------------
 
 
@@ -74,14 +76,19 @@ int main(int argc, char** argv)
     input(event, &cam);
 
     draw_model(cam, &map);
+    draw_model(cam, &cube);
+
+    translate_model(&light, lightsource.x, lightsource.y, lightsource.z);
+    draw_model(cam, &light);
+    translate_model(&light, -lightsource.x, -lightsource.y, -lightsource.z);
 
 
-    // if (toggle == 1 && vector3_dist((vector3_add(cam.pos, cam.dir)), cube.pos) < 2)
-    // {
-    //   Vector3 t = vector3_add(cam.pos, vector3_scale((Vector3){cam.dir.x, -cam.dir.y, cam.dir.z}, 2));
-    //   Vector3 dir = vector3_sub(t, cube.pos);
-    //   translate_model(&cube, dir.x, dir.y, dir.z);
-    // }
+    if (toggle == 1 && vector3_dist((vector3_add(cam.pos, cam.dir)), cube.pos) < 4)
+    {
+      Vector3 t = vector3_add(cam.pos, vector3_scale((Vector3){cam.dir.x, cam.dir.y, cam.dir.z}, 4));
+      Vector3 dir = vector3_sub(t, cube.pos);
+      translate_model(&cube, dir.x, dir.y, dir.z);
+    }
 
 
     SDL_UpdateWindowSurface(win);

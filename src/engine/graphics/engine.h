@@ -1,4 +1,9 @@
-#include <SDL2/SDL.h>
+#ifdef __unix__
+  #include <SDL2/SDL.h>
+#elif defined(_WIN32) || defined(WIN32)
+  #define SDL_MAIN_HANDLED
+  #include <SDL.h>
+#endif
 
 #include "camera.h"
 #include "../math/vector.h"
@@ -21,6 +26,8 @@ extern Vector3 lightsource;
 
 typedef struct {
   Vector3 vertices[3];
+  Vector3 normals[3];
+  Vector3 og_vertices[3];
   int vertex_indices[3]; // Used only in load_polygons for generating vertex normals  
   Vector3 face_normal;
   Vector3 fill;
@@ -59,7 +66,8 @@ void rotate_y(Model *model, float r);
 void rotate_z(Model model, float r);
 void rotate_point(Vector3 *pt, float x, float y, float z);
 void translate_model(Model *model, float x, float y, float z);
-void set_position_model(Model *model, Vector3 pos);
+void scale(Model *model, float alpha);
+
 
 void clear_screen(Uint8 r, Uint8 g, Uint8 b);
 void render_screen(SDL_Renderer *ren);
