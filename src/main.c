@@ -75,6 +75,7 @@ int main(int argc, char** argv)
     input(event, &cam);
 
     draw_model(cam, &map);
+
     draw_model(cam, &cube);
 
     translate_model(&light, lightsource.x, lightsource.y, lightsource.z);

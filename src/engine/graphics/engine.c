@@ -114,22 +114,22 @@ void rotate_x(Model *model, float r)
     // rotate vertices
     for (int j=0; j<3; j++)
     {
-      float coord[3][1] = {{model->polygons[i].vertices[j].x}, {model->polygons[i].vertices[j].y}, {model->polygons[i].vertices[j].z}};
-      matrix_mult(3, 3, 3, 1, result, rot_x, coord);
+      float coord1[3][1] = {{model->polygons[i].vertices[j].x}, {model->polygons[i].vertices[j].y}, {model->polygons[i].vertices[j].z}};
+      matrix_mult(3, 3, 3, 1, result, rot_x, coord1);
       model->polygons[i].vertices[j].x = result[0][0];
       model->polygons[i].vertices[j].y = result[1][0];
       model->polygons[i].vertices[j].z = result[2][0];
 
       float coord2[3][1] = {{model->polygons[i].og_vertices[j].x}, {model->polygons[i].og_vertices[j].y}, {model->polygons[i].og_vertices[j].z}};
-      matrix_mult(3, 3, 3, 1, result, rot_x, coord);
+      matrix_mult(3, 3, 3, 1, result, rot_x, coord2);
       model->polygons[i].og_vertices[j].x = result[0][0];
       model->polygons[i].og_vertices[j].y = result[1][0];
       model->polygons[i].og_vertices[j].z = result[2][0];
     }
 
     // rotate face normals
-    float coord[3][1] = {{model->polygons[i].face_normal.x}, {model->polygons[i].face_normal.y}, {model->polygons[i].face_normal.z}};
-    matrix_mult(3, 3, 3, 1, result, rot_x, coord);
+    float coord3[3][1] = {{model->polygons[i].face_normal.x}, {model->polygons[i].face_normal.y}, {model->polygons[i].face_normal.z}};
+    matrix_mult(3, 3, 3, 1, result, rot_x, coord3);
     model->polygons[i].face_normal.x = result[0][0];
     model->polygons[i].face_normal.y = result[1][0];
     model->polygons[i].face_normal.z = result[2][0];
@@ -138,8 +138,8 @@ void rotate_x(Model *model, float r)
   // rotate vertex normals
   for (int i=0; i<model->vertex_count; i++)
   {
-    float coord[3][1] = {{model->vertex_normals[i].x}, {model->vertex_normals[i].y}, {model->vertex_normals[i].z}};
-    matrix_mult(3, 3, 3, 1, result, rot_x, coord);
+    float coord4[3][1] = {{model->vertex_normals[i].x}, {model->vertex_normals[i].y}, {model->vertex_normals[i].z}};
+    matrix_mult(3, 3, 3, 1, result, rot_x, coord4);
     model->vertex_normals[i].x = result[0][0];
     model->vertex_normals[i].y = result[1][0];
     model->vertex_normals[i].z = result[2][0];
@@ -165,22 +165,22 @@ void rotate_y(Model *model, float r)
     // rotate vertices
     for (int j=0; j<3; j++)
     {
-      float coord[3][1] = {{model->polygons[i].vertices[j].x}, {model->polygons[i].vertices[j].y}, {model->polygons[i].vertices[j].z}};
-      matrix_mult(3, 3, 3, 1, result, rot_y, coord);
+      float coord1[3][1] = {{model->polygons[i].vertices[j].x}, {model->polygons[i].vertices[j].y}, {model->polygons[i].vertices[j].z}};
+      matrix_mult(3, 3, 3, 1, result, rot_y, coord1);
       model->polygons[i].vertices[j].x = result[0][0];
       model->polygons[i].vertices[j].y = result[1][0];
       model->polygons[i].vertices[j].z = result[2][0];
 
       float coord2[3][1] = {{model->polygons[i].og_vertices[j].x}, {model->polygons[i].og_vertices[j].y}, {model->polygons[i].og_vertices[j].z}};
-      matrix_mult(3, 3, 3, 1, result, rot_y, coord);
+      matrix_mult(3, 3, 3, 1, result, rot_y, coord2);
       model->polygons[i].og_vertices[j].x = result[0][0];
       model->polygons[i].og_vertices[j].y = result[1][0];
       model->polygons[i].og_vertices[j].z = result[2][0];
     }
 
     // rotate normals
-    float coord[3][1] = {{model->polygons[i].face_normal.x}, {model->polygons[i].face_normal.y}, {model->polygons[i].face_normal.z}};
-    matrix_mult(3, 3, 3, 1, result, rot_y, coord);
+    float coord3[3][1] = {{model->polygons[i].face_normal.x}, {model->polygons[i].face_normal.y}, {model->polygons[i].face_normal.z}};
+    matrix_mult(3, 3, 3, 1, result, rot_y, coord3);
     model->polygons[i].face_normal.x = result[0][0];
     model->polygons[i].face_normal.y = result[1][0];
     model->polygons[i].face_normal.z = result[2][0];
@@ -189,8 +189,8 @@ void rotate_y(Model *model, float r)
   // rotate vertex normals
   for (int i=0; i<model->vertex_count; i++)
   {
-    float coord[3][1] = {{model->vertex_normals[i].x}, {model->vertex_normals[i].y}, {model->vertex_normals[i].z}};
-    matrix_mult(3, 3, 3, 1, result, rot_y, coord);
+    float coord4[3][1] = {{model->vertex_normals[i].x}, {model->vertex_normals[i].y}, {model->vertex_normals[i].z}};
+    matrix_mult(3, 3, 3, 1, result, rot_y, coord4);
     model->vertex_normals[i].x = result[0][0];
     model->vertex_normals[i].y = result[1][0];
     model->vertex_normals[i].z = result[2][0];
@@ -324,7 +324,7 @@ Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3)
   return weights;
 }
 
-void triangle_2d(Camera *cam, Model *model, Polygon tri, SDL_Surface **textures, int texture_index)
+void triangle_2d(Model *model, Polygon tri, SDL_Surface **textures, int texture_index)
 {
   Vector2 v1 = project_coordinate(&tri.vertices[0]);
   Vector2 v2 = project_coordinate(&tri.vertices[1]);
@@ -338,10 +338,14 @@ void triangle_2d(Camera *cam, Model *model, Polygon tri, SDL_Surface **textures,
   Vector3 norm2 = model->vertex_normals[tri.vertex_indices[1]];
   Vector3 norm3 = model->vertex_normals[tri.vertex_indices[2]];
 
+  Vector3 dir1 = vector3_sub(lightsource, model->vertex_normals[tri.vertex_indices[0]]);
+  Vector3 dir2 = vector3_sub(lightsource, model->vertex_normals[tri.vertex_indices[1]]);
+  Vector3 dir3 = vector3_sub(lightsource, model->vertex_normals[tri.vertex_indices[2]]);
+
   float dist1 = vector3_dist(tri.og_vertices[0], model->lightsource);
   float dist2 = vector3_dist(tri.og_vertices[1], model->lightsource);
   float dist3 = vector3_dist(tri.og_vertices[2], model->lightsource);
-
+  
 
   __m128 _reg_uv_x = _mm_set_ps(tri.uvs[0].x, tri.uvs[1].x, tri.uvs[2].x, 1);
   __m128 _reg_uv_y = _mm_set_ps(tri.uvs[0].y, tri.uvs[1].y, tri.uvs[2].y, 1);
@@ -364,8 +368,7 @@ void triangle_2d(Camera *cam, Model *model, Polygon tri, SDL_Surface **textures,
 
   Vector3 vert_weights;
   Vector3 light_weights;
-  Vector3 templight = lightsource;
-  vector3_normalise(&templight);
+  // vector3_normalise(&templight);
 
   for (x=lx; x<=hx; x++)
   {
@@ -387,25 +390,23 @@ void triangle_2d(Camera *cam, Model *model, Polygon tri, SDL_Surface **textures,
 
           light_weights = calculate_barycentric(x, y, ov1, ov2, ov3);
 
-          // float shade = (dist1*light_weights.x + dist2*light_weights.y + dist3*light_weights.z);
-          // shade /= 15;
+          Vector3 dd = (Vector3){
+            dir1.x*light_weights.x + dir2.x*light_weights.y + dir3.x*light_weights.z,
+            dir1.y*light_weights.x + dir2.y*light_weights.y + dir3.y*light_weights.z,
+            dir1.z*light_weights.x + dir2.z*light_weights.y + dir3.z*light_weights.z
+          };
+          vector3_normalise(&dd);
 
+          Vector3 nn = (Vector3){
+            norm1.x*light_weights.x + norm2.x*light_weights.y + norm3.x*light_weights.z,
+            norm1.y*light_weights.x + norm2.y*light_weights.y + norm3.y*light_weights.z,
+            norm1.z*light_weights.x + norm2.z*light_weights.y + norm3.z*light_weights.z
+          };
+          vector3_normalise(&nn);
 
-
-          Vector3 n1 = (Vector3){norm1.x*light_weights.x, norm1.y*light_weights.x, norm1.z*light_weights.x};
-          Vector3 n2 = (Vector3){norm2.x*light_weights.y, norm2.y*light_weights.y, norm2.z*light_weights.y};
-          Vector3 n3 = (Vector3){norm3.x*light_weights.z, norm3.y*light_weights.z, norm3.z*light_weights.z};
-          vector3_normalise(&n1);
-          vector3_normalise(&n2);
-          vector3_normalise(&n3);
-
-          float a1 = vector3_dot(n1, templight);
-          float a2 = vector3_dot(n2, templight);
-          float a3 = vector3_dot(n3, templight);
-
-          float shade = (a1*light_weights.x + a2*light_weights.y + a3*light_weights.z);
-
-
+          float shade = vector3_dot(dd, nn);
+          shade += 1;
+          shade /= 2;
 
           u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index) % textures[tex_indx]->w;
           v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index) % textures[tex_indx]->h;
@@ -420,16 +421,9 @@ void triangle_2d(Camera *cam, Model *model, Polygon tri, SDL_Surface **textures,
           float g = *green;
           float b = *blue;
 
-          // r /= shade;
-          // g /= shade;
-          // b /= shade;
           r *= shade;
           g *= shade;
           b *= shade;
-
-          if (r < 0) r = 0; else if (r > 255) r = 255;
-          if (g < 0) g = 0; else if (g > 255) g = 255;
-          if (b < 0) b = 0; else if (b > 255) b = 255;
 
           pixel(x, y, (Uint8)r, (Uint8)g, (Uint8)b);
         }
@@ -744,7 +738,7 @@ void *render_polygons_pthread(void *ptr)
 {
   struct wrapper *w1 = (struct wrapper *)ptr;
   for (int i=w1->start; i<w1->stop; i++)
-    triangle_2d(w1->cam, w1->model, w1->polygons[i], w1->textures, w1->polygons[i].mat_index);
+    triangle_2d(w1->model, w1->polygons[i], w1->textures, w1->polygons[i].mat_index);
 
   pthread_exit(NULL);
 }
