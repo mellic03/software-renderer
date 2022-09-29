@@ -51,13 +51,12 @@ int main(int argc, char** argv)
   // Load models
   //------------------------------------------------------------
   Model map = load_model("src/assets/map2");
-  translate_model(&map, 0, -5.1, 0);
+  // translate_model(&map, 0, -5.1, 0);
   rotate_y(&map, 3.1415);
 
   Model cube = load_model("src/assets/cube");
 
   Model light = load_model("./src/assets/sphere");
-  scale(&light, 5);
   //------------------------------------------------------------
 
 
@@ -89,7 +88,6 @@ int main(int argc, char** argv)
       Vector3 dir = vector3_sub(t, cube.pos);
       translate_model(&cube, dir.x, dir.y, dir.z);
     }
-
 
     SDL_UpdateWindowSurface(win);
 

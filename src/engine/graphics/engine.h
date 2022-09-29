@@ -43,6 +43,8 @@ typedef struct {
   int normal_count;
   int uv_count;
 
+  Vector3 lightsource;
+
   Vector3 *vertex_normals;
 
   int poly_count;

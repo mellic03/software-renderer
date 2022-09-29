@@ -338,6 +338,11 @@ void triangle_2d(Camera *cam, Model *model, Polygon tri, SDL_Surface **textures,
   Vector3 norm2 = model->vertex_normals[tri.vertex_indices[1]];
   Vector3 norm3 = model->vertex_normals[tri.vertex_indices[2]];
 
+  float dist1 = vector3_dist(tri.og_vertices[0], model->lightsource);
+  float dist2 = vector3_dist(tri.og_vertices[1], model->lightsource);
+  float dist3 = vector3_dist(tri.og_vertices[2], model->lightsource);
+
+
   __m128 _reg_uv_x = _mm_set_ps(tri.uvs[0].x, tri.uvs[1].x, tri.uvs[2].x, 1);
   __m128 _reg_uv_y = _mm_set_ps(tri.uvs[0].y, tri.uvs[1].y, tri.uvs[2].y, 1);
   __m128 _reg_invz = _mm_set_ps(v1.w,         v2.w,         v3.w,         1);
@@ -362,7 +367,6 @@ void triangle_2d(Camera *cam, Model *model, Polygon tri, SDL_Surface **textures,
   Vector3 templight = lightsource;
   vector3_normalise(&templight);
 
-
   for (x=lx; x<=hx; x++)
   {
     for (y=ly; y<=hy-0; y+=1)
@@ -381,17 +385,12 @@ void triangle_2d(Camera *cam, Model *model, Polygon tri, SDL_Surface **textures,
 
           z_buffer[SCREEN_WIDTH*y + x] = z_index;
 
-          // Get vector from lightsource to pixel
-
-          float pixel_x = tri.vertices[0].x*vert_weights.x + tri.vertices[1].x*vert_weights.y + tri.vertices[2].x*vert_weights.z;
-          float pixel_y = tri.vertices[0].y*vert_weights.x + tri.vertices[1].y*vert_weights.y + tri.vertices[2].y*vert_weights.z;
-          float pixel_z = tri.vertices[0].z*vert_weights.x + tri.vertices[1].z*vert_weights.y + tri.vertices[2].z*vert_weights.z;
-
-
-          Vector3 templight = lightsource;
-          vector3_normalise(&templight);
-
           light_weights = calculate_barycentric(x, y, ov1, ov2, ov3);
+
+          // float shade = (dist1*light_weights.x + dist2*light_weights.y + dist3*light_weights.z);
+          // shade /= 15;
+
+
 
           Vector3 n1 = (Vector3){norm1.x*light_weights.x, norm1.y*light_weights.x, norm1.z*light_weights.x};
           Vector3 n2 = (Vector3){norm2.x*light_weights.y, norm2.y*light_weights.y, norm2.z*light_weights.y};
@@ -406,6 +405,8 @@ void triangle_2d(Camera *cam, Model *model, Polygon tri, SDL_Surface **textures,
 
           float shade = (a1*light_weights.x + a2*light_weights.y + a3*light_weights.z);
 
+
+
           u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index) % textures[tex_indx]->w;
           v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index) % textures[tex_indx]->h;
 
@@ -419,9 +420,12 @@ void triangle_2d(Camera *cam, Model *model, Polygon tri, SDL_Surface **textures,
           float g = *green;
           float b = *blue;
 
-          r *= 1*shade;
-          g *= 1*shade;
-          b *= 1*shade;
+          // r /= shade;
+          // g /= shade;
+          // b /= shade;
+          r *= shade;
+          g *= shade;
+          b *= shade;
 
           if (r < 0) r = 0; else if (r > 255) r = 255;
           if (g < 0) g = 0; else if (g > 255) g = 255;
@@ -763,6 +767,13 @@ void draw_model(Camera cam, Model *model)
   int *frontface_indices = (int *)calloc(model->poly_count, sizeof(int));
   int frontface_count = 0;
 
+  model->lightsource = lightsource;
+  model->lightsource.x -= cam.pos.x;
+  model->lightsource.y -= cam.pos.y;
+  model->lightsource.z -= cam.pos.z;
+  rotate_point(&model->lightsource, 0, cam.rot.y, 0);
+  rotate_point(&model->lightsource, cam.rot.x, 0, 0);
+  
   for (int i=0; i<model->poly_count; i++)
     if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], cam.pos), model->polygons[i].face_normal) < 0)
       frontface_indices[frontface_count++] = i;
@@ -782,7 +793,6 @@ void draw_model(Camera cam, Model *model)
       front_faces[i].og_vertices[j].x -= cam.pos.x;
       front_faces[i].og_vertices[j].y -= cam.pos.y;
       front_faces[i].og_vertices[j].z -= cam.pos.z;
-
 
       rotate_point(&front_faces[i].vertices[j], 0, cam.rot.y, 0);
       rotate_point(&front_faces[i].vertices[j], cam.rot.x, 0, 0);
