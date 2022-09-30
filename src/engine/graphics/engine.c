@@ -324,7 +324,7 @@ Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3)
   return weights;
 }
 
-void triangle_2d(Model *model, Polygon tri, SDL_Surface **textures, int texture_index)
+void triangle_2d_smooth(Model *model, Polygon tri, SDL_Surface **textures, int texture_index)
 {
   Vector2 v1 = project_coordinate(&tri.vertices[0]);
   Vector2 v2 = project_coordinate(&tri.vertices[1]);
@@ -345,7 +345,6 @@ void triangle_2d(Model *model, Polygon tri, SDL_Surface **textures, int texture_
   float dist1 = vector3_dist(tri.og_vertices[0], model->lightsource);
   float dist2 = vector3_dist(tri.og_vertices[1], model->lightsource);
   float dist3 = vector3_dist(tri.og_vertices[2], model->lightsource);
-  
 
   __m128 _reg_uv_x = _mm_set_ps(tri.uvs[0].x, tri.uvs[1].x, tri.uvs[2].x, 1);
   __m128 _reg_uv_y = _mm_set_ps(tri.uvs[0].y, tri.uvs[1].y, tri.uvs[2].y, 1);
@@ -383,7 +382,7 @@ void triangle_2d(Model *model, Polygon tri, SDL_Surface **textures, int texture_
         if (z_index > z_buffer[SCREEN_WIDTH*y + x])
         {
           int tex_indx = texture_index;
-          if (z_index > 35)
+          if (z_index > 5)
             tex_indx += model->mat_count;
 
           z_buffer[SCREEN_WIDTH*y + x] = z_index;
@@ -424,12 +423,87 @@ void triangle_2d(Model *model, Polygon tri, SDL_Surface **textures, int texture_
           r *= shade;
           g *= shade;
           b *= shade;
-
+          
           pixel(x, y, (Uint8)r, (Uint8)g, (Uint8)b);
         }
       }
     }
   }
+}
+
+void triangle_2d_flat(Model *model, Polygon tri, SDL_Surface **textures, int texture_index)
+{
+  Vector2 v1 = project_coordinate(&tri.vertices[0]);
+  Vector2 v2 = project_coordinate(&tri.vertices[1]);
+  Vector2 v3 = project_coordinate(&tri.vertices[2]);
+
+  __m128 _reg_uv_x = _mm_set_ps(tri.uvs[0].x, tri.uvs[1].x, tri.uvs[2].x, 1);
+  __m128 _reg_uv_y = _mm_set_ps(tri.uvs[0].y, tri.uvs[1].y, tri.uvs[2].y, 1);
+  __m128 _reg_invz = _mm_set_ps(v1.w,         v2.w,         v3.w,         1);
+
+  _reg_uv_x = _mm_mul_ps(_reg_uv_x, _reg_invz);
+  _reg_uv_y = _mm_mul_ps(_reg_uv_y, _reg_invz);
+
+  Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
+  Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
+  Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
+  Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
+
+  Uint16 x=0, y=0, u=0, v=0;
+  float z_index;
+
+  Vector3 vert_weights;
+  Vector3 templight = lightsource;
+  vector3_normalise(&templight);
+  float shade = vector3_dot(tri.face_normal, templight);
+  shade += 1;
+  shade /= 2;
+
+  for (x=lx; x<=hx; x++)
+  {
+    for (y=ly; y<=hy-0; y+=1)
+    {
+      vert_weights = calculate_barycentric(x, y, v1, v2, v3);
+
+      if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
+      {
+        z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
+
+        if (z_index > z_buffer[SCREEN_WIDTH*y + x])
+        {
+          int tex_indx = texture_index;
+          if (z_index > 5)
+            tex_indx += model->mat_count;
+
+          z_buffer[SCREEN_WIDTH*y + x] = z_index;
+
+          u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index) % textures[tex_indx]->w;
+          v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index) % textures[tex_indx]->h;
+
+          u *= textures[tex_indx]->format->BytesPerPixel;
+
+          Uint8 *red = (Uint8 *)textures[tex_indx]->pixels + v*textures[tex_indx]->pitch + u+2;
+          Uint8 *green = (Uint8 *)textures[tex_indx]->pixels + v*textures[tex_indx]->pitch + u+1;
+          Uint8 *blue = (Uint8 *)textures[tex_indx]->pixels + v*textures[tex_indx]->pitch + u+0;
+
+          float r = *red;
+          float g = *green;
+          float b = *blue;
+
+          r *= shade;
+          g *= shade;
+          b *= shade;
+          
+          pixel(x, y, (Uint8)r, (Uint8)g, (Uint8)b);
+        }
+      }
+    }
+  }
+}
+
+void triangle_2d(Model *model, Polygon tri, SDL_Surface **textures, int texture_index)
+{
+
 }
 
 Vector3 line_plane_intersect(Vector3 plane_normal, Vector3 p1, Vector3 p2, float *t)
@@ -734,11 +808,20 @@ struct wrapper {
   int start, stop;
 };
 
-void *render_polygons_pthread(void *ptr)
+void *render_polygons_pthread_flat(void *ptr)
 {
   struct wrapper *w1 = (struct wrapper *)ptr;
   for (int i=w1->start; i<w1->stop; i++)
-    triangle_2d(w1->model, w1->polygons[i], w1->textures, w1->polygons[i].mat_index);
+    triangle_2d_flat(w1->model, w1->polygons[i], w1->textures, w1->polygons[i].mat_index);
+
+  pthread_exit(NULL);
+}
+
+void *render_polygons_pthread_smooth(void *ptr)
+{
+  struct wrapper *w1 = (struct wrapper *)ptr;
+  for (int i=w1->start; i<w1->stop; i++)
+    triangle_2d_smooth(w1->model, w1->polygons[i], w1->textures, w1->polygons[i].mat_index);
 
   pthread_exit(NULL);
 }
@@ -844,10 +927,23 @@ void draw_model(Camera cam, Model *model)
   memcpy(wrap4.cam, &cam, sizeof(Camera));
   memcpy(wrap4.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
 
-  pthread_create(&thread1, NULL, render_polygons_pthread, &wrap1);
-  pthread_create(&thread2, NULL, render_polygons_pthread, &wrap2);
-  pthread_create(&thread3, NULL, render_polygons_pthread, &wrap3);
-  pthread_create(&thread4, NULL, render_polygons_pthread, &wrap4);
+  switch (model->shader)
+  {
+    case (SHADE_FLAT):
+      pthread_create(&thread1, NULL, render_polygons_pthread_flat, &wrap1);
+      pthread_create(&thread2, NULL, render_polygons_pthread_flat, &wrap2);
+      pthread_create(&thread3, NULL, render_polygons_pthread_flat, &wrap3);
+      pthread_create(&thread4, NULL, render_polygons_pthread_flat, &wrap4);
+      break;
+  
+    case (SHADE_SMOOTH):
+      pthread_create(&thread1, NULL, render_polygons_pthread_smooth, &wrap1);
+      pthread_create(&thread2, NULL, render_polygons_pthread_smooth, &wrap2);
+      pthread_create(&thread3, NULL, render_polygons_pthread_smooth, &wrap3);
+      pthread_create(&thread4, NULL, render_polygons_pthread_smooth, &wrap4);
+      break;
+  }
+
 
   pthread_join(thread1, NULL);
   pthread_join(thread2, NULL);
@@ -1109,6 +1205,7 @@ Model load_model(char *filepath)
   model.poly_count = 0;
   model.uv_count = 0;
   model.vertex_count = 0;
+  model.shader = SHADE_SMOOTH;
 
   char *last = strrchr(filepath, '/');
 
@@ -1166,6 +1263,11 @@ Model load_model(char *filepath)
 
   // for (int i=0; i<model.vertex_count; i++)
   //   printf("%.2f %.2f %.2f\n", model.vertex_normals[i].x, model.vertex_normals[i].y, model.vertex_normals[i].z);
+
+  // for (int i=0; i<model.poly_count; i++)
+  //   for (int j=0; j<3; j++)
+  //     model.polygons[i].vertices[j].y += (float)(rand()%10)/5;
+
 
   return model;
 }

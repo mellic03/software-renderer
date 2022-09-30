@@ -50,11 +50,11 @@ int main(int argc, char** argv)
 
   // Load models
   //------------------------------------------------------------
-  Model map = load_model("src/assets/map2");
-  // translate_model(&map, 0, -5.1, 0);
-  rotate_y(&map, 3.1415);
+  Model map = load_model("src/assets/plane");
+  map.shader = SHADE_SMOOTH;
 
   Model cube = load_model("src/assets/cube");
+  cube.shader = SHADE_FLAT;
 
   Model light = load_model("./src/assets/sphere");
   //------------------------------------------------------------
@@ -62,7 +62,6 @@ int main(int argc, char** argv)
 
   // Render loop
   //------------------------------------------------------------
-
   struct timeval sometime1;
   struct timeval sometime2;
   double framerate;

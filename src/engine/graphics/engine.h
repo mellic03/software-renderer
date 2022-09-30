@@ -24,6 +24,8 @@ extern double delta_time;
 extern Vector3 lightsource;
 //----------------------------------------
 
+typedef enum {SHADE_NONE, SHADE_FLAT, SHADE_SMOOTH} Shader;
+
 typedef struct {
   Vector3 vertices[3];
   Vector3 normals[3];
@@ -38,6 +40,8 @@ typedef struct {
 typedef struct {
   
   Vector3 pos;
+
+  Shader shader;
 
   int vertex_count;
   int normal_count;
