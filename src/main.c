@@ -13,6 +13,7 @@
 #include <stdio.h>
 
 #include "engine/graphics/engine.h"
+#include "engine/fileio/objloader.h"
 #include "engine/input.h"
 #include "engine/screen.h"
 
@@ -51,12 +52,13 @@ int main(int argc, char** argv)
   // Load models
   //------------------------------------------------------------
   Model map = load_model("src/assets/plane");
-  map.shader = SHADE_SMOOTH;
+  map.shade_style = SHADE_FLAT;
+  scale(&map, 0.2);
 
-  Model cube = load_model("src/assets/cube");
-  cube.shader = SHADE_FLAT;
+  // Model cube = load_model("src/assets/cube");
+  // cube.shade_style = SHADE_FLAT;
 
-  Model light = load_model("./src/assets/sphere");
+  // Model light = load_model("./src/assets/sphere");
   //------------------------------------------------------------
 
 
@@ -75,19 +77,30 @@ int main(int argc, char** argv)
 
     draw_model(cam, &map);
 
-    draw_model(cam, &cube);
+    // draw_model(cam, &cube);
 
-    translate_model(&light, lightsource.x, lightsource.y, lightsource.z);
-    draw_model(cam, &light);
-    translate_model(&light, -lightsource.x, -lightsource.y, -lightsource.z);
+    //   for (int i=0; i<map.poly_count; i+=1)
+    //   {
+    //     for (int j=0; j<3; j++)
+    //     {
+    //       float dist = vector3_dist(map.polygons[i].vertices[j], cube.pos);
+    //       if (dist < 5)
+    //         map.polygons[i].vertices[j].y = sin(dist);
+    //     }
+    //   }
 
 
-    if (toggle == 1 && vector3_dist((vector3_add(cam.pos, cam.dir)), cube.pos) < 4)
-    {
-      Vector3 t = vector3_add(cam.pos, vector3_scale((Vector3){cam.dir.x, cam.dir.y, cam.dir.z}, 4));
-      Vector3 dir = vector3_sub(t, cube.pos);
-      translate_model(&cube, dir.x, dir.y, dir.z);
-    }
+    // translate_model(&light, lightsource.x, lightsource.y, lightsource.z);
+    // draw_model(cam, &light);
+    // translate_model(&light, -lightsource.x, -lightsource.y, -lightsource.z);
+
+
+    // if (toggle == 1 && vector3_dist((vector3_add(cam.pos, cam.dir)), cube.pos) < 8)
+    // {
+    //   Vector3 t = vector3_add(cam.pos, vector3_scale((Vector3){cam.dir.x, cam.dir.y, cam.dir.z}, 7));
+    //   Vector3 dir = vector3_sub(t, cube.pos);
+    //   translate_model(&cube, dir.x, dir.y, dir.z);
+    // }
 
     SDL_UpdateWindowSurface(win);
 
@@ -101,6 +114,8 @@ int main(int argc, char** argv)
     {
       count = 0;
       printf("FPS: %lf\n", framerate);
+
+
     }
     count++;
   }

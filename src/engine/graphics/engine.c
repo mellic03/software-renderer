@@ -324,7 +324,7 @@ Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3)
   return weights;
 }
 
-void triangle_2d_smooth(Model *model, Polygon tri, SDL_Surface **textures, int texture_index)
+void triangle_2d_smooth(Model *model, Polygon tri)
 {
   Vector2 v1 = project_coordinate(&tri.vertices[0]);
   Vector2 v2 = project_coordinate(&tri.vertices[1]);
@@ -381,7 +381,7 @@ void triangle_2d_smooth(Model *model, Polygon tri, SDL_Surface **textures, int t
 
         if (z_index > z_buffer[SCREEN_WIDTH*y + x])
         {
-          int tex_indx = texture_index;
+          int tex_indx = tri.mat_index;
           if (z_index > 5)
             tex_indx += model->mat_count;
 
@@ -407,14 +407,14 @@ void triangle_2d_smooth(Model *model, Polygon tri, SDL_Surface **textures, int t
           shade += 1;
           shade /= 2;
 
-          u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index) % textures[tex_indx]->w;
-          v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index) % textures[tex_indx]->h;
+          u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index) % model->materials[tex_indx]->w;
+          v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index) % model->materials[tex_indx]->h;
 
-          u *= textures[tex_indx]->format->BytesPerPixel;
+          u *= model->materials[tex_indx]->format->BytesPerPixel;
 
-          Uint8 *red = (Uint8 *)textures[tex_indx]->pixels + v*textures[tex_indx]->pitch + u+2;
-          Uint8 *green = (Uint8 *)textures[tex_indx]->pixels + v*textures[tex_indx]->pitch + u+1;
-          Uint8 *blue = (Uint8 *)textures[tex_indx]->pixels + v*textures[tex_indx]->pitch + u+0;
+          Uint8 *red = (Uint8 *)model->materials[tex_indx]->pixels + v*model->materials[tex_indx]->pitch + u+2;
+          Uint8 *green = (Uint8 *)model->materials[tex_indx]->pixels + v*model->materials[tex_indx]->pitch + u+1;
+          Uint8 *blue = (Uint8 *)model->materials[tex_indx]->pixels + v*model->materials[tex_indx]->pitch + u+0;
 
           float r = *red;
           float g = *green;
@@ -431,8 +431,11 @@ void triangle_2d_smooth(Model *model, Polygon tri, SDL_Surface **textures, int t
   }
 }
 
-void triangle_2d_flat(Model *model, Polygon tri, SDL_Surface **textures, int texture_index)
+void triangle_2d_flat(Model *model, Polygon tri)
 {
+  float fill = model->vertices[tri.vertex_indices[0]].y + model->vertices[tri.vertex_indices[1]].y + model->vertices[tri.vertex_indices[2]].y;
+  fill *= 2;
+
   Vector2 v1 = project_coordinate(&tri.vertices[0]);
   Vector2 v2 = project_coordinate(&tri.vertices[1]);
   Vector2 v3 = project_coordinate(&tri.vertices[2]);
@@ -471,20 +474,20 @@ void triangle_2d_flat(Model *model, Polygon tri, SDL_Surface **textures, int tex
 
         if (z_index > z_buffer[SCREEN_WIDTH*y + x])
         {
-          int tex_indx = texture_index;
+          int tex_indx = tri.mat_index;
           if (z_index > 5)
             tex_indx += model->mat_count;
 
           z_buffer[SCREEN_WIDTH*y + x] = z_index;
 
-          u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index) % textures[tex_indx]->w;
-          v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index) % textures[tex_indx]->h;
+          u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index) % model->materials[tex_indx]->w;
+          v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index) % model->materials[tex_indx]->h;
 
-          u *= textures[tex_indx]->format->BytesPerPixel;
+          u *= model->materials[tex_indx]->format->BytesPerPixel;
 
-          Uint8 *red = (Uint8 *)textures[tex_indx]->pixels + v*textures[tex_indx]->pitch + u+2;
-          Uint8 *green = (Uint8 *)textures[tex_indx]->pixels + v*textures[tex_indx]->pitch + u+1;
-          Uint8 *blue = (Uint8 *)textures[tex_indx]->pixels + v*textures[tex_indx]->pitch + u+0;
+          Uint8 *red = (Uint8 *)model->materials[tex_indx]->pixels + v*model->materials[tex_indx]->pitch + u+2;
+          Uint8 *green = (Uint8 *)model->materials[tex_indx]->pixels + v*model->materials[tex_indx]->pitch + u+1;
+          Uint8 *blue = (Uint8 *)model->materials[tex_indx]->pixels + v*model->materials[tex_indx]->pitch + u+0;
 
           float r = *red;
           float g = *green;
@@ -493,6 +496,9 @@ void triangle_2d_flat(Model *model, Polygon tri, SDL_Surface **textures, int tex
           r *= shade;
           g *= shade;
           b *= shade;
+          r -= fill;
+          g -= fill;
+          b -= fill;
           
           pixel(x, y, (Uint8)r, (Uint8)g, (Uint8)b);
         }
@@ -812,7 +818,7 @@ void *render_polygons_pthread_flat(void *ptr)
 {
   struct wrapper *w1 = (struct wrapper *)ptr;
   for (int i=w1->start; i<w1->stop; i++)
-    triangle_2d_flat(w1->model, w1->polygons[i], w1->textures, w1->polygons[i].mat_index);
+    triangle_2d_flat(w1->model, w1->polygons[i]);
 
   pthread_exit(NULL);
 }
@@ -821,7 +827,7 @@ void *render_polygons_pthread_smooth(void *ptr)
 {
   struct wrapper *w1 = (struct wrapper *)ptr;
   for (int i=w1->start; i<w1->stop; i++)
-    triangle_2d_smooth(w1->model, w1->polygons[i], w1->textures, w1->polygons[i].mat_index);
+    triangle_2d_smooth(w1->model, w1->polygons[i]);
 
   pthread_exit(NULL);
 }
@@ -852,7 +858,7 @@ void draw_model(Camera cam, Model *model)
   rotate_point(&model->lightsource, cam.rot.x, 0, 0);
   
   for (int i=0; i<model->poly_count; i++)
-    if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], cam.pos), model->polygons[i].face_normal) < 0)
+    // if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], cam.pos), model->polygons[i].face_normal) < 0)
       frontface_indices[frontface_count++] = i;
   
   Polygon *front_faces = (Polygon *)calloc(frontface_count, sizeof(Polygon));
@@ -885,75 +891,87 @@ void draw_model(Camera cam, Model *model)
   int clipped_count;
   Polygon *clipped_polygons = clip_against_planes(&cam, frontface_count, front_faces, &clipped_count);
 
+  for (int i=0; i<clipped_count; i++)
+    switch (model->shade_style)
+    {
+    case (SHADE_FLAT):
+      triangle_2d_flat(model, clipped_polygons[i]);
+      break;
+    
+    case (SHADE_SMOOTH):
+      triangle_2d_smooth(model, clipped_polygons[i]);
+      break;
+    }
+
   // Multithreading
   //------------------------------------------------------------------
-  wrap1.cam = (Camera *)malloc(sizeof(Camera));
-  wrap1.poly_count = clipped_count;
-  wrap1.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
-  wrap1.textures = model->materials;
-  wrap1.start = 0;
-  wrap1.stop = clipped_count/4;
-  wrap1.model = model;
-  memcpy(wrap1.cam, &cam, sizeof(Camera));
-  memcpy(wrap1.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
+  // wrap1.cam = (Camera *)malloc(sizeof(Camera));
+  // wrap1.poly_count = clipped_count;
+  // wrap1.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
+  // wrap1.textures = model->materials;
+  // wrap1.start = 0;
+  // wrap1.stop = clipped_count/4;
+  // wrap1.model = model;
+  // memcpy(wrap1.cam, &cam, sizeof(Camera));
+  // memcpy(wrap1.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
 
-  wrap2.cam = (Camera *)malloc(sizeof(Camera));
-  wrap2.poly_count = clipped_count;
-  wrap2.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
-  wrap2.textures = model->materials;
-  wrap2.start = clipped_count/4;
-  wrap2.stop = clipped_count/2;
-  wrap2.model = model;
-  memcpy(wrap2.cam, &cam, sizeof(Camera));
-  memcpy(wrap2.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
+  // wrap2.cam = (Camera *)malloc(sizeof(Camera));
+  // wrap2.poly_count = clipped_count;
+  // wrap2.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
+  // wrap2.textures = model->materials;
+  // wrap2.start = clipped_count/4;
+  // wrap2.stop = clipped_count/2;
+  // wrap2.model = model;
+  // memcpy(wrap2.cam, &cam, sizeof(Camera));
+  // memcpy(wrap2.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
 
-  wrap3.cam = (Camera *)malloc(sizeof(Camera));
-  wrap3.poly_count = clipped_count;
-  wrap3.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
-  wrap3.textures = model->materials;
-  wrap3.start = clipped_count/2;
-  wrap3.stop = 3*clipped_count/4;
-  wrap3.model = model;
-  memcpy(wrap3.cam, &cam, sizeof(Camera));
-  memcpy(wrap3.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
+  // wrap3.cam = (Camera *)malloc(sizeof(Camera));
+  // wrap3.poly_count = clipped_count;
+  // wrap3.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
+  // wrap3.textures = model->materials;
+  // wrap3.start = clipped_count/2;
+  // wrap3.stop = 3*clipped_count/4;
+  // wrap3.model = model;
+  // memcpy(wrap3.cam, &cam, sizeof(Camera));
+  // memcpy(wrap3.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
 
-  wrap4.cam = (Camera *)malloc(sizeof(Camera));
-  wrap4.poly_count = clipped_count;
-  wrap4.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
-  wrap4.textures = model->materials;
-  wrap4.start = 3*clipped_count/4;
-  wrap4.stop = clipped_count;
-  wrap4.model = model;
-  memcpy(wrap4.cam, &cam, sizeof(Camera));
-  memcpy(wrap4.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
+  // wrap4.cam = (Camera *)malloc(sizeof(Camera));
+  // wrap4.poly_count = clipped_count;
+  // wrap4.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
+  // wrap4.textures = model->materials;
+  // wrap4.start = 3*clipped_count/4;
+  // wrap4.stop = clipped_count;
+  // wrap4.model = model;
+  // memcpy(wrap4.cam, &cam, sizeof(Camera));
+  // memcpy(wrap4.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
 
-  switch (model->shader)
-  {
-    case (SHADE_FLAT):
-      pthread_create(&thread1, NULL, render_polygons_pthread_flat, &wrap1);
-      pthread_create(&thread2, NULL, render_polygons_pthread_flat, &wrap2);
-      pthread_create(&thread3, NULL, render_polygons_pthread_flat, &wrap3);
-      pthread_create(&thread4, NULL, render_polygons_pthread_flat, &wrap4);
-      break;
+  // switch (model->shade_style)
+  // {
+  //   case (SHADE_FLAT):
+  //     pthread_create(&thread1, NULL, render_polygons_pthread_flat, &wrap1);
+  //     pthread_create(&thread2, NULL, render_polygons_pthread_flat, &wrap2);
+  //     pthread_create(&thread3, NULL, render_polygons_pthread_flat, &wrap3);
+  //     pthread_create(&thread4, NULL, render_polygons_pthread_flat, &wrap4);
+  //     break;
   
-    case (SHADE_SMOOTH):
-      pthread_create(&thread1, NULL, render_polygons_pthread_smooth, &wrap1);
-      pthread_create(&thread2, NULL, render_polygons_pthread_smooth, &wrap2);
-      pthread_create(&thread3, NULL, render_polygons_pthread_smooth, &wrap3);
-      pthread_create(&thread4, NULL, render_polygons_pthread_smooth, &wrap4);
-      break;
-  }
+  //   case (SHADE_SMOOTH):
+  //     pthread_create(&thread1, NULL, render_polygons_pthread_smooth, &wrap1);
+  //     pthread_create(&thread2, NULL, render_polygons_pthread_smooth, &wrap2);
+  //     pthread_create(&thread3, NULL, render_polygons_pthread_smooth, &wrap3);
+  //     pthread_create(&thread4, NULL, render_polygons_pthread_smooth, &wrap4);
+  //     break;
+  // }
 
 
-  pthread_join(thread1, NULL);
-  pthread_join(thread2, NULL);
-  pthread_join(thread3, NULL);
-  pthread_join(thread4, NULL);
+  // pthread_join(thread1, NULL);
+  // pthread_join(thread2, NULL);
+  // pthread_join(thread3, NULL);
+  // pthread_join(thread4, NULL);
 
-  free(wrap1.polygons);
-  free(wrap2.polygons);
-  free(wrap3.polygons);
-  free(wrap4.polygons);
+  // free(wrap1.polygons);
+  // free(wrap2.polygons);
+  // free(wrap3.polygons);
+  // free(wrap4.polygons);
   //------------------------------------------------------------------
 
   // for (int i=0; i<clipped_count; i++)
@@ -981,305 +999,4 @@ Vector2 project_coordinate(Vector3 *pt)
 
   return (Vector2){canvas_x, canvas_y, 1/pt->z};
 }
-
-// FILE I/O
-//-------------------------------------------------------------------------------
-void count_polygons(FILE *fh, Model *model)
-{
-  model->poly_count = 0;
-  model->vertex_count = 0;
-  model->normal_count = 0;
-  model->uv_count = 0;
-  model->mat_count = 0;
-
-  char buffer[64];
-  while (fgets(buffer, 64, fh) != NULL)
-  {
-    if (buffer[0] == 'f' && buffer[1] == ' ')
-      model->poly_count += 1;
-    else if (buffer[0] == 'v' && buffer[1] == ' ')
-      model->vertex_count += 1;
-    else if (buffer[0] == 'v' && buffer[1] == 'n')
-      model->normal_count += 1;
-    else if (buffer[0] == 'v' && buffer[1] == 't')
-      model->uv_count += 1;
-    else if (buffer[0] == 'u' && buffer[1] == 's')
-      model->mat_count += 1;
-  }
-  rewind(fh);
-}
-
-void extract_vert_text_norm(int dest[3], char *src)
-{
-  for (size_t i=0; i<strlen(src)-1; i++)
-    if (src[i] == '/')
-      src[i] == ' ';
-
-  sscanf(src, "%d/%d/%d", &dest[0], &dest[1], &dest[2]);
-  // printf("%d, %d, %d\n", vertex, texture, normal);
-}
-
-void load_polygons(FILE *fh, Model *model, Polygon *polygons)
-{
-  char buffer[64];
-
-  char space[] = " ";
-  char slash[] = "/";
-  char *token;
-
-  Vector3 *vertices = (Vector3 *)calloc(model->vertex_count, sizeof(Vector3));
-  int vertex_index = 0;
-
-  Vector3 *normals = (Vector3 *)calloc(model->normal_count, sizeof(Vector3));
-  int normal_index = 0;
-
-  Vector2 *tex_coords = (Vector2 *)calloc(model->uv_count, sizeof(Vector2));
-  int tex_coord_index = 0;
-
-  char **mat_names = (char **)malloc(model->mat_count * sizeof(char *));
-  for (int i=0; i<model->mat_count; i++)
-    mat_names[i] = (char *)malloc(64 * sizeof(char)); // max 64 chars for filename
-  int mat_index = 0;
-
-  // load all vertices and normals into memory first
-  while (fgets(buffer, 64, fh) != NULL)
-  {
-    // Line with vertex
-    if (buffer[0] == 'v' && buffer[1] == ' ')
-    {
-      token = strtok(buffer, space);
-      float temp[3];
-      for (int i=0; i<3; i++)
-      {
-        token = strtok(NULL, space);
-        temp[i] = atof(token);
-      }
-      vertices[vertex_index].x = temp[0];
-      vertices[vertex_index].y = temp[1];
-      vertices[vertex_index].z = temp[2];
-      vertex_index++;
-    }
-
-    // Line with vertex normal
-    else if (buffer[0] == 'v' && buffer[1] == 'n')
-    {
-      token = strtok(buffer, space);
-      float temp[3];
-      for (int i=0; i<3; i++)
-      {
-        token = strtok(NULL, space);
-        temp[i] = atof(token);
-      }
-      normals[normal_index++] = (Vector3){temp[0], temp[1], temp[2]};
-    }
-
-    // Line with texture coordinate
-    else if (buffer[0] == 'v' && buffer[1] == 't')
-    {
-      token = strtok(buffer, space);
-      token = strtok(NULL, space);
-      tex_coords[tex_coord_index].x = atof(token);
-      token = strtok(NULL, space);
-      tex_coords[tex_coord_index].y = atof(token);
-      tex_coord_index += 1;
-    }
-
-    // line with new material
-    else if (buffer[0] == 'u' && buffer[1] == 's')
-    {
-      token = strtok(buffer, space);
-      token = strtok(buffer, space);
-      strcpy(mat_names[mat_index], token);
-      mat_index += 1;
-    }
-  }
-  rewind(fh);
-
-  // Create polygons
-  int polygon_index = 0;
-  mat_index = -1; // usemtl always before vertices
-  while (fgets(buffer, 64, fh) != NULL)
-  {
-    if (buffer[0] == 'f' && buffer[1] == ' ')
-    {
-      token = strtok(buffer, space); // token == "f"
-      int temp[3];
-
-      for (int i=0; i<3; i++)
-      {
-        token = strtok(NULL, space); // token == "xxx/xxx/xxx"
-        extract_vert_text_norm(temp, token);
-        polygons[polygon_index].vertices[i] = vertices[temp[0]-1];
-        polygons[polygon_index].og_vertices[i] = vertices[temp[0]-1];
-        polygons[polygon_index].vertex_indices[i] = temp[0]-1;
-        polygons[polygon_index].uvs[i] = tex_coords[temp[1]-1];
-      }
-      polygons[polygon_index].face_normal = normals[temp[2]-1];
-      polygons[polygon_index].mat_index = mat_index;
-      polygon_index += 1;
-    }
-
-    // line with new material
-    else if (buffer[0] == 'u' && buffer[1] == 's')
-      mat_index += 1;
-  }
-
-  // Calculate vertex normals from face normals
-  rewind(fh);
-  // An array of normals where index n corresponds to vertex n
-  Vector3 *vertex_normals = (Vector3 *)calloc(model->vertex_count, sizeof(Vector3));
-
-  // For each polygon, add face normal to vertex_normals[index of vertex]
-  for (int i=0; i<model->poly_count; i++)
-    for (int j=0; j<3; j++)
-      vertex_normals[polygons[i].vertex_indices[j]] = vector3_add(vertex_normals[polygons[i].vertex_indices[j]], polygons[i].face_normal);
-
-  for (int i=0; i<model->vertex_count; i++)
-    vector3_normalise(&vertex_normals[i]);
-
-  model->vertex_normals = (Vector3 *)malloc(model->vertex_count * sizeof(Vector3));
-  for (int i=0; i<model->vertex_count; i++)
-    model->vertex_normals[i] = vertex_normals[i];
-
-  for (int i=0; i<model->vertex_count; i++)
-    for (int j=0; j<3; j++)
-    {
-      model->polygons[i].normals[j].x = model->vertex_normals[model->polygons[i].vertex_indices[j]].x;
-      model->polygons[i].normals[j].y = model->vertex_normals[model->polygons[i].vertex_indices[j]].y;
-      model->polygons[i].normals[j].z = model->vertex_normals[model->polygons[i].vertex_indices[j]].z;
-    }
-
-  free(vertex_normals);
-  free(vertices);
-  free(normals);
-  free(tex_coords);
-  free(mat_names);
-}
-
-void load_material(FILE *fh, char *filepath, Model *model)
-{
-  char space[] = " ";
-  char buffer[64];
-  int mat_index = model->mat_count-1;
-
-  char *filepath_copy = (char *)malloc(128 * sizeof(char));
-
-  while (fgets(buffer, 64, fh) != NULL)
-  {
-    if (buffer[0] == 'm' && buffer[1] == 'a') // filepath to texture
-    {
-      char *token = strtok(buffer, space);
-      token = strtok(NULL, space);
-      for (size_t i=0; i<strlen(token); i++)
-        if (token[i] == '\n')
-          token[i] = '\0';
-
-      // load 100% image
-      strcpy(filepath_copy, filepath);
-      strcat(filepath_copy, "/");
-      strcat(filepath_copy, token);
-      printf("FILE: %s\n", filepath_copy);
-      model->materials[mat_index] = SDL_LoadBMP(filepath_copy);
-
-      // load 50% image
-      strcpy(filepath_copy, filepath);
-      strcat(filepath_copy, "/");
-      strcat(filepath_copy, token);
-      strcat(filepath_copy, "50");
-      model->materials[mat_index + model->mat_count] = SDL_LoadBMP(filepath_copy);
-
-      mat_index -= 1;
-    }
-  }
-
-  free(filepath_copy);
-}
-
-/** Load an obj file
- */
-Model load_model(char *filepath)
-{
-  Model model;
-  model.pos = (Vector3){0, 0, 0};
-  model.normal_count = 0;
-  model.poly_count = 0;
-  model.uv_count = 0;
-  model.vertex_count = 0;
-  model.shader = SHADE_SMOOTH;
-
-  char *last = strrchr(filepath, '/');
-
-  char *filepath_obj = (char *)malloc(128 * sizeof(char));
-  char *filepath_mtl = (char *)malloc(128 * sizeof(char));
-  char *filepath_slash = (char *)malloc(128 * sizeof(char));
-  strcpy(filepath_slash, filepath);
-
-  strcpy(filepath_obj, filepath);
-  strcpy(filepath_mtl, filepath);
-  strcat(filepath_obj, last);
-  strcat(filepath_obj, ".obj");
-  strcat(filepath_mtl, last);
-  strcat(filepath_mtl, ".mtl");
-
-  FILE *fh = fopen(filepath_obj, "r");
-  if (fh == NULL)
-    printf("Error opening %s\n", filepath_obj);
-
-  count_polygons(fh, &model);
-
-  model.polygons = (Polygon *)calloc(model.poly_count, sizeof(Polygon)); // Array of polygons
-  model.materials = (SDL_Surface **)malloc(model.mat_count*2 * sizeof(SDL_Surface *)); // Array of sdl surfaces
-
-  load_polygons(fh, &model, model.polygons);
-  fclose(fh);
-
-  FILE *fh2 = fopen(filepath_mtl, "r");
-  if (fh2 == NULL)
-    printf("Error opening %s\n", filepath_mtl);  
-  load_material(fh2, filepath_slash, &model);
-  fclose(fh2);
-
-
-  // for each polygon, if tex coord < 0, add 1 until greater than 0.
-  // if > 1, subtract 1 until < 1.
-  // then multiply u by width and v by height.
-  for (int i=0; i<model.poly_count; i++)
-  {
-    for (int j=0; j<3; j++)
-    {
-      model.polygons[i].uvs[j].x *= model.materials[model.polygons[i].mat_index]->w;
-      model.polygons[i].uvs[j].y *= model.materials[model.polygons[i].mat_index]->h;
-    }
-  }
-
-  free(filepath_obj);
-  free(filepath_mtl);
-  free(filepath_slash);
-
-
-  for (int i=0; i<model.vertex_count; i++)
-    for (int j=0; j<3; j++)
-      printf("%.2f %.2f %.2f\n", model.polygons[i].normals[j].x, model.polygons[i].normals[j].y, model.polygons[i].normals[j].z);
-
-  // for (int i=0; i<model.vertex_count; i++)
-  //   printf("%.2f %.2f %.2f\n", model.vertex_normals[i].x, model.vertex_normals[i].y, model.vertex_normals[i].z);
-
-  // for (int i=0; i<model.poly_count; i++)
-  //   for (int j=0; j<3; j++)
-  //     model.polygons[i].vertices[j].y += (float)(rand()%10)/5;
-
-
-  return model;
-}
-
-void fill_model(Model *model, int r, int g, int b)
-{
-  for (int i=0; i<model->poly_count; i++)
-  {
-    model->polygons[i].fill.x = r;
-    model->polygons[i].fill.y = g;
-    model->polygons[i].fill.z = b;
-  }
-}
-//-------------------------------------------------------------------------------
 

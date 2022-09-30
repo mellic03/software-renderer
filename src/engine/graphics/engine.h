@@ -24,24 +24,28 @@ extern double delta_time;
 extern Vector3 lightsource;
 //----------------------------------------
 
-typedef enum {SHADE_NONE, SHADE_FLAT, SHADE_SMOOTH} Shader;
+typedef enum {SHADE_NONE, SHADE_FLAT, SHADE_SMOOTH} ShaderType;
 
 typedef struct {
+
   Vector3 vertices[3];
   Vector3 normals[3];
   Vector3 og_vertices[3];
-  int vertex_indices[3]; // Used only in load_polygons for generating vertex normals  
+
+  int vertex_indices[3]; // Used only in load_polygons for generating vertex normals
+
   Vector3 face_normal;
-  Vector3 fill;
+
   Vector2 uvs[3];
   int mat_index; // index of material to use
+
 } Polygon;
 
 typedef struct {
   
   Vector3 pos;
 
-  Shader shader;
+  ShaderType shade_style;
 
   int vertex_count;
   int normal_count;
@@ -53,7 +57,8 @@ typedef struct {
 
   int poly_count;
   Polygon *polygons; // Array of polygons
-  
+  Vector3 *vertices;
+
   int mat_count;
   char **mat_names;
   SDL_Surface **materials;
@@ -63,9 +68,7 @@ typedef struct {
 
 void pixel(int x, int y, Uint8 r, Uint8 g, Uint8 b);
 
-Model load_model(char *filepath);
 void draw_model(Camera cam, Model *model);
-void fill_model(Model *model, int r, int g, int b);
 
 void rotate_x(Model *model, float rotation);
 void rotate_y(Model *model, float r);
@@ -87,7 +90,6 @@ int clip_polygon(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polyg
 int points_inside_plane(Vector3 plane_normal, Polygon *tri, int *index_of_inside, int *index_of_outside);
 Vector3 line_plane_intersect(Vector3 plane_normal, Vector3 p1, Vector3 p2, float *t);
 //-----------------------------------------
-
 
 
 
