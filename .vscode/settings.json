@@ -31,6 +31,10 @@
     "future": "c",
     "time.h": "c",
     "bitset": "c",
-    "avx512vlbf16intrin.h": "c"
+    "avx512vlbf16intrin.h": "c",
+    "graphics.h": "c",
+    "objloader.h": "c",
+    "physics.h": "c",
+    "gameengine.h": "c"
   }
 }

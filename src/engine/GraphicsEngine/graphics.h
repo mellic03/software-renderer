@@ -7,10 +7,9 @@
 
 #include "camera.h"
 #include "../math/vector.h"
-#include "../screen.h"
 
-#ifndef ENGINE_H
-#define ENGINE_H
+#ifndef GRAPHICS_H
+#define GRAPHICS_H
 
 #define RENDER_DISTANCE 50
 
@@ -24,7 +23,7 @@ extern double delta_time;
 extern Vector3 lightsource;
 //----------------------------------------
 
-typedef enum {SHADE_NONE, SHADE_FLAT, SHADE_SMOOTH} ShaderType;
+typedef enum {SHADE_FLAT, SHADE_SMOOTH, SHADE_NONE} ShaderType;
 
 typedef struct {
 
@@ -53,11 +52,11 @@ typedef struct {
 
   Vector3 lightsource;
 
+  Vector3 *vertices;
   Vector3 *vertex_normals;
 
   int poly_count;
   Polygon *polygons; // Array of polygons
-  Vector3 *vertices;
 
   int mat_count;
   char **mat_names;
@@ -93,4 +92,4 @@ Vector3 line_plane_intersect(Vector3 plane_normal, Vector3 p1, Vector3 p2, float
 
 
 
-#endif /* ENGINE_H */
+#endif /* GRAPHICS_H */

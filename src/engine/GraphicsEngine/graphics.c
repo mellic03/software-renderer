@@ -13,11 +13,9 @@
 #include <string.h>
 #include <x86intrin.h>
 
-
-#include "engine.h"
+#include "graphics.h"
 #include "camera.h"
 #include "../math/vector.h"
-#include "../screen.h"
 
 SDL_Surface *pixel_array;
 float z_buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
@@ -25,10 +23,6 @@ float z_buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
 Vector3 lightsource = {0, 0, -50};
 
 double delta_time;
-
-pthread_t thread1;
-pthread_t thread2;
-
 
 // TRANSFORMATIONS
 //-------------------------------------------------------------------------------
@@ -433,9 +427,6 @@ void triangle_2d_smooth(Model *model, Polygon tri)
 
 void triangle_2d_flat(Model *model, Polygon tri)
 {
-  float fill = model->vertices[tri.vertex_indices[0]].y + model->vertices[tri.vertex_indices[1]].y + model->vertices[tri.vertex_indices[2]].y;
-  fill *= 2;
-
   Vector2 v1 = project_coordinate(&tri.vertices[0]);
   Vector2 v2 = project_coordinate(&tri.vertices[1]);
   Vector2 v3 = project_coordinate(&tri.vertices[2]);
@@ -475,7 +466,7 @@ void triangle_2d_flat(Model *model, Polygon tri)
         if (z_index > z_buffer[SCREEN_WIDTH*y + x])
         {
           int tex_indx = tri.mat_index;
-          if (z_index > 5)
+          if (1/z_index > 2)
             tex_indx += model->mat_count;
 
           z_buffer[SCREEN_WIDTH*y + x] = z_index;
@@ -496,9 +487,6 @@ void triangle_2d_flat(Model *model, Polygon tri)
           r *= shade;
           g *= shade;
           b *= shade;
-          r -= fill;
-          g -= fill;
-          b -= fill;
           
           pixel(x, y, (Uint8)r, (Uint8)g, (Uint8)b);
         }
@@ -832,21 +820,15 @@ void *render_polygons_pthread_smooth(void *ptr)
   pthread_exit(NULL);
 }
 
-pthread_t thread1, thread2, thread3, thread4;
-struct wrapper wrap1;
-struct wrapper wrap2;
-struct wrapper wrap3;
-struct wrapper wrap4;
-
-Model modelcpy(Model src)
-{
-  Model output;
-  for (int i=0; i<src.poly_count; i++)
-    output.polygons[i] = src.polygons[i];
-}
+// pthread_t thread1, thread2, thread3, thread4;
+// struct wrapper wrap1;
+// struct wrapper wrap2;
+// struct wrapper wrap3;
+// struct wrapper wrap4;
 
 void draw_model(Camera cam, Model *model)
 {
+
   int *frontface_indices = (int *)calloc(model->poly_count, sizeof(int));
   int frontface_count = 0;
 
@@ -858,7 +840,7 @@ void draw_model(Camera cam, Model *model)
   rotate_point(&model->lightsource, cam.rot.x, 0, 0);
   
   for (int i=0; i<model->poly_count; i++)
-    // if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], cam.pos), model->polygons[i].face_normal) < 0)
+    if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], cam.pos), model->polygons[i].face_normal) < 0)
       frontface_indices[frontface_count++] = i;
   
   Polygon *front_faces = (Polygon *)calloc(frontface_count, sizeof(Polygon));
@@ -892,6 +874,7 @@ void draw_model(Camera cam, Model *model)
   Polygon *clipped_polygons = clip_against_planes(&cam, frontface_count, front_faces, &clipped_count);
 
   for (int i=0; i<clipped_count; i++)
+  {
     switch (model->shade_style)
     {
     case (SHADE_FLAT):
@@ -902,6 +885,7 @@ void draw_model(Camera cam, Model *model)
       triangle_2d_smooth(model, clipped_polygons[i]);
       break;
     }
+  }
 
   // Multithreading
   //------------------------------------------------------------------
@@ -973,9 +957,6 @@ void draw_model(Camera cam, Model *model)
   // free(wrap3.polygons);
   // free(wrap4.polygons);
   //------------------------------------------------------------------
-
-  // for (int i=0; i<clipped_count; i++)
-  //   triangle_2d(&cam, clipped_polygons[i], model->materials[clipped_polygons[i].mat_index]);
 
   free(frontface_indices);
   free(front_faces);

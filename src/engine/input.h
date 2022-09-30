@@ -7,7 +7,7 @@
   #include <SDL.h>
 #endif
 
-#include "./graphics/engine.h"
+#include "GraphicsEngine/graphics.h"
 
 int toggle = 0;
 float something = 0.0;

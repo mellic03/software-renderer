@@ -1,17 +1,21 @@
 #ifndef PHYSICS_H
 #define PHYSICS_H
 
-#include "../graphics/engine.h"
+#include "../math/vector.h"
 
 typedef struct {
-  Model *parent_model;
+
+  Vector3 *pos;
+  float xwidth, ywidth, zwidth;
 
 } BoxCollider;
 
 
 typedef struct {
-  Model *parent_model;  
-  
+
+  Vector3 *pos;
+  float radius;
+
 } SphereCollider;
 
 

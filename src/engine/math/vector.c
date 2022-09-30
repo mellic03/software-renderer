@@ -1,8 +1,6 @@
-#include "vector.h"
 #include <stdio.h>
 #include <math.h>
-
-
+#include "vector.h"
 
 Vector2 vector2_add(Vector2 v1, Vector2 v2)
 {

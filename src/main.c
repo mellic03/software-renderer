@@ -12,11 +12,7 @@
 #include <time.h>
 #include <stdio.h>
 
-#include "engine/graphics/engine.h"
-#include "engine/fileio/objloader.h"
-#include "engine/input.h"
-#include "engine/screen.h"
-
+#include "engine/engine.h"
 
 int main(int argc, char** argv)
 {
@@ -48,17 +44,27 @@ int main(int argc, char** argv)
   pixel_array = SDL_GetWindowSurface(win);
 
   Camera cam = create_camera();
+  cam.pos = (Vector3){0, 0, -15};
 
   // Load models
   //------------------------------------------------------------
-  Model map = load_model("src/assets/plane");
-  map.shade_style = SHADE_FLAT;
-  scale(&map, 0.2);
+  // Model cube1 = load_model("src/assets/cube");
+  // translate_model(&cube1, -10, 0, 0);
 
-  // Model cube = load_model("src/assets/cube");
-  // cube.shade_style = SHADE_FLAT;
+  // Model cube2 = load_model("src/assets/cube");
+  // translate_model(&cube2, 10, 0, 0);
 
-  // Model light = load_model("./src/assets/sphere");
+  // GameObject *test1 = gameobject_create();
+  // test1->model = load_model("src/assets/cube");
+  // translate_model(test1->model, -10, 0, 0);
+
+  // GameObject *test2 = gameobject_create();
+  // test2->model = load_model("src/assets/cube");
+  // translate_model(test2->model, 10, 0, 0);
+
+  GameObject *map = gameobject_create();
+  map->model = load_model("src/assets/plane");
+  map->model->shade_style = SHADE_SMOOTH;
   //------------------------------------------------------------
 
 
@@ -75,25 +81,17 @@ int main(int argc, char** argv)
     clear_screen(109, 133, 169);
     input(event, &cam);
 
-    draw_model(cam, &map);
+    gameobject_draw_all(cam);
 
-    // draw_model(cam, &cube);
-
-    //   for (int i=0; i<map.poly_count; i+=1)
+    // for (int i=0; i<map.poly_count; i+=1)
+    // {
+    //   for (int j=0; j<3; j++)
     //   {
-    //     for (int j=0; j<3; j++)
-    //     {
-    //       float dist = vector3_dist(map.polygons[i].vertices[j], cube.pos);
-    //       if (dist < 5)
-    //         map.polygons[i].vertices[j].y = sin(dist);
-    //     }
+    //     float dist = vector3_dist(map.polygons[i].vertices[j], cube.pos);
+    //     if (dist < 5)
+    //       map.polygons[i].vertices[j].y = sin(dist);
     //   }
-
-
-    // translate_model(&light, lightsource.x, lightsource.y, lightsource.z);
-    // draw_model(cam, &light);
-    // translate_model(&light, -lightsource.x, -lightsource.y, -lightsource.z);
-
+    // }
 
     // if (toggle == 1 && vector3_dist((vector3_add(cam.pos, cam.dir)), cube.pos) < 8)
     // {

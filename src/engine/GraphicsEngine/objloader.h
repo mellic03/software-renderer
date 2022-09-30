@@ -8,9 +8,9 @@
   #include <SDL.h>
 #endif
 
-#include "../graphics/engine.h"
+#include "graphics.h"
 
 
-Model load_model(char *filepath);
+Model *load_model(char *filepath);
 
 #endif /* OBJLOADER_H */

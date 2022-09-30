@@ -3,6 +3,10 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 
+#define SCREEN_WIDTH 1000
+#define SCREEN_HEIGHT 1000
+#define HALF_SCREEN_WIDTH SCREEN_WIDTH/2
+#define HALF_SCREEN_HEIGHT SCREEN_HEIGHT/2
 
 typedef struct Camera {
   Vector3 rot; // rotation

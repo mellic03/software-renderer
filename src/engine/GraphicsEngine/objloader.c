@@ -6,7 +6,7 @@
 #endif
 
 #include "objloader.h"
-#include "../graphics/engine.h"
+#include "graphics.h"
 
 
 void count_polygons(FILE *fh, Model *model)
@@ -157,7 +157,11 @@ void load_polygons(FILE *fh, Model *model, Polygon *polygons)
         polygons[polygon_index].vertex_indices[i] = temp[0]-1;
         polygons[polygon_index].uvs[i] = tex_coords[temp[1]-1];
       }
-      polygons[polygon_index].face_normal = normals[temp[2]-1];
+      Vector3 v1 = vector3_sub(polygons[polygon_index].vertices[0], polygons[polygon_index].vertices[1]);
+      Vector3 v2 = vector3_sub(polygons[polygon_index].vertices[0], polygons[polygon_index].vertices[2]);
+      polygons[polygon_index].face_normal = vector3_cross(v1, v2);
+      vector3_normalise(&polygons[polygon_index].face_normal);
+      // polygons[polygon_index].face_normal = normals[temp[2]-1];
       polygons[polygon_index].mat_index = mat_index;
       polygon_index += 1;
     }
@@ -184,16 +188,13 @@ void load_polygons(FILE *fh, Model *model, Polygon *polygons)
   for (int i=0; i<model->vertex_count; i++)
     model->vertex_normals[i] = vertex_normals[i];
 
+  model->vertices = (Vector3 *)malloc(model->vertex_count * sizeof(Vector3));
   for (int i=0; i<model->vertex_count; i++)
     model->vertices[i] = vertices[i];
 
   for (int i=0; i<model->vertex_count; i++)
     for (int j=0; j<3; j++)
-    {
-      model->polygons[i].normals[j].x = model->vertex_normals[model->polygons[i].vertex_indices[j]].x;
-      model->polygons[i].normals[j].y = model->vertex_normals[model->polygons[i].vertex_indices[j]].y;
-      model->polygons[i].normals[j].z = model->vertex_normals[model->polygons[i].vertex_indices[j]].z;
-    }
+      model->polygons[i].normals[j] = model->vertex_normals[model->polygons[i].vertex_indices[j]];
 
   free(vertex_normals);
   free(vertices);
@@ -241,15 +242,9 @@ void load_material(FILE *fh, char *filepath, Model *model)
   free(filepath_copy);
 }
 
-Model load_model(char *filepath)
+Model *load_model(char *filepath)
 {
-  Model model;
-  model.pos = (Vector3){0, 0, 0};
-  model.normal_count = 0;
-  model.poly_count = 0;
-  model.uv_count = 0;
-  model.vertex_count = 0;
-  model.shade_style = SHADE_SMOOTH;
+  Model *model = (Model *)calloc(1, sizeof(Model));
 
   char *last = strrchr(filepath, '/');
 
@@ -269,45 +264,36 @@ Model load_model(char *filepath)
   if (fh == NULL)
     printf("Error opening %s\n", filepath_obj);
 
-  count_polygons(fh, &model);
+  count_polygons(fh, model);
 
-  model.vertices = (Vector3 *)malloc(model.vertex_count * sizeof(Vector3));
-  model.polygons = (Polygon *)calloc(model.poly_count, sizeof(Polygon)); // Array of polygons
-  model.materials = (SDL_Surface **)malloc(model.mat_count*2 * sizeof(SDL_Surface *)); // Array of sdl surfaces
+  model->polygons = (Polygon *)calloc(model->poly_count, sizeof(Polygon)); // Array of polygons
+  model->materials = (SDL_Surface **)malloc(model->mat_count*2 * sizeof(SDL_Surface *)); // Array of sdl surfaces
 
-  load_polygons(fh, &model, model.polygons);
+  load_polygons(fh, model, model->polygons);
   fclose(fh);
 
   FILE *fh2 = fopen(filepath_mtl, "r");
   if (fh2 == NULL)
     printf("Error opening %s\n", filepath_mtl);  
-  load_material(fh2, filepath_slash, &model);
+  load_material(fh2, filepath_slash, model);
   fclose(fh2);
 
 
   // for each polygon, if tex coord < 0, add 1 until greater than 0.
   // if > 1, subtract 1 until < 1.
   // then multiply u by width and v by height.
-  for (int i=0; i<model.poly_count; i++)
+  for (int i=0; i<model->poly_count; i++)
   {
     for (int j=0; j<3; j++)
     {
-      model.polygons[i].uvs[j].x *= model.materials[model.polygons[i].mat_index]->w;
-      model.polygons[i].uvs[j].y *= model.materials[model.polygons[i].mat_index]->h;
+      model->polygons[i].uvs[j].x *= model->materials[model->polygons[i].mat_index]->w;
+      model->polygons[i].uvs[j].y *= model->materials[model->polygons[i].mat_index]->h;
     }
   }
 
   free(filepath_obj);
   free(filepath_mtl);
   free(filepath_slash);
-
-
-  // for (int i=0; i<model.vertex_count; i++)
-  //   for (int j=0; j<3; j++)
-  //     printf("%.2f %.2f %.2f\n", model.polygons[i].normals[j].x, model.polygons[i].normals[j].y, model.polygons[i].normals[j].z);
-
-  // for (int i=0; i<model.vertex_count; i++)
-  //   printf("%.2f %.2f %.2f\n", model.vertex_normals[i].x, model.vertex_normals[i].y, model.vertex_normals[i].z);
 
   return model;
 }

@@ -1,8 +1,7 @@
 #include <math.h>
 
-#include "engine.h"
+#include "graphics.h"
 #include "camera.h"
-#include "../screen.h"
 
 Camera create_camera(void)
 {
