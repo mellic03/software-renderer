@@ -32,6 +32,7 @@ Vector2 vector2_lerp(Vector2 v1, Vector2 v2, float alpha);
 float vector3_dist(Vector3 p1, Vector3 p2);
 float vector3_dot(Vector3 v1, Vector3 v2);
 float vector3_angle(Vector3 v1, Vector3 v2);
+float vector3_mag(Vector3 v);
 void vector3_normalise(Vector3 *v1);
 
 Vector3 vector3_add(Vector3 v1, Vector3 v2);

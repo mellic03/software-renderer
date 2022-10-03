@@ -22,13 +22,14 @@ float z_buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
 
 Vector3 lightsource = {0, 0, -50};
 
-double delta_time;
+double delta_time = 0.001;
+Camera cam;
 
 // TRANSFORMATIONS
 //-------------------------------------------------------------------------------
 void translate_model(Model *model, float x, float y, float z)
 {
-  model->pos = vector3_add(model->pos, (Vector3){x, y, z});
+  *model->pos = vector3_add(*model->pos, (Vector3){x, y, z});
 
   for (int i=0; i<model->poly_count; i++)
     for (int j=0; j<3; j++)
@@ -92,7 +93,7 @@ void rotate_point(Vector3 *pt, float x, float y, float z)
 
 void rotate_x(Model *model, float r)
 {
-  Vector3 model_pos = model->pos;
+  Vector3 model_pos = *model->pos;
   translate_model(model, -model_pos.x, -model_pos.y, -model_pos.z);
 
   float rot_x[3][3] = {
@@ -143,7 +144,7 @@ void rotate_x(Model *model, float r)
 
 void rotate_y(Model *model, float r)
 {
-  Vector3 model_pos = model->pos;
+  Vector3 model_pos = *model->pos;
   translate_model(model, -model_pos.x, -model_pos.y, -model_pos.z);
 
   float rot_y[3][3] = {
@@ -194,10 +195,10 @@ void rotate_y(Model *model, float r)
   translate_model(model, model_pos.x, model_pos.y, model_pos.z);
 }
 
-void rotate_z(Model model, float r)
+void rotate_z(Model *model, float r)
 {
-  Vector3 model_pos = model.pos;
-  translate_model(&model, -model.pos.x, -model.pos.y, -model.pos.z);
+  Vector3 model_pos = *model->pos;
+  translate_model(model, -model_pos.x, -model_pos.y, -model_pos.z);
 
   float rot_z[3][3] = {
     { cos(r), -sin(r), 0 },
@@ -205,30 +206,48 @@ void rotate_z(Model model, float r)
     { 0,      0,       1 }
   };
 
-
   float result[3][1];
 
-  for (int i=0; i<model.poly_count; i++)
+  for (int i=0; i<model->poly_count; i++)
   {
     // rotate vertices
     for (int j=0; j<3; j++)
     {
-      float coord[3][1] = {{model.polygons[i].vertices[j].x}, {model.polygons[i].vertices[j].y}, {model.polygons[i].vertices[j].z}};
-      matrix_mult(3, 3, 3, 1, result, rot_z, coord);
-      model.polygons[i].vertices[j].x = result[0][0];
-      model.polygons[i].vertices[j].y = result[1][0];
-      model.polygons[i].vertices[j].z = result[2][0];
+      float coord1[3][1] = {{model->polygons[i].vertices[j].x}, {model->polygons[i].vertices[j].y}, {model->polygons[i].vertices[j].z}};
+      matrix_mult(3, 3, 3, 1, result, rot_z, coord1);
+      model->polygons[i].vertices[j].x = result[0][0];
+      model->polygons[i].vertices[j].y = result[1][0];
+      model->polygons[i].vertices[j].z = result[2][0];
+
+      float coord2[3][1] = {{model->polygons[i].og_vertices[j].x}, {model->polygons[i].og_vertices[j].y}, {model->polygons[i].og_vertices[j].z}};
+      matrix_mult(3, 3, 3, 1, result, rot_z, coord2);
+      model->polygons[i].og_vertices[j].x = result[0][0];
+      model->polygons[i].og_vertices[j].y = result[1][0];
+      model->polygons[i].og_vertices[j].z = result[2][0];
     }
 
     // rotate normals
-    float coord[3][1] = {{model.polygons[i].face_normal.x}, {model.polygons[i].face_normal.y}, {model.polygons[i].face_normal.z}};
-    matrix_mult(3, 3, 3, 1, result, rot_z, coord);
-    model.polygons[i].face_normal.x = result[0][0];
-    model.polygons[i].face_normal.y = result[1][0];
-    model.polygons[i].face_normal.z = result[2][0];
+    float coord3[3][1] = {{model->polygons[i].face_normal.x}, {model->polygons[i].face_normal.y}, {model->polygons[i].face_normal.z}};
+    matrix_mult(3, 3, 3, 1, result, rot_z, coord3);
+    model->polygons[i].face_normal.x = result[0][0];
+    model->polygons[i].face_normal.y = result[1][0];
+    model->polygons[i].face_normal.z = result[2][0];
   }
-  translate_model(&model, model_pos.x, model_pos.y, model_pos.z);
+
+  // rotate vertex normals
+  for (int i=0; i<model->vertex_count; i++)
+  {
+    float coord4[3][1] = {{model->vertex_normals[i].x}, {model->vertex_normals[i].y}, {model->vertex_normals[i].z}};
+    matrix_mult(3, 3, 3, 1, result, rot_z, coord4);
+    model->vertex_normals[i].x = result[0][0];
+    model->vertex_normals[i].y = result[1][0];
+    model->vertex_normals[i].z = result[2][0];
+  } 
+
+
+  translate_model(model, model_pos.x, model_pos.y, model_pos.z);
 }
+
 
 void scale(Model *model, float alpha)
 {
@@ -254,11 +273,11 @@ void clear_screen(Uint8 r, Uint8 g, Uint8 b)
 
 void pixel(int x, int y, Uint8 r, Uint8 g, Uint8 b)
 {
-  Uint8 * const blue  = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 0));
+  Uint8 *const blue  = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 0));
   *blue = b;
-  Uint8 * const green = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 1));
+  Uint8 *const green = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 1));
   *green = g;
-  Uint8 * const red   = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 2));
+  Uint8 *const red   = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 2));
   *red = r;
 }
 
@@ -335,10 +354,6 @@ void triangle_2d_smooth(Model *model, Polygon tri)
   Vector3 dir1 = vector3_sub(lightsource, model->vertex_normals[tri.vertex_indices[0]]);
   Vector3 dir2 = vector3_sub(lightsource, model->vertex_normals[tri.vertex_indices[1]]);
   Vector3 dir3 = vector3_sub(lightsource, model->vertex_normals[tri.vertex_indices[2]]);
-
-  float dist1 = vector3_dist(tri.og_vertices[0], model->lightsource);
-  float dist2 = vector3_dist(tri.og_vertices[1], model->lightsource);
-  float dist3 = vector3_dist(tri.og_vertices[2], model->lightsource);
 
   __m128 _reg_uv_x = _mm_set_ps(tri.uvs[0].x, tri.uvs[1].x, tri.uvs[2].x, 1);
   __m128 _reg_uv_y = _mm_set_ps(tri.uvs[0].y, tri.uvs[1].y, tri.uvs[2].y, 1);
@@ -493,11 +508,6 @@ void triangle_2d_flat(Model *model, Polygon tri)
       }
     }
   }
-}
-
-void triangle_2d(Model *model, Polygon tri, SDL_Surface **textures, int texture_index)
-{
-
 }
 
 Vector3 line_plane_intersect(Vector3 plane_normal, Vector3 p1, Vector3 p2, float *t)
@@ -774,16 +784,16 @@ int clip_against_plane(Vector3 plane_normal, int poly_count, Polygon *unclipped_
 
 Polygon *clip_against_planes(Camera *cam, int in_size, Polygon *polygons_in, int *out_size)
 {
-  Polygon *clipped_1 = (Polygon *)calloc(in_size*2, sizeof(Polygon));
+  Polygon *clipped_1 = (Polygon *)malloc(in_size*2 * sizeof(Polygon));
   int n = clip_against_plane(cam->l_norm, in_size, polygons_in, clipped_1);
 
-  Polygon *clipped_2 = (Polygon *)calloc(n*2, sizeof(Polygon));
+  Polygon *clipped_2 = (Polygon *)malloc(n*2 * sizeof(Polygon));
   n = clip_against_plane(cam->r_norm, n, clipped_1, clipped_2);
 
-  Polygon *clipped_3 = (Polygon *)calloc(n*2, sizeof(Polygon));
+  Polygon *clipped_3 = (Polygon *)malloc(n*2 * sizeof(Polygon));
   n = clip_against_plane(cam->t_norm, n, clipped_2, clipped_3);
   
-  Polygon *clipped_4 = (Polygon *)calloc(n*2, sizeof(Polygon));
+  Polygon *clipped_4 = (Polygon *)malloc(n*2 * sizeof(Polygon));
   *out_size = clip_against_plane(cam->b_norm, n, clipped_3, clipped_4);
 
   free(clipped_1);
@@ -793,170 +803,56 @@ Polygon *clip_against_planes(Camera *cam, int in_size, Polygon *polygons_in, int
   return clipped_4;
 }
 
-struct wrapper {
-  Camera *cam;
-  int poly_count;
-  Polygon *polygons;
-  SDL_Surface **textures;
-  Model *model;
-  int start, stop;
-};
-
-void *render_polygons_pthread_flat(void *ptr)
+void model_draw(Camera *cam, Model *model)
 {
-  struct wrapper *w1 = (struct wrapper *)ptr;
-  for (int i=w1->start; i<w1->stop; i++)
-    triangle_2d_flat(w1->model, w1->polygons[i]);
-
-  pthread_exit(NULL);
-}
-
-void *render_polygons_pthread_smooth(void *ptr)
-{
-  struct wrapper *w1 = (struct wrapper *)ptr;
-  for (int i=w1->start; i<w1->stop; i++)
-    triangle_2d_smooth(w1->model, w1->polygons[i]);
-
-  pthread_exit(NULL);
-}
-
-// pthread_t thread1, thread2, thread3, thread4;
-// struct wrapper wrap1;
-// struct wrapper wrap2;
-// struct wrapper wrap3;
-// struct wrapper wrap4;
-
-void draw_model(Camera cam, Model *model)
-{
-
-  int *frontface_indices = (int *)calloc(model->poly_count, sizeof(int));
+  int *frontface_indices = (int *)malloc(model->poly_count * sizeof(int));
   int frontface_count = 0;
 
-  model->lightsource = lightsource;
-  model->lightsource.x -= cam.pos.x;
-  model->lightsource.y -= cam.pos.y;
-  model->lightsource.z -= cam.pos.z;
-  rotate_point(&model->lightsource, 0, cam.rot.y, 0);
-  rotate_point(&model->lightsource, cam.rot.x, 0, 0);
-  
   for (int i=0; i<model->poly_count; i++)
-    if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], cam.pos), model->polygons[i].face_normal) < 0)
+    if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], cam->pos), model->polygons[i].face_normal) < 0)
       frontface_indices[frontface_count++] = i;
   
-  Polygon *front_faces = (Polygon *)calloc(frontface_count, sizeof(Polygon));
+  Polygon *front_faces = (Polygon *)malloc(frontface_count * sizeof(Polygon));
   for (int i=0; i<frontface_count; i++)
-    memcpy(&front_faces[i], &model->polygons[frontface_indices[i]], sizeof(Polygon));
+    front_faces[i] = model->polygons[frontface_indices[i]];
 
   for (int i=0; i<frontface_count; i++)
   {
     for (int j=0; j<3; j++)
     {
-      front_faces[i].vertices[j].x -= cam.pos.x;
-      front_faces[i].vertices[j].y -= cam.pos.y;
-      front_faces[i].vertices[j].z -= cam.pos.z;
+      front_faces[i].vertices[j].x -= cam->pos.x;
+      front_faces[i].vertices[j].y -= cam->pos.y;
+      front_faces[i].vertices[j].z -= cam->pos.z;
 
-      front_faces[i].og_vertices[j].x -= cam.pos.x;
-      front_faces[i].og_vertices[j].y -= cam.pos.y;
-      front_faces[i].og_vertices[j].z -= cam.pos.z;
+      front_faces[i].og_vertices[j].x -= cam->pos.x;
+      front_faces[i].og_vertices[j].y -= cam->pos.y;
+      front_faces[i].og_vertices[j].z -= cam->pos.z;
 
-      rotate_point(&front_faces[i].vertices[j], 0, cam.rot.y, 0);
-      rotate_point(&front_faces[i].vertices[j], cam.rot.x, 0, 0);
+      rotate_point(&front_faces[i].vertices[j], 0, cam->rot.y, 0);
+      rotate_point(&front_faces[i].vertices[j], cam->rot.x, 0, 0);
 
-      rotate_point(&front_faces[i].og_vertices[j], 0, cam.rot.y, 0);
-      rotate_point(&front_faces[i].og_vertices[j], cam.rot.x, 0, 0);
+      rotate_point(&front_faces[i].og_vertices[j], 0, cam->rot.y, 0);
+      rotate_point(&front_faces[i].og_vertices[j], cam->rot.x, 0, 0);
 
-      rotate_point(&front_faces[i].normals[j], 0, cam.rot.y, 0);
-      rotate_point(&front_faces[i].normals[j], cam.rot.x, 0, 0);
+      rotate_point(&front_faces[i].normals[j], 0, cam->rot.y, 0);
+      rotate_point(&front_faces[i].normals[j], cam->rot.x, 0, 0);
     }
   }
 
   int clipped_count;
-  Polygon *clipped_polygons = clip_against_planes(&cam, frontface_count, front_faces, &clipped_count);
-
+  Polygon *clipped_polygons = clip_against_planes(cam, frontface_count, front_faces, &clipped_count);
   for (int i=0; i<clipped_count; i++)
   {
     switch (model->shade_style)
     {
-    case (SHADE_FLAT):
-      triangle_2d_flat(model, clipped_polygons[i]);
-      break;
-    
-    case (SHADE_SMOOTH):
-      triangle_2d_smooth(model, clipped_polygons[i]);
-      break;
+      case (SHADE_FLAT):
+        triangle_2d_flat(model, clipped_polygons[i]);
+        break;
+      case (SHADE_SMOOTH):
+        triangle_2d_smooth(model, clipped_polygons[i]);
+        break;
     }
   }
-
-  // Multithreading
-  //------------------------------------------------------------------
-  // wrap1.cam = (Camera *)malloc(sizeof(Camera));
-  // wrap1.poly_count = clipped_count;
-  // wrap1.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
-  // wrap1.textures = model->materials;
-  // wrap1.start = 0;
-  // wrap1.stop = clipped_count/4;
-  // wrap1.model = model;
-  // memcpy(wrap1.cam, &cam, sizeof(Camera));
-  // memcpy(wrap1.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
-
-  // wrap2.cam = (Camera *)malloc(sizeof(Camera));
-  // wrap2.poly_count = clipped_count;
-  // wrap2.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
-  // wrap2.textures = model->materials;
-  // wrap2.start = clipped_count/4;
-  // wrap2.stop = clipped_count/2;
-  // wrap2.model = model;
-  // memcpy(wrap2.cam, &cam, sizeof(Camera));
-  // memcpy(wrap2.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
-
-  // wrap3.cam = (Camera *)malloc(sizeof(Camera));
-  // wrap3.poly_count = clipped_count;
-  // wrap3.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
-  // wrap3.textures = model->materials;
-  // wrap3.start = clipped_count/2;
-  // wrap3.stop = 3*clipped_count/4;
-  // wrap3.model = model;
-  // memcpy(wrap3.cam, &cam, sizeof(Camera));
-  // memcpy(wrap3.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
-
-  // wrap4.cam = (Camera *)malloc(sizeof(Camera));
-  // wrap4.poly_count = clipped_count;
-  // wrap4.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
-  // wrap4.textures = model->materials;
-  // wrap4.start = 3*clipped_count/4;
-  // wrap4.stop = clipped_count;
-  // wrap4.model = model;
-  // memcpy(wrap4.cam, &cam, sizeof(Camera));
-  // memcpy(wrap4.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
-
-  // switch (model->shade_style)
-  // {
-  //   case (SHADE_FLAT):
-  //     pthread_create(&thread1, NULL, render_polygons_pthread_flat, &wrap1);
-  //     pthread_create(&thread2, NULL, render_polygons_pthread_flat, &wrap2);
-  //     pthread_create(&thread3, NULL, render_polygons_pthread_flat, &wrap3);
-  //     pthread_create(&thread4, NULL, render_polygons_pthread_flat, &wrap4);
-  //     break;
-  
-  //   case (SHADE_SMOOTH):
-  //     pthread_create(&thread1, NULL, render_polygons_pthread_smooth, &wrap1);
-  //     pthread_create(&thread2, NULL, render_polygons_pthread_smooth, &wrap2);
-  //     pthread_create(&thread3, NULL, render_polygons_pthread_smooth, &wrap3);
-  //     pthread_create(&thread4, NULL, render_polygons_pthread_smooth, &wrap4);
-  //     break;
-  // }
-
-
-  // pthread_join(thread1, NULL);
-  // pthread_join(thread2, NULL);
-  // pthread_join(thread3, NULL);
-  // pthread_join(thread4, NULL);
-
-  // free(wrap1.polygons);
-  // free(wrap2.polygons);
-  // free(wrap3.polygons);
-  // free(wrap4.polygons);
-  //------------------------------------------------------------------
 
   free(frontface_indices);
   free(front_faces);

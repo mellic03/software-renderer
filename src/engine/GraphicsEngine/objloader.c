@@ -5,7 +5,7 @@
   #include <SDL.h>
 #endif
 
-#include "objloader.h"
+#include "model.h"
 #include "graphics.h"
 
 
@@ -44,7 +44,7 @@ void extract_vert_text_norm(int dest[3], char *src)
   // printf("%d, %d, %d\n", vertex, texture, normal);
 }
 
-void load_polygons(FILE *fh, Model *model, Polygon *polygons)
+void load_polygons(FILE *fh, Model *model)
 {
   char buffer[64];
 
@@ -52,19 +52,14 @@ void load_polygons(FILE *fh, Model *model, Polygon *polygons)
   char slash[] = "/";
   char *token;
 
-  Vector3 *vertices = (Vector3 *)calloc(model->vertex_count, sizeof(Vector3));
+  Vector3 *vertices = (Vector3 *)malloc(model->vertex_count * sizeof(Vector3));
   int vertex_index = 0;
 
-  Vector3 *normals = (Vector3 *)calloc(model->normal_count, sizeof(Vector3));
+  Vector3 *normals = (Vector3 *)malloc(model->normal_count * sizeof(Vector3));
   int normal_index = 0;
 
-  Vector2 *tex_coords = (Vector2 *)calloc(model->uv_count, sizeof(Vector2));
+  Vector2 *tex_coords = (Vector2 *)malloc(model->uv_count * sizeof(Vector2));
   int tex_coord_index = 0;
-
-  char **mat_names = (char **)malloc(model->mat_count * sizeof(char *));
-  for (int i=0; i<model->mat_count; i++)
-    mat_names[i] = (char *)malloc(64 * sizeof(char)); // max 64 chars for filename
-  int mat_index = 0;
 
   // load all vertices and normals into memory first
   while (fgets(buffer, 64, fh) != NULL)
@@ -108,39 +103,30 @@ void load_polygons(FILE *fh, Model *model, Polygon *polygons)
       tex_coords[tex_coord_index].y = atof(token);
       tex_coord_index += 1;
     }
-
-    // line with new material
-    else if (buffer[0] == 'u' && buffer[1] == 's')
-    {
-      token = strtok(buffer, space);
-      token = strtok(buffer, space);
-      strcpy(mat_names[mat_index], token);
-      mat_index += 1;
-    }
   }
   rewind(fh);
 
-  SDL_Surface *test = SDL_LoadBMP("./heightmap.bmp");
+  // SDL_Surface *test = SDL_LoadBMP("./heightmap.bmp");
 
-  for (int i=0; i<65; i++)
-  {
-    for (int j=0; j<65; j++)
-    {
-      int indx = (int)(vertices[i*65 + j].x*1.2);
-      int indz = (int)(vertices[i*65 + j].z/2.5);
+  // for (int i=0; i<65; i++)
+  // {
+  //   for (int j=0; j<65; j++)
+  //   {
+  //     int indx = (int)(vertices[i*65 + j].x*1.2);
+  //     int indz = (int)(vertices[i*65 + j].z/2.5);
       
-      printf("%d %d\n", indx, indz);
+  //     printf("%d %d\n", indx, indz);
 
-      Uint8 *red = (Uint8 *)test->pixels + indz*test->pitch + indx;
-      float r = (float)*red;
-      vertices[i*65 + j].y = -r/20;
-    }
-  }
+  //     Uint8 *red = (Uint8 *)test->pixels + indz*test->pitch + indx;
+  //     float r = (float)*red;
+  //     vertices[i*65 + j].y = -r/20;
+  //   }
+  // }
 
 
   // Create polygons
   int polygon_index = 0;
-  mat_index = -1; // usemtl always before vertices
+  int mat_index = -1; // usemtl always before vertices
   while (fgets(buffer, 64, fh) != NULL)
   {
     if (buffer[0] == 'f' && buffer[1] == ' ')
@@ -152,17 +138,18 @@ void load_polygons(FILE *fh, Model *model, Polygon *polygons)
       {
         token = strtok(NULL, space); // token == "xxx/xxx/xxx"
         extract_vert_text_norm(temp, token);
-        polygons[polygon_index].vertices[i] = vertices[temp[0]-1];
-        polygons[polygon_index].og_vertices[i] = vertices[temp[0]-1];
-        polygons[polygon_index].vertex_indices[i] = temp[0]-1;
-        polygons[polygon_index].uvs[i] = tex_coords[temp[1]-1];
+        model->polygons[polygon_index].vertices[i] = vertices[temp[0]-1];
+        model->polygons[polygon_index].og_vertices[i] = vertices[temp[0]-1];
+        model->polygons[polygon_index].vertex_indices[i] = temp[0]-1;
+        model->polygons[polygon_index].uvs[i] = tex_coords[temp[1]-1];
       }
-      Vector3 v1 = vector3_sub(polygons[polygon_index].vertices[0], polygons[polygon_index].vertices[1]);
-      Vector3 v2 = vector3_sub(polygons[polygon_index].vertices[0], polygons[polygon_index].vertices[2]);
-      polygons[polygon_index].face_normal = vector3_cross(v1, v2);
-      vector3_normalise(&polygons[polygon_index].face_normal);
-      // polygons[polygon_index].face_normal = normals[temp[2]-1];
-      polygons[polygon_index].mat_index = mat_index;
+      
+      Vector3 v1 = vector3_sub(model->polygons[polygon_index].vertices[0], model->polygons[polygon_index].vertices[1]);
+      Vector3 v2 = vector3_sub(model->polygons[polygon_index].vertices[0], model->polygons[polygon_index].vertices[2]);
+      model->polygons[polygon_index].face_normal = vector3_cross(v1, v2);
+      vector3_normalise(&model->polygons[polygon_index].face_normal);
+
+      model->polygons[polygon_index].mat_index = mat_index;
       polygon_index += 1;
     }
 
@@ -174,12 +161,12 @@ void load_polygons(FILE *fh, Model *model, Polygon *polygons)
   // Calculate vertex normals from face normals
   rewind(fh);
   // An array of normals where index n corresponds to vertex n
-  Vector3 *vertex_normals = (Vector3 *)calloc(model->vertex_count, sizeof(Vector3));
+  Vector3 *vertex_normals = (Vector3 *)malloc(model->vertex_count * sizeof(Vector3));
 
   // For each polygon, add face normal to vertex_normals[index of vertex]
   for (int i=0; i<model->poly_count; i++)
     for (int j=0; j<3; j++)
-      vertex_normals[polygons[i].vertex_indices[j]] = vector3_add(vertex_normals[polygons[i].vertex_indices[j]], polygons[i].face_normal);
+      vertex_normals[model->polygons[i].vertex_indices[j]] = vector3_add(vertex_normals[model->polygons[i].vertex_indices[j]], model->polygons[i].face_normal);
 
   for (int i=0; i<model->vertex_count; i++)
     vector3_normalise(&vertex_normals[i]);
@@ -192,15 +179,14 @@ void load_polygons(FILE *fh, Model *model, Polygon *polygons)
   for (int i=0; i<model->vertex_count; i++)
     model->vertices[i] = vertices[i];
 
-  for (int i=0; i<model->vertex_count; i++)
-    for (int j=0; j<3; j++)
-      model->polygons[i].normals[j] = model->vertex_normals[model->polygons[i].vertex_indices[j]];
+  // for (int i=0; i<model->vertex_count; i++)
+  //   for (int j=0; j<3; j++)
+  //     model->polygons[i].normals[j] = model->vertex_normals[model->polygons[i].vertex_indices[j]];
 
   free(vertex_normals);
   free(vertices);
   free(normals);
   free(tex_coords);
-  free(mat_names);
 }
 
 void load_material(FILE *fh, char *filepath, Model *model)
@@ -225,7 +211,7 @@ void load_material(FILE *fh, char *filepath, Model *model)
       strcpy(filepath_copy, filepath);
       strcat(filepath_copy, "/");
       strcat(filepath_copy, token);
-      printf("FILE: %s\n", filepath_copy);
+      // printf("FILE: %s\n", filepath_copy);
       model->materials[mat_index] = SDL_LoadBMP(filepath_copy);
 
       // load 50% image
@@ -242,7 +228,7 @@ void load_material(FILE *fh, char *filepath, Model *model)
   free(filepath_copy);
 }
 
-Model *load_model(char *filepath)
+Model *model_load(char *filepath)
 {
   Model *model = (Model *)calloc(1, sizeof(Model));
 
@@ -266,10 +252,10 @@ Model *load_model(char *filepath)
 
   count_polygons(fh, model);
 
-  model->polygons = (Polygon *)calloc(model->poly_count, sizeof(Polygon)); // Array of polygons
+  model->polygons = (Polygon *)malloc(model->poly_count * sizeof(Polygon)); // Array of polygons
   model->materials = (SDL_Surface **)malloc(model->mat_count*2 * sizeof(SDL_Surface *)); // Array of sdl surfaces
 
-  load_polygons(fh, model, model->polygons);
+  load_polygons(fh, model);
   fclose(fh);
 
   FILE *fh2 = fopen(filepath_mtl, "r");

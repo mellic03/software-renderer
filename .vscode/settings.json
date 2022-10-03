@@ -35,6 +35,20 @@
     "graphics.h": "c",
     "objloader.h": "c",
     "physics.h": "c",
-    "gameengine.h": "c"
+    "gameengine.h": "c",
+    "__locale": "c",
+    "stddef.h": "c",
+    "chrono": "c",
+    "limits": "c",
+    "valarray": "c",
+    "semaphore": "c",
+    "ios": "c",
+    "condition_variable": "c",
+    "mutex": "c",
+    "__mutex_base": "c",
+    "thread": "c",
+    "version": "c",
+    "locale": "c",
+    "string": "c"
   }
 }

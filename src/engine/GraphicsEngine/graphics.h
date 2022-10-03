@@ -7,6 +7,7 @@
 
 #include "camera.h"
 #include "../math/vector.h"
+#include "model.h"
 
 #ifndef GRAPHICS_H
 #define GRAPHICS_H
@@ -21,57 +22,27 @@
 extern SDL_Surface *pixel_array;
 extern double delta_time;
 extern Vector3 lightsource;
+extern Camera cam;
+
+extern int polgyons_1_count;
+extern Model *models_1[2000];
+extern Polygon polygons_1[2000];
+
+extern int polgyons_2_count;
+extern Model *models_2[2000];
+extern Polygon polygons_2[2000];
 //----------------------------------------
 
-typedef enum {SHADE_FLAT, SHADE_SMOOTH, SHADE_NONE} ShaderType;
-
-typedef struct {
-
-  Vector3 vertices[3];
-  Vector3 normals[3];
-  Vector3 og_vertices[3];
-
-  int vertex_indices[3]; // Used only in load_polygons for generating vertex normals
-
-  Vector3 face_normal;
-
-  Vector2 uvs[3];
-  int mat_index; // index of material to use
-
-} Polygon;
-
-typedef struct {
-  
-  Vector3 pos;
-
-  ShaderType shade_style;
-
-  int vertex_count;
-  int normal_count;
-  int uv_count;
-
-  Vector3 lightsource;
-
-  Vector3 *vertices;
-  Vector3 *vertex_normals;
-
-  int poly_count;
-  Polygon *polygons; // Array of polygons
-
-  int mat_count;
-  char **mat_names;
-  SDL_Surface **materials;
-
-} Model;
+void triangle_2d_flat(Model *model, Polygon tri);
 
 
 void pixel(int x, int y, Uint8 r, Uint8 g, Uint8 b);
 
-void draw_model(Camera cam, Model *model);
+void model_draw(Camera *cam, Model *model);
 
 void rotate_x(Model *model, float rotation);
 void rotate_y(Model *model, float r);
-void rotate_z(Model model, float r);
+void rotate_z(Model *model, float r);
 void rotate_point(Vector3 *pt, float x, float y, float z);
 void translate_model(Model *model, float x, float y, float z);
 void scale(Model *model, float alpha);
@@ -80,9 +51,13 @@ void scale(Model *model, float alpha);
 void clear_screen(Uint8 r, Uint8 g, Uint8 b);
 void render_screen(SDL_Renderer *ren);
 
+void box_3d(Vector3 *pos, float w, float h, float d);
+
 
 // INTERNAL
 //-----------------------------------------
+Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3);
+Polygon *clip_against_planes(Camera *cam, int in_size, Polygon *polygons_in, int *out_size);
 Vector2 project_coordinate(Vector3 *pt);
 int clip_against_plane(Vector3 plane_normal, int poly_count, Polygon *unclipped_triangles, Polygon *clipped_triangles);
 int clip_polygon(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polygon *tri_out2);

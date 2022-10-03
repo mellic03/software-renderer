@@ -6,7 +6,7 @@
 Camera create_camera(void)
 {
   Camera cam;
-  cam.pos = (Vector3){0, -4.5, -4};
+  cam.pos = (Vector3){0, 0, 0};
   cam.dir = (Vector3){0, 0, 1};
   cam.rot = (Vector3){0, 0, 0};
 
