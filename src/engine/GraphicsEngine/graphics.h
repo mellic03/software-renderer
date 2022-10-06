@@ -22,7 +22,7 @@
 extern SDL_Surface *pixel_array;
 extern double delta_time;
 extern Vector3 lightsource;
-extern Camera cam;
+extern Camera *graphicsengine_cam;
 
 extern int polgyons_1_count;
 extern Model *models_1[2000];
@@ -33,12 +33,13 @@ extern Model *models_2[2000];
 extern Polygon polygons_2[2000];
 //----------------------------------------
 
-void triangle_2d_flat(Model *model, Polygon tri);
+void triangle_2d_flat(Model *model, Polygon *tri);
 
 
 void pixel(int x, int y, Uint8 r, Uint8 g, Uint8 b);
 
 void model_draw(Camera *cam, Model *model);
+void bounding_box_draw(Camera *cam, Model *model);
 
 void rotate_x(Model *model, float rotation);
 void rotate_y(Model *model, float r);
@@ -46,13 +47,14 @@ void rotate_z(Model *model, float r);
 void rotate_point(Vector3 *pt, float x, float y, float z);
 void translate_model(Model *model, float x, float y, float z);
 void scale(Model *model, float alpha);
-
+void scale_xyz(Model *model, float x, float y, float z);
 
 void clear_screen(Uint8 r, Uint8 g, Uint8 b);
 void render_screen(SDL_Renderer *ren);
 
 void box_3d(Vector3 *pos, float w, float h, float d);
 
+Vector3 calculate_barycentric_3d(int x, int y, Vector3 v1, Vector3 v2, Vector3 v3);
 
 // INTERNAL
 //-----------------------------------------

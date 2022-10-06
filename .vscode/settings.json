@@ -49,6 +49,9 @@
     "thread": "c",
     "version": "c",
     "locale": "c",
-    "string": "c"
+    "string": "c",
+    "numbers": "c",
+    "player.h": "c",
+    "model.h": "c"
   }
 }

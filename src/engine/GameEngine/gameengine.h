@@ -1,40 +1,48 @@
 #ifndef GAMEENGINE_H
 #define GAMEENGINE_H
 
-#include "../GraphicsEngine/graphics.h"
 #include "../PhysicsEngine/physics.h"
+#include "../GraphicsEngine/graphics.h"
 #include "../math/vector.h"
 
 typedef struct gameobject {
 
   int object_id;
-  Vector3 pos, vel;
-  int mass;
+  Vector3 pos;
 
-  BoxCollider *box_collider;
-  SphereCollider *sphere_collider;
-  PlaneCollider *plane_collider;
-
+  PhysObject *phys_object;  
   Model *model;
 
-  struct gameobject *next; // Intrusive linked-list
+  struct gameobject *next;
 
 } GameObject;
 
+typedef struct {
+
+  Camera *cam;
+  GameObject *game_object;
+
+  Vector3 ray_down;
+
+} Player;
 
 GameObject *gameobject_create(void);
 void gameobject_assign_model(GameObject *object, Model *model);
-void gameobject_give_box_collider(GameObject *object);
-void gameobject_give_sphere_collider(GameObject *object, float radius);
-void gameobject_give_plane_collider(GameObject *object, Vector3 dir);
 
+void gameobject_collide(GameObject *obj1, GameObject *obj2);
 
-void gameobject_tick(void);
+void gameobject_tick();
 
 void gameobject_translate(GameObject *object, float x, float y, float z);
+void gameobject_rotate_z(GameObject *object, float r);
+
+void gameobject_scale(GameObject *object, float x, float y, float z);
+
 void gameobject_delete(GameObject *object);
 
 void gameobject_draw_all(Camera *cam);
+
+void player_collision(Player *player);
 
 
 #endif /* GAMEENGINE_H */

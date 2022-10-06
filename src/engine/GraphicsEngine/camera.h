@@ -9,10 +9,11 @@
 #define HALF_SCREEN_HEIGHT SCREEN_HEIGHT/2
 
 typedef struct Camera {
+  
   Vector3 rot; // rotation
   Vector3 dir;
-  Vector3 pos;
-  Vector3 vel;
+  Vector3 *pos;
+  Vector3 *vel;
 
   int speed;
 
@@ -21,6 +22,6 @@ typedef struct Camera {
   Vector3 t_norm, b_norm;
 } Camera;
 
-Camera create_camera(void);
+Camera *create_camera(void);
 
 #endif /* CAMERA_H */

@@ -179,10 +179,6 @@ void load_polygons(FILE *fh, Model *model)
   for (int i=0; i<model->vertex_count; i++)
     model->vertices[i] = vertices[i];
 
-  // for (int i=0; i<model->vertex_count; i++)
-  //   for (int j=0; j<3; j++)
-  //     model->polygons[i].normals[j] = model->vertex_normals[model->polygons[i].vertex_indices[j]];
-
   free(vertex_normals);
   free(vertices);
   free(normals);
@@ -231,6 +227,8 @@ void load_material(FILE *fh, char *filepath, Model *model)
 Model *model_load(char *filepath)
 {
   Model *model = (Model *)calloc(1, sizeof(Model));
+  model->textured = 1;
+  model->visible = 1;
 
   char *last = strrchr(filepath, '/');
 
@@ -265,9 +263,6 @@ Model *model_load(char *filepath)
   fclose(fh2);
 
 
-  // for each polygon, if tex coord < 0, add 1 until greater than 0.
-  // if > 1, subtract 1 until < 1.
-  // then multiply u by width and v by height.
   for (int i=0; i<model->poly_count; i++)
   {
     for (int j=0; j<3; j++)

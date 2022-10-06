@@ -8,66 +8,56 @@
 GameObject *head = NULL;
 int gameobject_count = 0;
 
-void momentumsomething(GameObject *obj1, GameObject *obj2)
+int point_over_triangle(Polygon *tri, Vector3 point)
 {
-  Vector3 momentum = vector3_add(vector3_scale(obj1->vel, obj1->mass), vector3_scale(obj2->vel, obj2->mass));
-  obj1->vel = vector3_scale(momentum, 1/obj1->mass);
-  obj2->vel = vector3_scale(momentum, 1/obj2->mass);
+  Vector3 n1 = vector3_cross(vector3_sub(tri->vertices[1], tri->vertices[0]), vector3_sub(tri->vertices[2], tri->vertices[0]));
+  Vector3 n2 = vector3_cross(vector3_sub(tri->vertices[1], tri->vertices[0]), vector3_sub(point, tri->vertices[0]));
+  Vector3 n3 = vector3_cross(vector3_sub(tri->vertices[2], tri->vertices[1]), vector3_sub(point, tri->vertices[1]));
+  Vector3 n4 = vector3_cross(vector3_sub(tri->vertices[0], tri->vertices[2]), vector3_sub(point, tri->vertices[2]));
+  return vector3_dot(n1, n2) >=0 && vector3_dot(n1, n3) >= 0 && vector3_dot(n1, n4) >= 0;
+}
+
+void player_collision(Player *player)
+{
+  GameObject *obj = head;
+
+  while (obj != NULL)
+  {
+    if (obj->model != NULL)
+    {
+      for (int i=0; i<obj->model->poly_count; i++)
+        if (vector3_dot(obj->model->polygons[i].face_normal, player->ray_down) < -0.5)
+        {
+
+          if (point_over_triangle(&obj->model->polygons[i], player->game_object->pos))
+          {
+            float dist = vector3_dot(obj->model->polygons[i].face_normal, vector3_sub(player->game_object->pos, obj->model->polygons[i].vertices[0]));
+            if (0 < dist && dist < 4)
+            {
+              float impulse_1d = calculate_impulse(player->game_object->phys_object->vel, obj->model->polygons[i].face_normal, player->game_object->phys_object->mass, 0, player->game_object->phys_object->elasticity);
+              Vector3 impulse = vector3_scale(obj->model->polygons[i].face_normal, impulse_1d);
+              player->game_object->phys_object->vel.x += player->game_object->phys_object->inv_mass * impulse.x;
+              player->game_object->phys_object->vel.y += player->game_object->phys_object->inv_mass * impulse.y;
+              player->game_object->phys_object->vel.z += player->game_object->phys_object->inv_mass * impulse.z;
+            }
+          }
+        }
+    }
+    obj = obj->next;
+  }
 }
 
 void gameobject_tick(void)
 {
-  GameObject *obj1 = head;
-  GameObject *obj2;
+  GameObject *obj = head;
+  Vector3 trans;
 
-  while (obj1 != NULL)
+  while (obj != NULL)
   {
-    obj1->vel = vector3_scale(obj1->vel, 0.99);
+    trans = vector3_sub(obj->phys_object->pos, obj->phys_object->pos_last);
+    gameobject_translate(obj, trans.x, trans.y, trans.z);
 
-    if (obj1->mass > 0)
-      obj1->vel = vector3_add(obj1->vel, (Vector3){0, 0.01, 0});
-
-    Vector3 new_pos = vector3_add(obj1->pos, vector3_scale(obj1->vel, 20*delta_time));
-    new_pos = vector3_sub(new_pos, obj1->pos);
-    gameobject_translate(obj1, new_pos.x, new_pos.y, new_pos.z);
-
-    obj2 = head;
-    while (obj2 != NULL)
-    {
-      if (obj1->object_id != obj2->object_id)
-      {
-        float dist = 0;
-        Vector3 dir;
-        dist = sphere_plane_colliding(obj1->sphere_collider, obj2->plane_collider);
-        if (dist != 0)
-        {
-          float overlap_dist = obj1->sphere_collider->radius - dist;
-          // printf("rad: %f, dist: %f, overlap: %f\n", obj1->sphere_collider->radius, dist, overlap_dist);
-          dir = vector3_scale(obj2->plane_collider->dir, overlap_dist/2);
-          obj1->vel = vector3_add(obj1->vel, dir);
-        }
-
-        if (sphere_colliding(obj1->sphere_collider, obj2->sphere_collider))
-        {
-          dist = vector3_dist(obj1->pos, obj2->pos);
-          float overlap_dist = (obj1->sphere_collider->radius + obj2->sphere_collider->radius) - dist;
-
-          dir = vector3_sub(obj1->pos, obj2->pos);
-          vector3_normalise(&dir);
-
-          dir = vector3_scale(dir, overlap_dist/2);
-          obj1->vel = vector3_add(obj1->vel, dir);
-          // gameobject_translate(obj1, dir.x, dir.y, dir.z);
-
-          dir = vector3_scale(dir, -1);
-          obj2->vel = vector3_add(obj2->vel, dir);
-          // gameobject_translate(obj2, dir.x, dir.y, dir.z);
-
-        }
-      }
-      obj2 = obj2->next;
-    }
-    obj1 = obj1->next;
+    obj = obj->next;
   }
 }
 
@@ -76,43 +66,22 @@ GameObject *gameobject_create(void)
   if (head == NULL)
   {
     head = (GameObject *)calloc(1, sizeof(GameObject));
-    head->model = NULL;
     head->object_id = gameobject_count;
-    head->pos = (Vector3){0, 0, 0};
-    gameobject_count += 1;
   }
 
   else
   {
     GameObject *new = (GameObject *)calloc(1, sizeof(GameObject));
-    new->model = NULL;
-    new->next = head;
     new->object_id = gameobject_count;
-    new->pos = (Vector3){0, 0, 0};
-    gameobject_count += 1;
+    new->next = head;
     head = new;
   }
 
+  head->phys_object = physobject_create();
+  head->phys_object->pos = head->pos;
+  gameobject_count += 1;
+
   return head;
-}
-
-void gameobject_give_box_collider(GameObject *object)
-{
-  object->box_collider = (BoxCollider *)calloc(1, sizeof(BoxCollider));
-}
-
-void gameobject_give_sphere_collider(GameObject *object, float radius)
-{
-  object->sphere_collider = (SphereCollider *)calloc(1, sizeof(SphereCollider));
-  object->sphere_collider->pos = &object->pos;
-  object->sphere_collider->radius = radius;
-}
-
-void gameobject_give_plane_collider(GameObject *object, Vector3 dir)
-{
-  object->plane_collider = (PlaneCollider *)calloc(1, sizeof(PlaneCollider));
-  object->plane_collider->pos = &object->pos;
-  object->plane_collider->dir = dir;
 }
 
 void gameobject_assign_model(GameObject *object, Model *model)
@@ -126,14 +95,36 @@ void gameobject_translate(GameObject *object, float x, float y, float z)
   object->pos.x += x;
   object->pos.y += y;
   object->pos.z += z;
-  translate_model(object->model, x, y, z);
+
+  object->phys_object->pos_last.x = object->pos.x;
+  object->phys_object->pos_last.y = object->pos.y;
+  object->phys_object->pos_last.z = object->pos.z;
+
+  object->phys_object->pos.x = object->pos.x;
+  object->phys_object->pos.y = object->pos.y;
+  object->phys_object->pos.z = object->pos.z;
+
+  if (object->model != NULL)
+    translate_model(object->model, x, y, z);
+}
+
+void gameobject_scale(GameObject *obj, float x, float y, float z)
+{
+  scale_xyz(obj->model, x, y, z);
+  physobject_box_collider_scale(obj->phys_object, x, y, z);
+}
+
+void gameobject_rotate_z(GameObject *object, float r)
+{
+  rotate_z(object->model, r);
+
+  if (object->phys_object->plane_collider != NULL)
+    rotate_point(&object->phys_object->plane_collider->dir, 0, 0, r);
 }
 
 void gameobject_free(GameObject *object)
 {
-  free(object->box_collider);
-  free(object->sphere_collider);
-  free(object->plane_collider);
+  physobject_free(object->phys_object);
   model_free(object->model);
   free(object);
 }
@@ -151,12 +142,8 @@ void gameobject_delete(GameObject *object)
   }
   else
   {
-    // stop either at 2nd last object or at object before object with id
     while (temp->next != NULL && temp->next->object_id != id)
       temp = temp->next;
-
-    if (temp->next == NULL)
-      printf("object_id: %d not found, fix your code!\n", id);
 
     GameObject *temp2 = temp->next->next;
     gameobject_free(temp->next);
@@ -171,14 +158,16 @@ void gameobject_draw_all(Camera *cam) {
   if (temp == NULL)
     return;
 
-  model_draw(cam, temp->model);
+  if (temp->model != NULL)
+    model_draw(cam, temp->model);
 
+  
   while (temp->next != NULL)
   {
     temp = temp->next;
-    model_draw(cam, temp->model);
+
+    if (temp->model != NULL)
+      model_draw(cam, temp->model);
   }
+
 }
-
-
-

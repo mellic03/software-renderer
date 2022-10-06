@@ -1,14 +1,16 @@
-#include "input.h"
-#include "GraphicsEngine/graphics.h"
+#include "player.h"
+#include "../GraphicsEngine/graphics.h"
 
 int toggle = 0;
+int speed = 5;
+int jumping = 0;
 
-void input(SDL_Event event, Camera *cam)
+void input(SDL_Event event, Camera *cam, Player *player)
 {
   const Uint8 *state = SDL_GetKeyboardState(NULL);
 
-  cam->pos = vector3_add(cam->pos, cam->vel);
-  cam->vel = vector3_scale(cam->vel, 0.9);
+  player->game_object->phys_object->vel.x *= 0.9;
+  player->game_object->phys_object->vel.z *= 0.9;
 
   // cam->pos.y = 0.2*(sin(something)) + height;
   // something += cam->vel.z + cam->vel.x;
@@ -19,19 +21,31 @@ void input(SDL_Event event, Camera *cam)
   //   cam->vel.y -= delta_time;
 
   if (state[SDL_SCANCODE_W])
-    cam->vel = vector3_add(cam->vel, vector3_scale((Vector3){cam->speed * cos(cam->rot.y + 3.1415 / 2), 0, cam->speed * sin(cam->rot.y + 3.1415 / 2)}, delta_time));
+  {
+    player->game_object->phys_object->vel.x += cam->dir.x;
+    player->game_object->phys_object->vel.z += cam->dir.z;
+  }
   else if (state[SDL_SCANCODE_S])
-    cam->vel = vector3_add(cam->vel, vector3_scale((Vector3){-cam->speed * cos(cam->rot.y+3.14/2), 0, -cam->speed * sin(cam->rot.y+3.14/2)}, delta_time));
+  {
+    player->game_object->phys_object->vel.x -= cam->dir.x;
+    player->game_object->phys_object->vel.z -= cam->dir.z;
+  }
 
   if (state[SDL_SCANCODE_A])
-    cam->vel = vector3_add(cam->vel, vector3_scale((Vector3){-cam->speed * cos(cam->rot.y), 0, -cam->speed * sin(cam->rot.y)}, delta_time));
+  {
+    player->game_object->phys_object->vel.x -= cam->dir.z;
+    player->game_object->phys_object->vel.z += cam->dir.x;
+  }
   else if (state[SDL_SCANCODE_D])
-    cam->vel = vector3_add(cam->vel, vector3_scale((Vector3){cam->speed * cos(cam->rot.y), 0, cam->speed * sin(cam->rot.y)}, delta_time));
+  {
+    player->game_object->phys_object->vel.x += cam->dir.z;
+    player->game_object->phys_object->vel.z -= cam->dir.x;
+  }
 
-  if (state[SDL_SCANCODE_SPACE])
-    cam->vel = vector3_add(cam->vel, (Vector3){0, -delta_time, 0});
-  if (state[SDL_SCANCODE_LCTRL])
-    cam->vel = vector3_add(cam->vel, (Vector3){0, delta_time, 0});
+  // if (state[SDL_SCANCODE_SPACE])
+  //   player->game_object->phys_object->vel.y -= 250*delta_time;
+  // if (state[SDL_SCANCODE_LCTRL])
+  //   player->game_object->phys_object->vel.y += 10*delta_time;
 
   if (state[SDL_SCANCODE_UP])
     rotate_point(&lightsource, 0.01, 0, 0);
@@ -41,7 +55,6 @@ void input(SDL_Event event, Camera *cam)
     rotate_point(&lightsource, 0, 0.01, 0);
   if (state[SDL_SCANCODE_RIGHT])
     rotate_point(&lightsource, 0, -0.01, 0);
-
 
 
   while(SDL_PollEvent(&event))
@@ -68,6 +81,23 @@ void input(SDL_Event event, Camera *cam)
       cam->dir.y = sin(cam->rot.x);
       cam->dir.z = cos(-cam->rot.y);
     }
+
+    if (event.type == SDL_KEYDOWN)
+      if (event.key.keysym.sym == SDLK_SPACE)
+      {
+        if (!jumping)
+        {
+          jumping = 1;
+          player->game_object->phys_object->vel.y -= 20;
+        }
+      }
+
+    if (event.type == SDL_KEYUP)
+      if (event.key.keysym.sym == SDLK_SPACE)
+      {
+        jumping = 0;
+      }
+
 
     if (event.type == SDL_MOUSEBUTTONDOWN)
     toggle = 1;

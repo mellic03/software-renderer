@@ -4,82 +4,101 @@
 #include "physics.h"
 #include "../math/vector.h"
 
-#define CAP(x, max) (x) > (max) ? (max) : (x)
+#include "../GameEngine/gameengine.h"
 
-/** Attract attracted towards attractor. If attractor is NULL attracted will be pulled towards y+.
- */
-void physics_attract(Vector3 *attracted_vel, Vector3 *attracted, Vector3 *attractor)
+static PhysObject *head = NULL;
+static int physobject_count = 0;
+double phys_delta_time = 0;
+
+void physics_tick(void)
 {
-  if (attractor == NULL)
+  PhysObject *obj1 = head;
+  PhysObject *obj2; 
+
+  while (obj1 != NULL)
   {
-    float dist = attracted->y - 10;
-    float force = G / dist;
-    attracted_vel->y -= force;
+    obj1->pos_last = obj1->pos;
+    obj1->pos = vector3_add(obj1->pos, (Vector3){obj1->vel.x*delta_time, obj1->vel.y*delta_time, obj1->vel.z*delta_time});
+
+    if (obj1->mass != 0)
+    {
+      obj1->acc = vector3_scale(obj1->acc, 0.99);
+      // obj1->acc = vector3_add(obj1->acc, (Vector3){0, G, 0});
+      // obj1->vel = vector3_add(obj1->vel, obj1->acc);
+      obj1->vel = vector3_scale(obj1->vel, 0.999);
+      obj1->vel = vector3_add(obj1->vel, (Vector3){0, G*obj1->mass*delta_time, 0});
+
+
+      obj2 = head;
+
+      while (obj2 != NULL)
+      {
+        if (obj1->object_id != obj2->object_id)
+          physobject_collision(obj1, obj2);
+
+        obj2 = obj2->next;
+      }
+    }
+    obj1 = obj1->next;
+  }
+}
+
+PhysObject *physobject_create(void)
+{
+  if (head == NULL)
+  {
+    head = (PhysObject *)calloc(1, sizeof(PhysObject));
+    head->object_id = physobject_count;
   }
 
   else
   {
-    float force = G / vector3_dist(*attracted, *attractor);
-    Vector3 dir = vector3_sub(*attractor, *attracted);
-    vector3_normalise(&dir);
-    dir = vector3_scale(dir, force);
-
-    *attracted_vel = vector3_add(*attracted_vel, dir);
+    PhysObject *new = (PhysObject *)calloc(1, sizeof(PhysObject));
+    new->object_id = physobject_count;
+    new->next = head;
+    head = new;
   }
 
+  head->elasticity = DEFAULT_ELASTICITY;
+  physobject_count += 1;
+
+  return head;
 }
 
-/** Return 1 on overlap of two BoxColliders
- */
-int box_colliding(BoxCollider *box1, BoxCollider *box2)
+void physobject_free(PhysObject *object)
 {
-  int x_overlap = fabs(box1->pos->x - box2->pos->x) < (box1->xwidth + box2->xwidth);  
-  int y_overlap = fabs(box1->pos->y - box2->pos->y) < (box1->ywidth + box2->ywidth);  
-  int z_overlap = fabs(box1->pos->z - box2->pos->z) < (box1->zwidth + box2->zwidth);  
-
-  if (x_overlap && y_overlap && z_overlap)
-    return 1;
-  else
-    return 0;
+  free(object->box_collider);
+  free(object->sphere_collider);
+  free(object->plane_collider);
+  free(object);
 }
 
-int sphere_colliding(SphereCollider *sphere1, SphereCollider *sphere2)
+void physobject_delete(PhysObject *object)
 {
-  if (sphere1 == NULL || sphere2 == NULL)
-    return 0;
-  float dist = fabs(vector3_dist(*sphere1->pos, *sphere2->pos));
-  return dist < sphere1->radius + sphere2->radius;
+  PhysObject *temp = head;
+  if (temp->next == NULL)
+  {
+    physobject_free(temp);
+    return;
+  }
+  
+  while (temp->next->object_id != object->object_id)
+    temp = temp->next;
+
+  PhysObject *temp2 = temp->next->next;
+
+  physobject_free(temp->next);
+  temp->next = temp2;
 }
 
-float sphere_plane_colliding(SphereCollider *sphere, PlaneCollider *plane)
+void physobject_box_collider_scale(PhysObject *obj, float x, float y, float z)
 {
-  if (sphere == NULL || plane == NULL)
-    return 0;
+  obj->box_collider->plane_pos[0].x *= x;
+  obj->box_collider->plane_pos[1].x *= x;
 
-  float dist = vector3_dot(plane->dir, vector3_sub(*sphere->pos, *plane->pos));
+  obj->box_collider->plane_pos[2].y *= y;
+  obj->box_collider->plane_pos[3].y *= y;
 
-  // printf("%f\n", dist);
-
-  if (dist < sphere->radius)
-    return (dist);
-  else
-    return 0;
+  obj->box_collider->plane_pos[4].z *= z;
+  obj->box_collider->plane_pos[5].z *= z;
 }
-
-
-// int sphere_plane_colliding(SphereCollider *sphere, PlaneCollider *plane)
-// {
-//   if (sphere == NULL || plane == NULL)
-//     return 0;
-//   // Distance between point (x1, y1, z1) and plane (A, B, C), (x0, y0, z0)
-//   // float d = -A*x0 - B*y0 -C*z0 
-//   Vector3 plane_to_sphere = vector3_sub(*sphere->pos, *plane->pos);
-//   float angle = vector3_angle(plane_to_sphere, plane->dir);
-//   float dist = vector3_mag(plane_to_sphere) * cos(angle);
-
-//   if (dist < sphere->radius*2)
-//     return dist;
-
-//   else
-//     return 0;
-// }

@@ -18,12 +18,14 @@
 #include "../math/vector.h"
 
 SDL_Surface *pixel_array;
-float z_buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
+float z_buffer[(SCREEN_WIDTH+2) * (SCREEN_HEIGHT+2)];
 
-Vector3 lightsource = {0, 0, -50};
+Vector3 lightsource = {0, -1, 0};
 
 double delta_time = 0.001;
-Camera cam;
+Camera *graphicsengine_cam;
+
+
 
 // TRANSFORMATIONS
 //-------------------------------------------------------------------------------
@@ -248,12 +250,22 @@ void rotate_z(Model *model, float r)
   translate_model(model, model_pos.x, model_pos.y, model_pos.z);
 }
 
-
 void scale(Model *model, float alpha)
 {
   for (int i=0; i<model->poly_count; i++)
     for (int j=0; j<3; j++)
       model->polygons[i].vertices[j] = vector3_scale(model->polygons[i].vertices[j], alpha);
+}
+
+void scale_xyz(Model *model, float x, float y, float z)
+{
+  for (int i=0; i<model->poly_count; i++)
+    for (int j=0; j<3; j++)
+    {
+      model->polygons[i].vertices[j].x *= x;
+      model->polygons[i].vertices[j].y *= y;
+      model->polygons[i].vertices[j].z *= z;
+    }
 }
 
 //-------------------------------------------------------------------------------
@@ -262,9 +274,9 @@ void scale(Model *model, float alpha)
 //-------------------------------------------------------------------------------
 void clear_screen(Uint8 r, Uint8 g, Uint8 b)
 {
-  for (int i=0; i<SCREEN_WIDTH; i++)
-    for (int j=0; j<SCREEN_HEIGHT; j++)
-      pixel(i, j, r, g, b);
+  Uint32 red = r << 16;
+  Uint16 green = g << 8;
+  SDL_FillRect(pixel_array, NULL, red + green + b);
 
   for (int i=0; i<SCREEN_WIDTH; i++)
     for (int j=0; j<SCREEN_HEIGHT; j++)
@@ -273,6 +285,7 @@ void clear_screen(Uint8 r, Uint8 g, Uint8 b)
 
 void pixel(int x, int y, Uint8 r, Uint8 g, Uint8 b)
 {
+  // printf("%d %d\n", x, y);
   Uint8 *const blue  = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 0));
   *blue = b;
   Uint8 *const green = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 1));
@@ -337,26 +350,22 @@ Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3)
   return weights;
 }
 
-void triangle_2d_smooth(Model *model, Polygon tri)
+void triangle_2d_smooth(Model *model, Polygon *tri)
 {
-  Vector2 v1 = project_coordinate(&tri.vertices[0]);
-  Vector2 v2 = project_coordinate(&tri.vertices[1]);
-  Vector2 v3 = project_coordinate(&tri.vertices[2]);
+  Vector2 v1 = project_coordinate(&tri->vertices[0]);
+  Vector2 v2 = project_coordinate(&tri->vertices[1]);
+  Vector2 v3 = project_coordinate(&tri->vertices[2]);
 
-  Vector2 ov1 = project_coordinate(&tri.og_vertices[0]);
-  Vector2 ov2 = project_coordinate(&tri.og_vertices[1]);
-  Vector2 ov3 = project_coordinate(&tri.og_vertices[2]);
+  Vector2 ov1 = project_coordinate(&tri->og_vertices[0]);
+  Vector2 ov2 = project_coordinate(&tri->og_vertices[1]);
+  Vector2 ov3 = project_coordinate(&tri->og_vertices[2]);
 
-  Vector3 norm1 = model->vertex_normals[tri.vertex_indices[0]];
-  Vector3 norm2 = model->vertex_normals[tri.vertex_indices[1]];
-  Vector3 norm3 = model->vertex_normals[tri.vertex_indices[2]];
+  Vector3 norm1 = model->vertex_normals[tri->vertex_indices[0]];
+  Vector3 norm2 = model->vertex_normals[tri->vertex_indices[1]];
+  Vector3 norm3 = model->vertex_normals[tri->vertex_indices[2]];
 
-  Vector3 dir1 = vector3_sub(lightsource, model->vertex_normals[tri.vertex_indices[0]]);
-  Vector3 dir2 = vector3_sub(lightsource, model->vertex_normals[tri.vertex_indices[1]]);
-  Vector3 dir3 = vector3_sub(lightsource, model->vertex_normals[tri.vertex_indices[2]]);
-
-  __m128 _reg_uv_x = _mm_set_ps(tri.uvs[0].x, tri.uvs[1].x, tri.uvs[2].x, 1);
-  __m128 _reg_uv_y = _mm_set_ps(tri.uvs[0].y, tri.uvs[1].y, tri.uvs[2].y, 1);
+  __m128 _reg_uv_x = _mm_set_ps(tri->uvs[0].x, tri->uvs[1].x, tri->uvs[2].x, 1);
+  __m128 _reg_uv_y = _mm_set_ps(tri->uvs[0].y, tri->uvs[1].y, tri->uvs[2].y, 1);
   __m128 _reg_invz = _mm_set_ps(v1.w,         v2.w,         v3.w,         1);
 
   _reg_uv_x = _mm_mul_ps(_reg_uv_x, _reg_invz);
@@ -376,7 +385,8 @@ void triangle_2d_smooth(Model *model, Polygon tri)
 
   Vector3 vert_weights;
   Vector3 light_weights;
-  // vector3_normalise(&templight);
+  vector3_normalise(&lightsource);
+  float shade;
 
   for (x=lx; x<=hx; x++)
   {
@@ -390,20 +400,9 @@ void triangle_2d_smooth(Model *model, Polygon tri)
 
         if (z_index > z_buffer[SCREEN_WIDTH*y + x])
         {
-          int tex_indx = tri.mat_index;
-          if (z_index > 5)
-            tex_indx += model->mat_count;
-
           z_buffer[SCREEN_WIDTH*y + x] = z_index;
 
           light_weights = calculate_barycentric(x, y, ov1, ov2, ov3);
-
-          Vector3 dd = (Vector3){
-            dir1.x*light_weights.x + dir2.x*light_weights.y + dir3.x*light_weights.z,
-            dir1.y*light_weights.x + dir2.y*light_weights.y + dir3.y*light_weights.z,
-            dir1.z*light_weights.x + dir2.z*light_weights.y + dir3.z*light_weights.z
-          };
-          vector3_normalise(&dd);
 
           Vector3 nn = (Vector3){
             norm1.x*light_weights.x + norm2.x*light_weights.y + norm3.x*light_weights.z,
@@ -412,27 +411,21 @@ void triangle_2d_smooth(Model *model, Polygon tri)
           };
           vector3_normalise(&nn);
 
-          float shade = vector3_dot(dd, nn);
-          shade += 1;
-          shade /= 2;
+          shade = (vector3_dot(lightsource, nn) + 1) / 2;
 
-          u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index) % model->materials[tex_indx]->w;
-          v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index) % model->materials[tex_indx]->h;
+          u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index) % model->materials[tri->mat_index]->w;
+          v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index) % model->materials[tri->mat_index]->h;
 
-          u *= model->materials[tex_indx]->format->BytesPerPixel;
+          u *= model->materials[tri->mat_index]->format->BytesPerPixel;
 
-          Uint8 *red = (Uint8 *)model->materials[tex_indx]->pixels + v*model->materials[tex_indx]->pitch + u+2;
-          Uint8 *green = (Uint8 *)model->materials[tex_indx]->pixels + v*model->materials[tex_indx]->pitch + u+1;
-          Uint8 *blue = (Uint8 *)model->materials[tex_indx]->pixels + v*model->materials[tex_indx]->pitch + u+0;
+          Uint8 *red = (Uint8 *)model->materials[tri->mat_index]->pixels + v*model->materials[tri->mat_index]->pitch + u+2;
+          Uint8 *green = (Uint8 *)model->materials[tri->mat_index]->pixels + v*model->materials[tri->mat_index]->pitch + u+1;
+          Uint8 *blue = (Uint8 *)model->materials[tri->mat_index]->pixels + v*model->materials[tri->mat_index]->pitch + u+0;
 
-          float r = *red;
-          float g = *green;
-          float b = *blue;
+          float r = *red * shade;
+          float g = *green * shade;
+          float b = *blue * shade;
 
-          r *= shade;
-          g *= shade;
-          b *= shade;
-          
           pixel(x, y, (Uint8)r, (Uint8)g, (Uint8)b);
         }
       }
@@ -440,15 +433,15 @@ void triangle_2d_smooth(Model *model, Polygon tri)
   }
 }
 
-void triangle_2d_flat(Model *model, Polygon tri)
+void triangle_2d_flat(Model *model, Polygon *tri)
 {
-  Vector2 v1 = project_coordinate(&tri.vertices[0]);
-  Vector2 v2 = project_coordinate(&tri.vertices[1]);
-  Vector2 v3 = project_coordinate(&tri.vertices[2]);
+  Vector2 v1 = project_coordinate(&tri->vertices[0]);
+  Vector2 v2 = project_coordinate(&tri->vertices[1]);
+  Vector2 v3 = project_coordinate(&tri->vertices[2]);
 
-  __m128 _reg_uv_x = _mm_set_ps(tri.uvs[0].x, tri.uvs[1].x, tri.uvs[2].x, 1);
-  __m128 _reg_uv_y = _mm_set_ps(tri.uvs[0].y, tri.uvs[1].y, tri.uvs[2].y, 1);
-  __m128 _reg_invz = _mm_set_ps(v1.w,         v2.w,         v3.w,         1);
+  __m128 _reg_uv_x = _mm_set_ps(tri->uvs[0].x, tri->uvs[1].x, tri->uvs[2].x, 1);
+  __m128 _reg_uv_y = _mm_set_ps(tri->uvs[0].y, tri->uvs[1].y, tri->uvs[2].y, 1);
+  __m128 _reg_invz = _mm_set_ps(v1.w,          v2.w,          v3.w,          1);
 
   _reg_uv_x = _mm_mul_ps(_reg_uv_x, _reg_invz);
   _reg_uv_y = _mm_mul_ps(_reg_uv_y, _reg_invz);
@@ -462,11 +455,10 @@ void triangle_2d_flat(Model *model, Polygon tri)
   float z_index;
 
   Vector3 vert_weights;
-  Vector3 templight = lightsource;
-  vector3_normalise(&templight);
-  float shade = vector3_dot(tri.face_normal, templight);
-  shade += 1;
-  shade /= 2;
+  float shade = (vector3_dot(tri->face_normal, lightsource) + 1) / 2;
+
+  Uint8 *pixels_start = (Uint8 *)model->materials[tri->mat_index]->pixels;
+  int pitch = model->materials[tri->mat_index]->pitch;
 
   for (x=lx; x<=hx; x++)
   {
@@ -480,30 +472,75 @@ void triangle_2d_flat(Model *model, Polygon tri)
 
         if (z_index > z_buffer[SCREEN_WIDTH*y + x])
         {
-          int tex_indx = tri.mat_index;
-          if (1/z_index > 2)
-            tex_indx += model->mat_count;
-
           z_buffer[SCREEN_WIDTH*y + x] = z_index;
 
-          u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index) % model->materials[tex_indx]->w;
-          v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index) % model->materials[tex_indx]->h;
+          u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index) % model->materials[tri->mat_index]->w;
+          v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index) % model->materials[tri->mat_index]->h;
 
-          u *= model->materials[tex_indx]->format->BytesPerPixel;
+          u *= model->materials[tri->mat_index]->format->BytesPerPixel;
 
-          Uint8 *red = (Uint8 *)model->materials[tex_indx]->pixels + v*model->materials[tex_indx]->pitch + u+2;
-          Uint8 *green = (Uint8 *)model->materials[tex_indx]->pixels + v*model->materials[tex_indx]->pitch + u+1;
-          Uint8 *blue = (Uint8 *)model->materials[tex_indx]->pixels + v*model->materials[tex_indx]->pitch + u+0;
+          Uint8 *red = pixels_start + v*pitch + u+2;
+          Uint8 *green = pixels_start + v*pitch + u+1;
+          Uint8 *blue = pixels_start + v*pitch + u+0;
 
-          float r = *red;
-          float g = *green;
-          float b = *blue;
+          float r = *red * shade;
+          float g = *green * shade;
+          float b = *blue * shade;
 
-          r *= shade;
-          g *= shade;
-          b *= shade;
-          
           pixel(x, y, (Uint8)r, (Uint8)g, (Uint8)b);
+        }
+      }
+    }
+  }
+}
+
+void triangle_2d(Model *model, Polygon *tri)
+{
+  Vector2 v1 = project_coordinate(&tri->vertices[0]);
+  Vector2 v2 = project_coordinate(&tri->vertices[1]);
+  Vector2 v3 = project_coordinate(&tri->vertices[2]);
+
+  __m128 _reg_uv_x = _mm_set_ps(tri->uvs[0].x, tri->uvs[1].x, tri->uvs[2].x, 1);
+  __m128 _reg_uv_y = _mm_set_ps(tri->uvs[0].y, tri->uvs[1].y, tri->uvs[2].y, 1);
+  __m128 _reg_invz = _mm_set_ps(v1.w,          v2.w,          v3.w,          1);
+
+  _reg_uv_x = _mm_mul_ps(_reg_uv_x, _reg_invz);
+  _reg_uv_y = _mm_mul_ps(_reg_uv_y, _reg_invz);
+
+  Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
+  Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
+  Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
+  Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
+
+  Uint16 x=0, y=0, u=0, v=0;
+  float z_index;
+
+  Vector3 vert_weights;
+
+  for (x=lx; x<=hx; x++)
+  {
+    for (y=ly; y<=hy-0; y+=1)
+    {
+      vert_weights = calculate_barycentric(x, y, v1, v2, v3);
+
+      if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
+      {
+        z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
+
+        if (z_index > z_buffer[SCREEN_WIDTH*y + x])
+        {
+          z_buffer[SCREEN_WIDTH*y + x] = z_index;
+
+          u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index) % model->materials[tri->mat_index]->w;
+          v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index) % model->materials[tri->mat_index]->h;
+
+          u *= model->materials[tri->mat_index]->format->BytesPerPixel;
+
+          Uint8 *red = (Uint8 *)model->materials[tri->mat_index]->pixels + v*model->materials[tri->mat_index]->pitch + u+2;
+          Uint8 *green = (Uint8 *)model->materials[tri->mat_index]->pixels + v*model->materials[tri->mat_index]->pitch + u+1;
+          Uint8 *blue = (Uint8 *)model->materials[tri->mat_index]->pixels + v*model->materials[tri->mat_index]->pitch + u+0;
+
+          pixel(x, y, *red, *green, *blue);
         }
       }
     }
@@ -803,13 +840,35 @@ Polygon *clip_against_planes(Camera *cam, int in_size, Polygon *polygons_in, int
   return clipped_4;
 }
 
+struct wrapper {
+  int poly_count;
+  Polygon *polygons;
+  SDL_Surface **textures;
+  Model *model;
+  int start, stop;
+};
+
+pthread_t thread1, thread2, thread3, thread4;
+struct wrapper wrap1;
+struct wrapper wrap2;
+struct wrapper wrap3;
+struct wrapper wrap4;
+
+void *render_polygons_pthread_flat(void *ptr)
+{
+  struct wrapper *w1 = (struct wrapper *)ptr;
+  for (int i=w1->start; i<w1->stop; i++)
+    triangle_2d_flat(w1->model, &w1->polygons[i]);
+  pthread_exit(NULL);
+}
+
 void model_draw(Camera *cam, Model *model)
 {
   int *frontface_indices = (int *)malloc(model->poly_count * sizeof(int));
   int frontface_count = 0;
 
   for (int i=0; i<model->poly_count; i++)
-    if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], cam->pos), model->polygons[i].face_normal) < 0)
+    if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], *cam->pos), model->polygons[i].face_normal) < 0)
       frontface_indices[frontface_count++] = i;
   
   Polygon *front_faces = (Polygon *)malloc(frontface_count * sizeof(Polygon));
@@ -820,13 +879,13 @@ void model_draw(Camera *cam, Model *model)
   {
     for (int j=0; j<3; j++)
     {
-      front_faces[i].vertices[j].x -= cam->pos.x;
-      front_faces[i].vertices[j].y -= cam->pos.y;
-      front_faces[i].vertices[j].z -= cam->pos.z;
+      front_faces[i].vertices[j].x -= cam->pos->x;
+      front_faces[i].vertices[j].y -= cam->pos->y;
+      front_faces[i].vertices[j].z -= cam->pos->z;
 
-      front_faces[i].og_vertices[j].x -= cam->pos.x;
-      front_faces[i].og_vertices[j].y -= cam->pos.y;
-      front_faces[i].og_vertices[j].z -= cam->pos.z;
+      front_faces[i].og_vertices[j].x -= cam->pos->x;
+      front_faces[i].og_vertices[j].y -= cam->pos->y;
+      front_faces[i].og_vertices[j].z -= cam->pos->z;
 
       rotate_point(&front_faces[i].vertices[j], 0, cam->rot.y, 0);
       rotate_point(&front_faces[i].vertices[j], cam->rot.x, 0, 0);
@@ -841,18 +900,81 @@ void model_draw(Camera *cam, Model *model)
 
   int clipped_count;
   Polygon *clipped_polygons = clip_against_planes(cam, frontface_count, front_faces, &clipped_count);
-  for (int i=0; i<clipped_count; i++)
-  {
-    switch (model->shade_style)
-    {
-      case (SHADE_FLAT):
-        triangle_2d_flat(model, clipped_polygons[i]);
-        break;
-      case (SHADE_SMOOTH):
-        triangle_2d_smooth(model, clipped_polygons[i]);
-        break;
-    }
-  }
+
+  // if (model->visible)
+  // {
+  //   switch (model->shade_style)
+  //   {
+  //     case (SHADE_FLAT):
+  //       for (int i=0; i<clipped_count; i++)
+  //         triangle_2d_flat(model, &clipped_polygons[i]);
+  //       break;
+
+  //     case (SHADE_SMOOTH):
+  //       for (int i=0; i<clipped_count; i++)
+  //         triangle_2d_smooth(model, &clipped_polygons[i]);
+  //       break;
+
+  //     case (SHADE_NONE):
+  //       for (int i=0; i<clipped_count; i++)
+  //         triangle_2d(model, &clipped_polygons[i]);
+  //       break;
+  //   }
+  // }
+
+
+
+  // Multithreading
+  //------------------------------------------------------------------
+  wrap1.poly_count = clipped_count;
+  wrap1.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
+  wrap1.textures = model->materials;
+  wrap1.start = 0;
+  wrap1.stop = clipped_count/4;
+  wrap1.model = model;
+  memcpy(wrap1.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
+
+  wrap2.poly_count = clipped_count;
+  wrap2.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
+  wrap2.textures = model->materials;
+  wrap2.start = clipped_count/4;
+  wrap2.stop = clipped_count/2;
+  wrap2.model = model;
+  memcpy(wrap2.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
+
+  wrap3.poly_count = clipped_count;
+  wrap3.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
+  wrap3.textures = model->materials;
+  wrap3.start = clipped_count/2;
+  wrap3.stop = 3*clipped_count/4;
+  wrap3.model = model;
+  memcpy(wrap3.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
+
+  wrap4.poly_count = clipped_count;
+  wrap4.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
+  wrap4.textures = model->materials;
+  wrap4.start = 3*clipped_count/4;
+  wrap4.stop = clipped_count;
+  wrap4.model = model;
+  memcpy(wrap4.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
+
+  pthread_create(&thread1, NULL, render_polygons_pthread_flat, &wrap1);
+  pthread_create(&thread2, NULL, render_polygons_pthread_flat, &wrap2);
+  pthread_create(&thread3, NULL, render_polygons_pthread_flat, &wrap3);
+  pthread_create(&thread4, NULL, render_polygons_pthread_flat, &wrap4);
+
+  pthread_join(thread1, NULL);
+  pthread_join(thread2, NULL);
+  pthread_join(thread3, NULL);
+  pthread_join(thread4, NULL);
+
+  free(wrap1.polygons);
+  free(wrap2.polygons);
+  free(wrap3.polygons);
+  free(wrap4.polygons);
+  // ------------------------------------------------------------------
+
+
 
   free(frontface_indices);
   free(front_faces);
@@ -867,12 +989,12 @@ Vector2 project_coordinate(Vector3 *pt)
 {
   float nearplane_width = HALF_SCREEN_WIDTH;
   float nearplane_height = HALF_SCREEN_HEIGHT;
-  float nearplane_z = 0.999;
+  float nearplane_z = 1;
 
   float canvas_x = (nearplane_z/pt->z) * pt->x * nearplane_z * nearplane_width;
   float canvas_y = (nearplane_z/pt->z) * pt->y * nearplane_z * nearplane_height;
-  canvas_x += HALF_SCREEN_WIDTH;
-  canvas_y += HALF_SCREEN_HEIGHT;
+  canvas_x += HALF_SCREEN_WIDTH - 0.5;
+  canvas_y += HALF_SCREEN_HEIGHT - 0.5;
 
   return (Vector2){canvas_x, canvas_y, 1/pt->z};
 }
