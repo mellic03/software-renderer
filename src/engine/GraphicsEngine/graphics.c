@@ -18,7 +18,7 @@
 #include "../math/vector.h"
 
 SDL_Surface *pixel_array;
-float z_buffer[(SCREEN_WIDTH+2) * (SCREEN_HEIGHT+2)];
+float z_buffer[(SCREEN_WIDTH) * (SCREEN_HEIGHT)];
 
 Vector3 lightsource = {0, -1, 0};
 

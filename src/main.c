@@ -26,6 +26,8 @@ pthread_t thread_main, thread_physics;
 pthread_mutex_t mutex;
 pthread_cond_t main_ready;
 
+Player *player;
+
 void *phys_thread()
 {
   clock_t t;
@@ -35,6 +37,7 @@ void *phys_thread()
     t = clock();
     physics_tick();
     gameobject_tick();
+    player_collision(player);
     phys_delta_time = (double)(clock() - t) / CLOCKS_PER_SEC;
   }
 }
@@ -83,7 +86,7 @@ int main(int argc, char** argv)
   map->model->shade_style = SHADE_NONE;
 
 
-  Player *player = player_create();
+  player = player_create();
   player->game_object = gameobject_create();
   gameobject_translate(player->game_object, 0, -10, 0);
   player->cam->pos = &player->game_object->phys_object->pos;
@@ -112,7 +115,6 @@ int main(int argc, char** argv)
     gameobject_draw_all(graphicsengine_cam);
 
 
-    player_collision(player);
 
 
     pthread_cond_broadcast(&main_ready);
