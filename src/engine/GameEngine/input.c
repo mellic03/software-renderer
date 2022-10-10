@@ -22,24 +22,24 @@ void input(SDL_Event event, Camera *cam, Player *player)
 
   if (state[SDL_SCANCODE_W])
   {
-    player->game_object->phys_object->vel.x += cam->dir.x;
-    player->game_object->phys_object->vel.z += cam->dir.z;
+    player->game_object->phys_object->vel.x += cam->dir.x * cam->speed;
+    player->game_object->phys_object->vel.z += cam->dir.z * cam->speed;
   }
   else if (state[SDL_SCANCODE_S])
   {
-    player->game_object->phys_object->vel.x -= cam->dir.x;
-    player->game_object->phys_object->vel.z -= cam->dir.z;
+    player->game_object->phys_object->vel.x -= cam->dir.x * cam->speed;
+    player->game_object->phys_object->vel.z -= cam->dir.z * cam->speed;
   }
 
   if (state[SDL_SCANCODE_A])
   {
-    player->game_object->phys_object->vel.x -= cam->dir.z;
-    player->game_object->phys_object->vel.z += cam->dir.x;
+    player->game_object->phys_object->vel.x -= cam->dir.z * cam->speed;
+    player->game_object->phys_object->vel.z += cam->dir.x * cam->speed;
   }
   else if (state[SDL_SCANCODE_D])
   {
-    player->game_object->phys_object->vel.x += cam->dir.z;
-    player->game_object->phys_object->vel.z -= cam->dir.x;
+    player->game_object->phys_object->vel.x += cam->dir.z * cam->speed;
+    player->game_object->phys_object->vel.z -= cam->dir.x * cam->speed;
   }
 
   // if (state[SDL_SCANCODE_SPACE])

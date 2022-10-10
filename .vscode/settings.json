@@ -52,6 +52,9 @@
     "string": "c",
     "numbers": "c",
     "player.h": "c",
-    "model.h": "c"
+    "model.h": "c",
+    "x86intrin.h": "c",
+    "map": "c",
+    "__tree": "c"
   }
 }

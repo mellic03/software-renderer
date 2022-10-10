@@ -24,13 +24,6 @@ extern double delta_time;
 extern Vector3 lightsource;
 extern Camera *graphicsengine_cam;
 
-extern int polgyons_1_count;
-extern Model *models_1[2000];
-extern Polygon polygons_1[2000];
-
-extern int polgyons_2_count;
-extern Model *models_2[2000];
-extern Polygon polygons_2[2000];
 //----------------------------------------
 
 void triangle_2d_flat(Model *model, Polygon *tri);

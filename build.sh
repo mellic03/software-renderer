@@ -11,5 +11,5 @@ gcc \
 ./src/engine/GameEngine/player.c \
 ./src/engine/GameEngine/input.c \
 ./src/main.c \
--o main -lSDL2 -mavx -lm -O3 -g \
+-o main -lSDL2 -mavx -lm -Ofast -g \
 

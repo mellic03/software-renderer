@@ -4,12 +4,12 @@
 #define Sq(x) ((x)*(x))
 
 typedef struct Vector2 {
-  float x, y;
-  float w;
+  double x, y;
+  double w;
 } Vector2;
 
 typedef struct Vector3 {
-  float x, y, z;
+  double x, y, z;
 } Vector3;
 
 // VECTOR2

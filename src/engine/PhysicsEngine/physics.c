@@ -18,7 +18,7 @@ void physics_tick(void)
   while (obj1 != NULL)
   {
     obj1->pos_last = obj1->pos;
-    obj1->pos = vector3_add(obj1->pos, (Vector3){obj1->vel.x*delta_time, obj1->vel.y*delta_time, obj1->vel.z*delta_time});
+    obj1->pos = vector3_add(obj1->pos, vector3_scale(obj1->vel, delta_time));
 
     if (obj1->mass != 0)
     {
@@ -27,7 +27,6 @@ void physics_tick(void)
       // obj1->vel = vector3_add(obj1->vel, obj1->acc);
       obj1->vel = vector3_scale(obj1->vel, 0.999);
       obj1->vel = vector3_add(obj1->vel, (Vector3){0, G*obj1->mass*delta_time, 0});
-
 
       obj2 = head;
 

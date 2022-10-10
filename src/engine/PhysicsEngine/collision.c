@@ -82,7 +82,6 @@ void physobject_sphere_sphere_collision_response(PhysObject *obj1, PhysObject *o
 
 }
 
-
 /** Sphere on plane collision detection
  * @param obj1 PhysObject with sphere collider  
  * @param obj2 PhysObject with plane collider  
@@ -142,7 +141,6 @@ void physobject_sphere_box_collision_response(PhysObject *obj1, PhysObject *obj2
   obj1->vel.y += obj1->inv_mass * impulse.y;
   obj1->vel.z += obj1->inv_mass * impulse.z;
 }
-
 
 void physobject_collision(PhysObject *obj1, PhysObject *obj2)
 {

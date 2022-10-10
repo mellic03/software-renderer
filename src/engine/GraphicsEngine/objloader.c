@@ -8,7 +8,6 @@
 #include "model.h"
 #include "graphics.h"
 
-
 void count_polygons(FILE *fh, Model *model)
 {
   model->poly_count = 0;
@@ -22,12 +21,16 @@ void count_polygons(FILE *fh, Model *model)
   {
     if (buffer[0] == 'f' && buffer[1] == ' ')
       model->poly_count += 1;
+
     else if (buffer[0] == 'v' && buffer[1] == ' ')
       model->vertex_count += 1;
+
     else if (buffer[0] == 'v' && buffer[1] == 'n')
       model->normal_count += 1;
+
     else if (buffer[0] == 'v' && buffer[1] == 't')
       model->uv_count += 1;
+
     else if (buffer[0] == 'u' && buffer[1] == 's')
       model->mat_count += 1;
   }
@@ -41,7 +44,6 @@ void extract_vert_text_norm(int dest[3], char *src)
       src[i] == ' ';
 
   sscanf(src, "%d/%d/%d", &dest[0], &dest[1], &dest[2]);
-  // printf("%d, %d, %d\n", vertex, texture, normal);
 }
 
 void load_polygons(FILE *fh, Model *model)
@@ -207,15 +209,24 @@ void load_material(FILE *fh, char *filepath, Model *model)
       strcpy(filepath_copy, filepath);
       strcat(filepath_copy, "/");
       strcat(filepath_copy, token);
-      // printf("FILE: %s\n", filepath_copy);
+      printf("FILE: %s\n", filepath_copy);
       model->materials[mat_index] = SDL_LoadBMP(filepath_copy);
 
       // load 50% image
-      strcpy(filepath_copy, filepath);
-      strcat(filepath_copy, "/");
-      strcat(filepath_copy, token);
-      strcat(filepath_copy, "50");
-      model->materials[mat_index + model->mat_count] = SDL_LoadBMP(filepath_copy);
+      // strcpy(filepath_copy, filepath);
+      // strcat(filepath_copy, "/");
+      // strcat(filepath_copy, token);
+      // strcat(filepath_copy, "50");
+      // model->materials[mat_index + model->mat_count] = SDL_LoadBMP(filepath_copy);
+
+      // load normal map
+      // strcpy(filepath_copy, filepath);
+      // strcat(filepath_copy, "/");
+      // strcat(filepath_copy, token);
+      // strcat(filepath_copy, "nmap");
+      // printf("FILE: %s\n", filepath_copy);
+      // model->materials[mat_index + model->mat_count] = SDL_LoadBMP(filepath_copy);
+
 
       mat_index -= 1;
     }
@@ -229,6 +240,7 @@ Model *model_load(char *filepath)
   Model *model = (Model *)calloc(1, sizeof(Model));
   model->textured = 1;
   model->visible = 1;
+  model->shade_style = SHADE_NONE;
 
   char *last = strrchr(filepath, '/');
 
@@ -267,6 +279,8 @@ Model *model_load(char *filepath)
   {
     for (int j=0; j<3; j++)
     {
+      // model->polygons[i].uvs[j].x = 1 - model->polygons[i].uvs[j].x;
+      model->polygons[i].uvs[j].y = 1 - model->polygons[i].uvs[j].y;
       model->polygons[i].uvs[j].x *= model->materials[model->polygons[i].mat_index]->w;
       model->polygons[i].uvs[j].y *= model->materials[model->polygons[i].mat_index]->h;
     }

@@ -18,13 +18,12 @@
 #include "../math/vector.h"
 
 SDL_Surface *pixel_array;
-float z_buffer[(SCREEN_WIDTH) * (SCREEN_HEIGHT)];
+float z_buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
 
 Vector3 lightsource = {0, -1, 0};
 
 double delta_time = 0.001;
 Camera *graphicsengine_cam;
-
 
 
 // TRANSFORMATIONS
@@ -265,6 +264,9 @@ void scale_xyz(Model *model, float x, float y, float z)
       model->polygons[i].vertices[j].x *= x;
       model->polygons[i].vertices[j].y *= y;
       model->polygons[i].vertices[j].z *= z;
+      model->polygons[i].og_vertices[j].x *= x;
+      model->polygons[i].og_vertices[j].y *= y;
+      model->polygons[i].og_vertices[j].z *= z;
     }
 }
 
@@ -274,6 +276,10 @@ void scale_xyz(Model *model, float x, float y, float z)
 //-------------------------------------------------------------------------------
 void clear_screen(Uint8 r, Uint8 g, Uint8 b)
 {
+  // for (int i=0; i<SCREEN_WIDTH; i++)
+  //   for (int j=0; j<SCREEN_HEIGHT; j++)
+  //     pixel(i, j, r, g, b);
+
   Uint32 red = r << 16;
   Uint16 green = g << 8;
   SDL_FillRect(pixel_array, NULL, red + green + b);
@@ -350,7 +356,7 @@ Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3)
   return weights;
 }
 
-void triangle_2d_smooth(Model *model, Polygon *tri)
+void triangle_2d_gouraud(Model *model, Polygon *tri)
 {
   Vector2 v1 = project_coordinate(&tri->vertices[0]);
   Vector2 v2 = project_coordinate(&tri->vertices[1]);
@@ -360,13 +366,17 @@ void triangle_2d_smooth(Model *model, Polygon *tri)
   Vector2 ov2 = project_coordinate(&tri->og_vertices[1]);
   Vector2 ov3 = project_coordinate(&tri->og_vertices[2]);
 
-  Vector3 norm1 = model->vertex_normals[tri->vertex_indices[0]];
-  Vector3 norm2 = model->vertex_normals[tri->vertex_indices[1]];
-  Vector3 norm3 = model->vertex_normals[tri->vertex_indices[2]];
+  Vector3 norm1 = tri->normals[0];
+  Vector3 norm2 = tri->normals[1];
+  Vector3 norm3 = tri->normals[2];
+
+  float ilum1 = (vector3_dot(norm1, lightsource) + 1) / 2;
+  float ilum2 = (vector3_dot(norm2, lightsource) + 1) / 2;
+  float ilum3 = (vector3_dot(norm3, lightsource) + 1) / 2;
 
   __m128 _reg_uv_x = _mm_set_ps(tri->uvs[0].x, tri->uvs[1].x, tri->uvs[2].x, 1);
   __m128 _reg_uv_y = _mm_set_ps(tri->uvs[0].y, tri->uvs[1].y, tri->uvs[2].y, 1);
-  __m128 _reg_invz = _mm_set_ps(v1.w,         v2.w,         v3.w,         1);
+  __m128 _reg_invz = _mm_set_ps(v1.w,          v2.w,          v3.w,          1);
 
   _reg_uv_x = _mm_mul_ps(_reg_uv_x, _reg_invz);
   _reg_uv_y = _mm_mul_ps(_reg_uv_y, _reg_invz);
@@ -403,18 +413,94 @@ void triangle_2d_smooth(Model *model, Polygon *tri)
           z_buffer[SCREEN_WIDTH*y + x] = z_index;
 
           light_weights = calculate_barycentric(x, y, ov1, ov2, ov3);
+          
+          shade = light_weights.x*ilum1 + light_weights.y*ilum2 + light_weights.z*ilum3;
 
-          Vector3 nn = (Vector3){
-            norm1.x*light_weights.x + norm2.x*light_weights.y + norm3.x*light_weights.z,
-            norm1.y*light_weights.x + norm2.y*light_weights.y + norm3.y*light_weights.z,
-            norm1.z*light_weights.x + norm2.z*light_weights.y + norm3.z*light_weights.z
-          };
+          u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index);
+          v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index);
+
+          u *= model->materials[tri->mat_index]->format->BytesPerPixel;
+
+          Uint8 *red = (Uint8 *)model->materials[tri->mat_index]->pixels + v*model->materials[tri->mat_index]->pitch + u+2;
+          Uint8 *green = (Uint8 *)model->materials[tri->mat_index]->pixels + v*model->materials[tri->mat_index]->pitch + u+1;
+          Uint8 *blue = (Uint8 *)model->materials[tri->mat_index]->pixels + v*model->materials[tri->mat_index]->pitch + u+0;
+
+          float r = *red * shade;
+          float g = *green * shade;
+          float b = *blue * shade;
+
+          pixel(x, y, (Uint8)r, (Uint8)g, (Uint8)b);
+        }
+      }
+    }
+  }
+}
+
+void triangle_2d_phong(Model *model, Polygon *tri)
+{
+  Vector2 v1 = project_coordinate(&tri->vertices[0]);
+  Vector2 v2 = project_coordinate(&tri->vertices[1]);
+  Vector2 v3 = project_coordinate(&tri->vertices[2]);
+
+  Vector2 ov1 = project_coordinate(&tri->og_vertices[0]);
+  Vector2 ov2 = project_coordinate(&tri->og_vertices[1]);
+  Vector2 ov3 = project_coordinate(&tri->og_vertices[2]);
+
+  Vector3 norm1 = tri->normals[0];
+  Vector3 norm2 = tri->normals[1];
+  Vector3 norm3 = tri->normals[2];
+
+  __m128 _reg_uv_x = _mm_set_ps(tri->uvs[0].x, tri->uvs[1].x, tri->uvs[2].x, 1);
+  __m128 _reg_uv_y = _mm_set_ps(tri->uvs[0].y, tri->uvs[1].y, tri->uvs[2].y, 1);
+  __m128 _reg_invz = _mm_set_ps(v1.w,          v2.w,          v3.w,          1);
+
+  _reg_uv_x = _mm_mul_ps(_reg_uv_x, _reg_invz);
+  _reg_uv_y = _mm_mul_ps(_reg_uv_y, _reg_invz);
+
+  // line_2d((Vector3){0, 0, 0}, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1});
+  // line_2d((Vector3){0, 0, 0}, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1});
+  // line_2d((Vector3){0, 0, 0}, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1});
+
+  Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
+  Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
+  Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
+  Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
+
+  Uint16 x=0, y=0, u=0, v=0;
+  float z_index;
+
+  Vector3 vert_weights;
+  Vector3 light_weights;
+  vector3_normalise(&lightsource);
+  float shade;
+
+  for (x=lx; x<=hx; x++)
+  {
+    for (y=ly; y<=hy-0; y+=1)
+    {
+      vert_weights = calculate_barycentric(x, y, v1, v2, v3);
+
+      if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
+      {
+        z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
+
+        if (z_index > z_buffer[SCREEN_WIDTH*y + x])
+        {
+          z_buffer[SCREEN_WIDTH*y + x] = z_index;
+
+          light_weights = calculate_barycentric(x, y, ov1, ov2, ov3);
+          
+          Vector3 N1 = vector3_scale(norm1, light_weights.x);
+          Vector3 N2 = vector3_scale(norm2, light_weights.y);
+          Vector3 N3 = vector3_scale(norm3, light_weights.z);
+          
+          Vector3 nn = vector3_add(N1, vector3_add(N2, N3));
           vector3_normalise(&nn);
 
           shade = (vector3_dot(lightsource, nn) + 1) / 2;
 
-          u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index) % model->materials[tri->mat_index]->w;
-          v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index) % model->materials[tri->mat_index]->h;
+          u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index);
+          v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index);
 
           u *= model->materials[tri->mat_index]->format->BytesPerPixel;
 
@@ -474,8 +560,8 @@ void triangle_2d_flat(Model *model, Polygon *tri)
         {
           z_buffer[SCREEN_WIDTH*y + x] = z_index;
 
-          u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index) % model->materials[tri->mat_index]->w;
-          v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index) % model->materials[tri->mat_index]->h;
+          u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index);
+          v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index);
 
           u *= model->materials[tri->mat_index]->format->BytesPerPixel;
 
@@ -516,10 +602,12 @@ void triangle_2d(Model *model, Polygon *tri)
   float z_index;
 
   Vector3 vert_weights;
+  Uint8 * pixels = model->materials[tri->mat_index]->pixels;
+  int pitch = model->materials[tri->mat_index]->pitch;
 
   for (x=lx; x<=hx; x++)
   {
-    for (y=ly; y<=hy-0; y+=1)
+    for (y=ly; y<=hy; y++)
     {
       vert_weights = calculate_barycentric(x, y, v1, v2, v3);
 
@@ -536,9 +624,9 @@ void triangle_2d(Model *model, Polygon *tri)
 
           u *= model->materials[tri->mat_index]->format->BytesPerPixel;
 
-          Uint8 *red = (Uint8 *)model->materials[tri->mat_index]->pixels + v*model->materials[tri->mat_index]->pitch + u+2;
-          Uint8 *green = (Uint8 *)model->materials[tri->mat_index]->pixels + v*model->materials[tri->mat_index]->pitch + u+1;
-          Uint8 *blue = (Uint8 *)model->materials[tri->mat_index]->pixels + v*model->materials[tri->mat_index]->pitch + u+0;
+          Uint8 *red   = pixels + v*pitch + u+2;
+          Uint8 *green = pixels + v*pitch + u+1;
+          Uint8 *blue  = pixels + v*pitch + u+0;
 
           pixel(x, y, *red, *green, *blue);
         }
@@ -547,6 +635,10 @@ void triangle_2d(Model *model, Polygon *tri)
   }
 }
 
+/**
+ * @param p1 start of line
+ * @param p2 end of line
+ */
 Vector3 line_plane_intersect(Vector3 plane_normal, Vector3 p1, Vector3 p2, float *t)
 {
   float ad = vector3_dot(p1, plane_normal);
@@ -857,8 +949,31 @@ struct wrapper wrap4;
 void *render_polygons_pthread_flat(void *ptr)
 {
   struct wrapper *w1 = (struct wrapper *)ptr;
-  for (int i=w1->start; i<w1->stop; i++)
-    triangle_2d_flat(w1->model, &w1->polygons[i]);
+  
+  switch (w1->model->shade_style)
+  {
+    case (SHADE_NONE):
+      for (int i=w1->start; i<w1->stop; i++)
+        triangle_2d(w1->model, &w1->polygons[i]);
+      break;
+
+    case (SHADE_FLAT):
+      for (int i=w1->start; i<w1->stop; i++)
+        triangle_2d_flat(w1->model, &w1->polygons[i]);
+      break;
+
+    case (SHADE_GOURAUD):
+      for (int i=w1->start; i<w1->stop; i++)
+        triangle_2d_gouraud(w1->model, &w1->polygons[i]);
+      break;
+
+    case (SHADE_PHONG):
+      for (int i=w1->start; i<w1->stop; i++)
+        triangle_2d_phong(w1->model, &w1->polygons[i]);
+      break;
+  }
+
+
   pthread_exit(NULL);
 }
 
@@ -893,8 +1008,8 @@ void model_draw(Camera *cam, Model *model)
       rotate_point(&front_faces[i].og_vertices[j], 0, cam->rot.y, 0);
       rotate_point(&front_faces[i].og_vertices[j], cam->rot.x, 0, 0);
 
-      rotate_point(&front_faces[i].normals[j], 0, cam->rot.y, 0);
-      rotate_point(&front_faces[i].normals[j], cam->rot.x, 0, 0);
+      front_faces[i].normals[j] = model->vertex_normals[front_faces[i].vertex_indices[j]];
+      vector3_normalise(&front_faces[i].normals[j]);
     }
   }
 
@@ -973,7 +1088,6 @@ void model_draw(Camera *cam, Model *model)
   free(wrap3.polygons);
   free(wrap4.polygons);
   // ------------------------------------------------------------------
-
 
 
   free(frontface_indices);

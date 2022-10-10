@@ -22,7 +22,7 @@ typedef struct {
   Camera *cam;
   GameObject *game_object;
 
-  Vector3 ray_down;
+  Vector3 ray_down, ray_left, ray_right, ray_front, ray_back;
 
 } Player;
 

@@ -71,6 +71,10 @@ int box_colliding(BoxCollider *box1, BoxCollider *box2);
 int sphere_colliding(SphereCollider *sphere1, SphereCollider *sphere2, float *dist);
 int sphere_plane_colliding(SphereCollider *sphere, PlaneCollider *plane, float *dist);
 
+int physobject_sphere_plane_collision_detect(PhysObject *obj1, PlaneCollider *plane, float *dist);
+void physobject_sphere_box_collision_response(PhysObject *obj1, PhysObject *obj2, float *dist, Vector3 *nearest_normal);
+
+
 // RESPONSE
 void physobject_collision(PhysObject *obj1, PhysObject *obj2);
 //------------------------------------------------------------------
