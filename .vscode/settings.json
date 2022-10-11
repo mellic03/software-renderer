@@ -55,6 +55,11 @@
     "model.h": "c",
     "x86intrin.h": "c",
     "map": "c",
-    "__tree": "c"
+    "__tree": "c",
+    "socket.h": "c",
+    "unistd.h": "c",
+    "inet.h": "c",
+    "in.h": "c",
+    "client.h": "c"
   }
 }

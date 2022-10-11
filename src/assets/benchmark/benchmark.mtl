@@ -1,4 +1,4 @@
-# Blender 3.3.0 MTL File: 'benchmark.blend1'
+# Blender 3.3.0 MTL File: 'benchmark.blend'
 # www.blender.org
 
 newmtl Material.002
@@ -20,3 +20,4 @@ Ni 1.450000
 d 1.000000
 illum 2
 map_Kd metal_baked.bmp
+

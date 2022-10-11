@@ -32,7 +32,7 @@ Camera *graphicsengine_cam;
 //-------------------------------------------------------------------------------
 void translate_model(Model *model, float x, float y, float z)
 {
-  *model->pos = vector3_add(*model->pos, (Vector3){x, y, z});
+  model->pos = vector3_add(model->pos, (Vector3){x, y, z});
 
   for (int i=0; i<model->poly_count; i++)
     for (int j=0; j<3; j++)
@@ -96,7 +96,7 @@ void rotate_point(Vector3 *pt, float x, float y, float z)
 
 void rotate_x(Model *model, float r)
 {
-  Vector3 model_pos = *model->pos;
+  Vector3 model_pos = model->pos;
   translate_model(model, -model_pos.x, -model_pos.y, -model_pos.z);
 
   float rot_x[3][3] = {
@@ -147,7 +147,7 @@ void rotate_x(Model *model, float r)
 
 void rotate_y(Model *model, float r)
 {
-  Vector3 model_pos = *model->pos;
+  Vector3 model_pos = model->pos;
   translate_model(model, -model_pos.x, -model_pos.y, -model_pos.z);
 
   float rot_y[3][3] = {
@@ -200,7 +200,7 @@ void rotate_y(Model *model, float r)
 
 void rotate_z(Model *model, float r)
 {
-  Vector3 model_pos = *model->pos;
+  Vector3 model_pos = model->pos;
   translate_model(model, -model_pos.x, -model_pos.y, -model_pos.z);
 
   float rot_z[3][3] = {

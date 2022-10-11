@@ -102,7 +102,7 @@ GameObject *gameobject_create(void)
 void gameobject_assign_model(GameObject *object, Model *model)
 {
   object->model = model;
-  object->model->pos = &object->pos;
+  object->model->pos = object->pos;
 }
 
 void gameobject_translate(GameObject *object, float x, float y, float z)
@@ -129,6 +129,29 @@ void gameobject_scale(GameObject *obj, float x, float y, float z)
 
   if (obj->phys_object->box_collider != NULL)
     physobject_box_collider_scale(obj->phys_object, x, y, z);
+}
+
+void gameobject_rotate_x(GameObject *object, float r)
+{
+  // float px = object->pos.x;
+  // float py = object->pos.y;
+  // float pz = object->pos.z;
+
+  // gameobject_translate(object, -px, -py, -pz);
+  rotate_x(object->model, r);
+  // gameobject_translate(object, px, py, pz);
+
+}
+
+void gameobject_rotate_y(GameObject *object, float r)
+{
+  // float px = object->pos.x;
+  // float py = object->pos.y;
+  // float pz = object->pos.z;
+
+  // gameobject_translate(object, -px, -py, -pz);
+  rotate_y(object->model, r);
+  // gameobject_translate(object, px, py, pz);
 }
 
 void gameobject_rotate_z(GameObject *object, float r)

@@ -34,6 +34,9 @@ void gameobject_collide(GameObject *obj1, GameObject *obj2);
 void gameobject_tick();
 
 void gameobject_translate(GameObject *object, float x, float y, float z);
+
+void gameobject_rotate_x(GameObject *object, float r);
+void gameobject_rotate_y(GameObject *object, float r);
 void gameobject_rotate_z(GameObject *object, float r);
 
 void gameobject_scale(GameObject *object, float x, float y, float z);

@@ -2,5 +2,13 @@
 
 # /src/assets
 
-a.out
+# SDL2
+/src/include
+/src/lib
+SDL2.dll
+
+/sockets/server
+
 main
+main.exe
+

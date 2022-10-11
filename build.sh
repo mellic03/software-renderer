@@ -1,5 +1,6 @@
 #!/bin/bash
 gcc \
+./sockets/client.c \
 ./src/engine/math/vector.c \
 ./src/engine/GraphicsEngine/graphics.c \
 ./src/engine/GraphicsEngine/model.c \

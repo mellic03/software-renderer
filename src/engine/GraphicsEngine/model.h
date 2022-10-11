@@ -31,7 +31,7 @@ typedef struct {
   
   int textured, visible;
 
-  Vector3 *pos;
+  Vector3 pos;
 
   ShaderType shade_style;
 
