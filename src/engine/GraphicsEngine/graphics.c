@@ -17,7 +17,9 @@
 #include "camera.h"
 #include "../math/vector.h"
 
+SDL_Surface *pixel_buffer;
 SDL_Surface *pixel_array;
+
 float z_buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
 
 Vector3 lightsource = {0, -1, 0};
@@ -282,7 +284,7 @@ void clear_screen(Uint8 r, Uint8 g, Uint8 b)
 
   Uint32 red = r << 16;
   Uint16 green = g << 8;
-  SDL_FillRect(pixel_array, NULL, red + green + b);
+  SDL_FillRect(pixel_buffer, NULL, red + green + b);
 
   for (int i=0; i<SCREEN_WIDTH; i++)
     for (int j=0; j<SCREEN_HEIGHT; j++)
@@ -292,11 +294,11 @@ void clear_screen(Uint8 r, Uint8 g, Uint8 b)
 void pixel(int x, int y, Uint8 r, Uint8 g, Uint8 b)
 {
   // printf("%d %d\n", x, y);
-  Uint8 *const blue  = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 0));
+  Uint8 *const blue  = ((Uint8 *) pixel_buffer->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 0));
   *blue = b;
-  Uint8 *const green = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 1));
+  Uint8 *const green = ((Uint8 *) pixel_buffer->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 1));
   *green = g;
-  Uint8 *const red   = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 2));
+  Uint8 *const red   = ((Uint8 *) pixel_buffer->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 2));
   *red = r;
 }
 
@@ -1016,77 +1018,82 @@ void model_draw(Camera *cam, Model *model)
   int clipped_count;
   Polygon *clipped_polygons = clip_against_planes(cam, frontface_count, front_faces, &clipped_count);
 
-  // if (model->visible)
-  // {
-  //   switch (model->shade_style)
-  //   {
-  //     case (SHADE_FLAT):
-  //       for (int i=0; i<clipped_count; i++)
-  //         triangle_2d_flat(model, &clipped_polygons[i]);
-  //       break;
+  if (model->visible)
+  {
+    switch (model->shade_style)
+    {
+      case (SHADE_FLAT):
+        for (int i=0; i<clipped_count; i++)
+          triangle_2d_flat(model, &clipped_polygons[i]);
+        break;
 
-  //     case (SHADE_SMOOTH):
-  //       for (int i=0; i<clipped_count; i++)
-  //         triangle_2d_smooth(model, &clipped_polygons[i]);
-  //       break;
+      case (SHADE_GOURAUD):
+        for (int i=0; i<clipped_count; i++)
+          triangle_2d_gouraud(model, &clipped_polygons[i]);
+        break;
 
-  //     case (SHADE_NONE):
-  //       for (int i=0; i<clipped_count; i++)
-  //         triangle_2d(model, &clipped_polygons[i]);
-  //       break;
-  //   }
-  // }
+      case (SHADE_PHONG):
+        for (int i=0; i<clipped_count; i++)
+          triangle_2d_phong(model, &clipped_polygons[i]);
+        break;
+
+      case (SHADE_NONE):
+        for (int i=0; i<clipped_count; i++)
+          triangle_2d(model, &clipped_polygons[i]);
+        break;
+    }
+  }
 
 
 
   // Multithreading
   //------------------------------------------------------------------
-  wrap1.poly_count = clipped_count;
-  wrap1.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
-  wrap1.textures = model->materials;
-  wrap1.start = 0;
-  wrap1.stop = clipped_count/4;
-  wrap1.model = model;
-  memcpy(wrap1.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
+  // wrap1.poly_count = clipped_count;
+  // wrap1.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
+  // wrap1.textures = model->materials;
+  // wrap1.start = 0;
+  // wrap1.stop = clipped_count/4;
+  // wrap1.model = model;
+  // memcpy(wrap1.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
 
-  wrap2.poly_count = clipped_count;
-  wrap2.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
-  wrap2.textures = model->materials;
-  wrap2.start = clipped_count/4;
-  wrap2.stop = clipped_count/2;
-  wrap2.model = model;
-  memcpy(wrap2.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
+  // wrap2.poly_count = clipped_count;
+  // wrap2.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
+  // wrap2.textures = model->materials;
+  // wrap2.start = clipped_count/4;
+  // wrap2.stop = clipped_count/2;
+  // wrap2.model = model;
+  // memcpy(wrap2.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
 
-  wrap3.poly_count = clipped_count;
-  wrap3.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
-  wrap3.textures = model->materials;
-  wrap3.start = clipped_count/2;
-  wrap3.stop = 3*clipped_count/4;
-  wrap3.model = model;
-  memcpy(wrap3.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
+  // wrap3.poly_count = clipped_count;
+  // wrap3.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
+  // wrap3.textures = model->materials;
+  // wrap3.start = clipped_count/2;
+  // wrap3.stop = 3*clipped_count/4;
+  // wrap3.model = model;
+  // memcpy(wrap3.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
 
-  wrap4.poly_count = clipped_count;
-  wrap4.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
-  wrap4.textures = model->materials;
-  wrap4.start = 3*clipped_count/4;
-  wrap4.stop = clipped_count;
-  wrap4.model = model;
-  memcpy(wrap4.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
+  // wrap4.poly_count = clipped_count;
+  // wrap4.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
+  // wrap4.textures = model->materials;
+  // wrap4.start = 3*clipped_count/4;
+  // wrap4.stop = clipped_count;
+  // wrap4.model = model;
+  // memcpy(wrap4.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
 
-  pthread_create(&thread1, NULL, render_polygons_pthread_flat, &wrap1);
-  pthread_create(&thread2, NULL, render_polygons_pthread_flat, &wrap2);
-  pthread_create(&thread3, NULL, render_polygons_pthread_flat, &wrap3);
-  pthread_create(&thread4, NULL, render_polygons_pthread_flat, &wrap4);
+  // pthread_create(&thread1, NULL, render_polygons_pthread_flat, &wrap1);
+  // pthread_create(&thread2, NULL, render_polygons_pthread_flat, &wrap2);
+  // pthread_create(&thread3, NULL, render_polygons_pthread_flat, &wrap3);
+  // pthread_create(&thread4, NULL, render_polygons_pthread_flat, &wrap4);
 
-  pthread_join(thread1, NULL);
-  pthread_join(thread2, NULL);
-  pthread_join(thread3, NULL);
-  pthread_join(thread4, NULL);
+  // pthread_join(thread1, NULL);
+  // pthread_join(thread2, NULL);
+  // pthread_join(thread3, NULL);
+  // pthread_join(thread4, NULL);
 
-  free(wrap1.polygons);
-  free(wrap2.polygons);
-  free(wrap3.polygons);
-  free(wrap4.polygons);
+  // free(wrap1.polygons);
+  // free(wrap2.polygons);
+  // free(wrap3.polygons);
+  // free(wrap4.polygons);
   // ------------------------------------------------------------------
 
 

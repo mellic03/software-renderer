@@ -16,6 +16,8 @@ void count_polygons(FILE *fh, Model *model)
   model->uv_count = 0;
   model->mat_count = 0;
 
+  char mat_names[64][64];
+
   char buffer[64];
   while (fgets(buffer, 64, fh) != NULL)
   {
@@ -32,8 +34,29 @@ void count_polygons(FILE *fh, Model *model)
       model->uv_count += 1;
 
     else if (buffer[0] == 'u' && buffer[1] == 's')
-      model->mat_count += 1;
+    {
+      char buffer2[2][64];
+      sscanf(buffer, "%s %s", buffer2[0], buffer2[1]);
+
+      int already_read = 0;
+
+      for (int i=0; i<model->mat_count; i++)
+      {
+        if (strcmp(mat_names[i], buffer2[1]) == 0)
+        {
+          already_read = 1;
+          break;
+        }
+      }
+
+      if (!already_read)
+      {
+        strcpy(mat_names[model->mat_count], buffer2[1]);
+        model->mat_count += 1;
+      }
+    }
   }
+  printf("mmatcount = %d\n", model->mat_count);
   rewind(fh);
 }
 
@@ -126,6 +149,10 @@ void load_polygons(FILE *fh, Model *model)
   // }
 
 
+  char **mat_names = (char **)malloc(model->mat_count * sizeof(char *));
+  for (int i=0; i<model->mat_count; i++)
+    mat_names[i] = (char *)malloc(64 * sizeof(char));
+
   // Create polygons
   int polygon_index = 0;
   int mat_index = -1; // usemtl always before vertices
@@ -157,8 +184,30 @@ void load_polygons(FILE *fh, Model *model)
 
     // line with new material
     else if (buffer[0] == 'u' && buffer[1] == 's')
+    {
       mat_index += 1;
+
+      char buffer2[2][64];
+      sscanf(buffer, "%s %s", buffer2[0], buffer2[1]);
+      printf("%s--->%s\n", buffer2[0], buffer2[1]);
+
+      int already_read = 0;
+
+      for (int i=0; i<=mat_index; i++)
+        if (strcmp(mat_names[i], buffer2[1]) == 0)
+        {
+          already_read = 1;
+          break;
+        }
+      
+      if (already_read)
+        mat_index -= 1;
+      else
+        strcpy(mat_names[mat_index], buffer2[1]);
+    }
   }
+
+  printf("WOOOO\n");
 
   // Calculate vertex normals from face normals
   rewind(fh);

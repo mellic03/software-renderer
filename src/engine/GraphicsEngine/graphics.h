@@ -19,6 +19,7 @@
 
 // GLOBALS
 //----------------------------------------
+extern SDL_Surface *pixel_buffer;
 extern SDL_Surface *pixel_array;
 extern double delta_time;
 extern Vector3 lightsource;
@@ -43,7 +44,7 @@ void scale(Model *model, float alpha);
 void scale_xyz(Model *model, float x, float y, float z);
 
 void clear_screen(Uint8 r, Uint8 g, Uint8 b);
-void render_screen(SDL_Renderer *ren);
+void draw_screen(SDL_Window *window);
 
 void box_3d(Vector3 *pos, float w, float h, float d);
 

@@ -72,8 +72,8 @@ int main(int argc, char** argv)
   }
 
   SDL_SetRelativeMouseMode(SDL_TRUE);
-
   pixel_array = SDL_GetWindowSurface(win);
+  pixel_buffer = SDL_DuplicateSurface(pixel_array);
 
   // Load assets
   //------------------------------------------------------------
@@ -85,11 +85,6 @@ int main(int argc, char** argv)
   // gameobject_translate(cube, 0, 10, 0);
   // gameobject_rotate_z(cube, 0.05);
 
-  GameObject *sphere = gameobject_create();
-  gameobject_assign_model(sphere, model_load("src/assets/sphere"));
-  gameobject_scale(sphere, 1, 1, 1);
-  sphere->model->shade_style = SHADE_PHONG;
-  gameobject_translate(sphere, 0, 2, 0);
 
   GameObject *map = gameobject_create();
   gameobject_assign_model(map, model_load("src/assets/benchmark"));
@@ -99,7 +94,7 @@ int main(int argc, char** argv)
   player = player_create();
   player->game_object = gameobject_create();
   player->cam->pos = &player->game_object->phys_object->pos;
-  gameobject_translate(player->game_object, 0, 0, -5);
+  gameobject_translate(player->game_object, 0, -10, 0);
   player->game_object->phys_object->mass = 1;
   player->game_object->phys_object->inv_mass = 1/player->game_object->phys_object->mass;
   player->game_object->phys_object->elasticity = 0;
@@ -120,8 +115,8 @@ int main(int argc, char** argv)
   while (1)
   {
     gettimeofday(&sometime1, NULL);
-    // clear_screen(109, 133, 169);
-    clear_screen(0, 0, 0);
+    clear_screen(109, 133, 169);
+    // clear_screen(0, 0, 0);
 
     input(event, graphicsengine_cam, player);
 
@@ -130,7 +125,9 @@ int main(int argc, char** argv)
 
     pthread_cond_broadcast(&main_ready);
 
+    SDL_BlitSurface(pixel_buffer, NULL, pixel_array, NULL);
     SDL_UpdateWindowSurface(win);
+
     gettimeofday(&sometime2, NULL);
     if (sometime2.tv_usec < sometime1.tv_usec)
       sometime2.tv_usec += 1000000;
