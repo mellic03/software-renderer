@@ -78,6 +78,7 @@ int main(int argc, char const* argv[])
 		exit(EXIT_FAILURE);
 	}
 
+
   while (1)
   {
     if ((new_socket = accept(server_fd, (struct sockaddr*)&address,
@@ -125,3 +126,4 @@ int main(int argc, char const* argv[])
 	shutdown(server_fd, SHUT_RDWR);
 	return 0;
 }
+

@@ -59,7 +59,6 @@ void *socket_thread()
 
 int main(int argc, char** argv)
 {
-
   for (int i=0; i<10; i++)
   {
     server_players.x_positions[i] = 0;
@@ -93,7 +92,7 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  // SDL_SetRelativeMouseMode(SDL_TRUE);
+  SDL_SetRelativeMouseMode(SDL_TRUE);
   pixel_array = SDL_GetWindowSurface(win);
   pixel_buffer = SDL_DuplicateSurface(pixel_array);
 
@@ -145,6 +144,8 @@ int main(int argc, char** argv)
 
   pthread_create(&thread_socket, NULL, socket_thread, NULL);
   pthread_detach(thread_socket);
+
+ 
 
   // Render loop
   //------------------------------------------------------------

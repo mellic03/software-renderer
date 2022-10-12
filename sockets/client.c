@@ -31,7 +31,8 @@ int send_position(int player_id, float x, float y, float z, float rot_x, float r
 	// form
 
 
-	if (inet_pton(AF_INET, "159.196.6.181", &serv_addr.sin_addr)
+	// if (inet_pton(AF_INET, "159.196.6.181", &serv_addr.sin_addr)
+	if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)
 		<= 0) {
 		printf(
 			"\nInvalid address/ Address not supported \n");
@@ -43,7 +44,7 @@ int send_position(int player_id, float x, float y, float z, float rot_x, float r
     = connect(sock, (struct sockaddr*)&serv_addr,
         sizeof(serv_addr)))
     < 0) {
-    printf("\nConnection Failed \n");
+    // printf("\nConnection Failed \n");
     return -1;
   }
 
