@@ -286,12 +286,33 @@ void clear_screen(Uint8 r, Uint8 g, Uint8 b)
   Uint16 green = g << 8;
   SDL_FillRect(pixel_buffer, NULL, red + green + b);
 
+  // // top left
+  // for (int i=0; i<SCREEN_WIDTH/2; i++)
+  //   for (int j=0; j<SCREEN_HEIGHT/2; j++)
+  //     pixel(i, j, 255, 0, 0);  
+
+  // // top right
+  // for (int i=SCREEN_WIDTH/2; i<SCREEN_WIDTH; i++)
+  //   for (int j=0; j<SCREEN_HEIGHT/2; j++)
+  //     pixel(i, j, 0, 255, 0);  
+
+  // // bottom left
+  // for (int i=0; i<SCREEN_WIDTH/2; i++)
+  //   for (int j=SCREEN_HEIGHT/2; j<SCREEN_HEIGHT; j++)
+  //     pixel(i, j, 0, 0, 255);  
+
+  // // bottom right
+  // for (int i=SCREEN_WIDTH/2; i<SCREEN_WIDTH; i++)
+  //   for (int j=SCREEN_HEIGHT/2; j<SCREEN_HEIGHT; j++)
+  //     pixel(i, j, 255, 255, 0);  
+
+
   for (int i=0; i<SCREEN_WIDTH; i++)
     for (int j=0; j<SCREEN_HEIGHT; j++)
       z_buffer[SCREEN_WIDTH*j + i] = 0;
 }
 
-void pixel(int x, int y, Uint8 r, Uint8 g, Uint8 b)
+inline void pixel(int x, int y, Uint8 r, Uint8 g, Uint8 b)
 {
   // printf("%d %d\n", x, y);
   Uint8 *const blue  = ((Uint8 *) pixel_buffer->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 0));
@@ -588,28 +609,30 @@ void triangle_2d(Model *model, Polygon *tri)
   Vector2 v2 = project_coordinate(&tri->vertices[1]);
   Vector2 v3 = project_coordinate(&tri->vertices[2]);
 
-  __m128 _reg_uv_x = _mm_set_ps(tri->uvs[0].x, tri->uvs[1].x, tri->uvs[2].x, 1);
-  __m128 _reg_uv_y = _mm_set_ps(tri->uvs[0].y, tri->uvs[1].y, tri->uvs[2].y, 1);
-  __m128 _reg_invz = _mm_set_ps(v1.w,          v2.w,          v3.w,          1);
+  // line_2d((Vector3){0, 0, 0}, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1});
+  // line_2d((Vector3){0, 0, 0}, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1});
+  // line_2d((Vector3){0, 0, 0}, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1});
 
-  _reg_uv_x = _mm_mul_ps(_reg_uv_x, _reg_invz);
-  _reg_uv_y = _mm_mul_ps(_reg_uv_y, _reg_invz);
+  Vector3 tex_inv_x = (Vector3){tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
+  Vector3 tex_inv_y = (Vector3){tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
 
   Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
   Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
   Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
   Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
 
-  Uint16 x=0, y=0, u=0, v=0;
+
+  Uint16 u=0, v=0;
   float z_index;
 
   Vector3 vert_weights;
-  Uint8 * pixels = model->materials[tri->mat_index]->pixels;
-  int pitch = model->materials[tri->mat_index]->pitch;
+  Uint8 *red, *green, *blue;
+  Uint8 *pixels = model->materials[tri->mat_index]->pixels;
 
-  for (x=lx; x<=hx; x++)
+
+  for (Uint16 x=lx; x<=hx; x++)
   {
-    for (y=ly; y<=hy; y++)
+    for (Uint16 y=ly; y<=hy; y++)
     {
       vert_weights = calculate_barycentric(x, y, v1, v2, v3);
 
@@ -621,21 +644,176 @@ void triangle_2d(Model *model, Polygon *tri)
         {
           z_buffer[SCREEN_WIDTH*y + x] = z_index;
 
-          u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index) % model->materials[tri->mat_index]->w;
-          v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index) % model->materials[tri->mat_index]->h;
+          u = (Uint16)((vert_weights.x*tex_inv_x.x + vert_weights.y*tex_inv_x.y + vert_weights.z*tex_inv_x.z) / z_index) % model->materials[tri->mat_index]->w;
+          v = (Uint16)((vert_weights.x*tex_inv_y.x + vert_weights.y*tex_inv_y.y + vert_weights.z*tex_inv_y.z) / z_index) % model->materials[tri->mat_index]->h;
 
           u *= model->materials[tri->mat_index]->format->BytesPerPixel;
 
-          Uint8 *red   = pixels + v*pitch + u+2;
-          Uint8 *green = pixels + v*pitch + u+1;
-          Uint8 *blue  = pixels + v*pitch + u+0;
+          red   = pixels + v*model->materials[tri->mat_index]->pitch + u+2;
+          green = pixels + v*model->materials[tri->mat_index]->pitch + u+1;
+          blue  = pixels + v*model->materials[tri->mat_index]->pitch + u+0;
 
           pixel(x, y, *red, *green, *blue);
+          // pixel(x, y, 0, 0, 0);
         }
       }
     }
   }
 }
+
+/**
+ * @return __m128 where each element is the weighting of each (x, y) with respect to the first input vertex
+ */
+inline __m128 SIMD_calculate_barycentric_first(__m128 *_x, __m128 *_y, __m128 *_v3x, __m128 *_v3y, __m128 *_v2y_take_v3y, __m128 *_v3x_take_v2x, float *denom)
+{
+  // first = ((v2.y-v3.y)*(x-v3.x) + (v3.x-v2.x)*(y-v3.y)) / denom
+
+  __m128 _first = _mm_sub_ps(*_x, *_v3x);
+  _first = _mm_mul_ps(*_v2y_take_v3y, _first);
+  _first = _mm_add_ps(_first, _mm_mul_ps(*_v3x_take_v2x, _mm_sub_ps(*_y, *_v3y)));
+  _first = _mm_div_ps(_first, _mm_load1_ps(denom));
+  return _first;
+}
+
+/**
+ * @return __m128 where each element is the weighting of each (x, y) with respect to the second input vertex
+ */
+inline __m128 SIMD_calculate_barycentric_second(__m128 *_x, __m128 *_y, __m128 *_v3x, __m128 *_v3y, __m128 *_v3y_take_v1y, __m128 *_v1x_take_v3x, float *denom)
+{
+  // second = ((v3.y-v1.y)*(x-v3.x) + (v1.x-v3.x)*(y-v3.y)) / denom
+  __m128 _second = _mm_sub_ps(*_x, *_v3x);
+  _second = _mm_mul_ps(*_v3y_take_v1y, _second);
+  _second = _mm_add_ps(_second, _mm_mul_ps(*_v1x_take_v3x, _mm_sub_ps(*_y, *_v3y)));
+  _second = _mm_div_ps(_second, _mm_load1_ps(denom));
+  return _second;
+}
+
+/**
+ * @return __m128 where each element is the weighting of each (x, y) with respect to the third input vertex
+ */
+inline void SIMD_calculate_barycentric_third(__m128 *identity, __m128 *first, __m128 *second, __m128 *output)
+{
+  *output = _mm_sub_ps(*identity, *first);
+  *output = _mm_sub_ps(*output, *second);
+}
+
+void SIMD_triangle_2d(Model *model, Polygon *tri)
+{
+  Vector2 v1 = project_coordinate(&tri->vertices[0]);
+  Vector2 v2 = project_coordinate(&tri->vertices[1]);
+  Vector2 v3 = project_coordinate(&tri->vertices[2]);
+
+  __m128 _vertices_x = _mm_set_ps(v1.x, v2.x, v3.x, 1);
+  __m128 _vertices_y = _mm_set_ps(v1.y, v2.y, v3.y, 1);
+  __m128 _vertices_w = _mm_set_ps(v1.w, v2.w, v3.w, 1);
+
+  __m128 _v3x = _mm_set1_ps(v3.x);
+  __m128 _v3y = _mm_set1_ps(v3.y);
+
+  __m128 _v2y_take_v3y = _mm_set1_ps(v2.y-v3.y);
+  __m128 _v3x_take_v2x = _mm_set1_ps(v3.x-v2.x);
+
+  __m128 _v3y_take_v1y = _mm_set1_ps(v3.y-v1.y);
+  __m128 _v1x_take_v3x = _mm_set1_ps(v1.x-v3.x);
+
+  float denom = (v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y);
+
+  Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
+  Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
+  Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
+  Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
+
+  Uint16 x=0, y=0, u=0, v=0;
+  Vector3 vert_weights;
+  float z_index;
+
+  __m128 _x, _y;
+  __m128 _identity = _mm_set1_ps(1);
+  __m128 _zeroes = _mm_set1_ps(0);
+  __m128 _threes = _mm_set1_ps(3);
+
+  __m128 _v1w = _mm_set1_ps(v1.w);
+  __m128 _v2w = _mm_set1_ps(v2.w);
+  __m128 _v3w = _mm_set1_ps(v3.w);
+  __m128 _v1w_by_first;
+  __m128 _v2w_by_second;
+  __m128 _v3w_by_third;
+  __m128 _z_index;
+
+  __m128 _first;
+  __m128 _second;
+  __m128 _third;
+
+  Uint16 y_range = hy-ly;
+  Uint8 remainder = y_range % 4;
+
+  for (x=lx; x<=hx; x++)
+  {
+    for (y=ly; y<=hy-remainder-1; y+=4)
+    {
+      _x = _mm_set1_ps(x);
+      _y = _mm_set_ps(y+0, y+1, y+2, y+3);
+      
+      // Calculate barycentric coordinates
+      _first = SIMD_calculate_barycentric_first(&_x, &_y, &_v3x, &_v3y, &_v2y_take_v3y, &_v3x_take_v2x, &denom);
+      _second = SIMD_calculate_barycentric_first(&_x, &_y, &_v3x, &_v3y, &_v3y_take_v1y, &_v1x_take_v3x, &denom);
+      SIMD_calculate_barycentric_third(&_identity, &_first, &_second, &_third);
+
+      _v1w_by_first  = _mm_mul_ps(_v1w, _first);
+      _v2w_by_second = _mm_mul_ps(_v2w, _second);
+      _v3w_by_third  = _mm_mul_ps(_v3w, _third);
+
+      _z_index = _mm_add_ps(_v1w_by_first, _mm_add_ps(_v2w_by_second, _v3w_by_third));
+
+      // Check whether barycentric coordinates are all >= 0
+      //------------------------------------------------------
+      _first  = _mm_cmp_ps(_first,  _zeroes, 0x0D);
+      _second = _mm_cmp_ps(_second, _zeroes, 0x0D);
+      _third  = _mm_cmp_ps(_third,  _zeroes, 0x0D);
+
+      __m128 _in_triangle = _mm_cmp_ps(_first, _second, 0x00);
+      _in_triangle = _mm_cmp_ps(_in_triangle, _third, 0x00);
+      //------------------------------------------------------
+
+
+      __m128 _z_buffer = _mm_set_ps(z_buffer[SCREEN_WIDTH*y + x], z_buffer[SCREEN_WIDTH*(y+1) + x], z_buffer[SCREEN_WIDTH*(y+2) + x], z_buffer[SCREEN_WIDTH*(y+3) + x]);
+
+      __m128 _index_greaterthan_buffer = _mm_cmp_ps(_z_index, _z_buffer, 0x0E);
+
+      for (int i=0; i<4; i++)
+      {
+        if (_in_triangle[i] != 0.0f);
+        {
+          if (_index_greaterthan_buffer[i] != 0.0f)
+          {
+            z_buffer[SCREEN_WIDTH*(y+3-i) + x] = _z_index[i];
+
+            pixel(x, y+3-i, 0, 0, 0);
+          }
+        }
+      }
+    }
+    // for (y=hy-remainder-1; y<=hy; y++)
+    // {
+    //   vert_weights = calculate_barycentric(x, y, v1, v2, v3);
+
+    //   if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
+    //   {
+    //     z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
+
+    //     if (z_index > z_buffer[SCREEN_WIDTH*y + x])
+    //     {
+    //       z_buffer[SCREEN_WIDTH*y + x] = z_index;
+
+    //       // pixel(x, y, *red, *green, *blue);
+    //       pixel(x, y, 0, 0, 0);
+    //     }
+    //   }
+    // }
+  }
+
+}
+
 
 /**
  * @param p1 start of line
@@ -1035,6 +1213,11 @@ void model_draw(Camera *cam, Model *model)
       case (SHADE_PHONG):
         for (int i=0; i<clipped_count; i++)
           triangle_2d_phong(model, &clipped_polygons[i]);
+        break;
+
+      case (SIMD_SHADE_NONE):
+        for (int i=0; i<clipped_count; i++)
+          SIMD_triangle_2d(model, &clipped_polygons[i]);
         break;
 
       case (SHADE_NONE):

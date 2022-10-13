@@ -94,11 +94,16 @@ void input(SDL_Event event, Camera *cam, Player *player)
       }
 
     if (event.type == SDL_KEYUP)
+    {
+
       if (event.key.keysym.sym == SDLK_SPACE)
       {
         jumping = 0;
       }
 
+      if (event.key.keysym.sym == SDLK_KP_ENTER)
+        toggle = !toggle;
+    }
 
     if (event.type == SDL_MOUSEBUTTONDOWN)
     toggle = 1;

@@ -29,7 +29,6 @@ extern Camera *graphicsengine_cam;
 
 void triangle_2d_flat(Model *model, Polygon *tri);
 
-
 void pixel(int x, int y, Uint8 r, Uint8 g, Uint8 b);
 
 void model_draw(Camera *cam, Model *model);

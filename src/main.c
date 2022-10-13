@@ -53,8 +53,8 @@ void *phys_thread()
 
 void *socket_thread()
 {
-  while (1)
-    send_position(player_id, player->game_object->pos.x, player->game_object->pos.y, player->game_object->pos.z, player->cam->rot.x, player->cam->rot.y, &server_players);
+  // while (1)
+  //   send_position(player_id, player->game_object->pos.x, player->game_object->pos.y, player->game_object->pos.z, player->cam->rot.x, player->cam->rot.y, &server_players);
 }
 
 int main(int argc, char** argv)
@@ -111,26 +111,26 @@ int main(int argc, char** argv)
   gameobject_assign_model(map, model_load("src/assets/benchmark"));
   map->model->shade_style = SHADE_NONE;
 
-
   player = player_create();
   player->game_object = gameobject_create();
   player->cam->pos = &player->game_object->phys_object->pos;
-  gameobject_translate(player->game_object, 0, -3, 0);
+  gameobject_translate(player->game_object, 0, -5, 0);
   player->game_object->phys_object->mass = 1;
   player->game_object->phys_object->inv_mass = 1/player->game_object->phys_object->mass;
   player->game_object->phys_object->elasticity = 0;
+  player->game_object->phys_object->vel.x = 0.1;
+  player->game_object->phys_object->vel.z = 0.1;
   graphicsengine_cam = player->cam;
-  // physobject_give_sphere_collider(player->game_object->phys_object, 2);
 
 
-  GameObject **enemies = (GameObject **)calloc(10, sizeof(GameObject *));
+  // GameObject **enemies = (GameObject **)calloc(10, sizeof(GameObject *));
 
-  for (int i=0; i<5; i++)
-  {
-    enemies[i] = gameobject_create();
-    gameobject_assign_model(enemies[i], model_load("src/assets/enemy"));
-    gameobject_translate(enemies[i], 0, -3, 0);
-  }
+  // for (int i=0; i<5; i++)
+  // {
+  //   enemies[i] = gameobject_create();
+  //   gameobject_assign_model(enemies[i], model_load("src/assets/enemy"));
+  //   gameobject_translate(enemies[i], 0, -3, 5);
+  // }
 
   
   //------------------------------------------------------------
@@ -145,7 +145,6 @@ int main(int argc, char** argv)
   pthread_create(&thread_socket, NULL, socket_thread, NULL);
   pthread_detach(thread_socket);
 
- 
 
   // Render loop
   //------------------------------------------------------------
@@ -159,32 +158,34 @@ int main(int argc, char** argv)
 
     gameobject_draw_all(graphicsengine_cam);
   
+    map->model->shade_style = toggle;
+
     // gameobject_translate(enemies[0], 0, 0, 0.01);
     // gameobject_rotate_y(enemies[0], 0.003);
     // gameobject_rotate_x(enemies[0], 0.1);
-    for (int i=0; i<5; i++)
-    {
-      if (server_players.ids[i] == player_id)
-        continue;
+    // for (int i=0; i<5; i++)
+    // {
+    //   if (server_players.ids[i] == player_id)
+    //     continue;
 
-      gameobject_rotate_y(enemies[i], -server_players.y_rotations[i]+server_players_last_frame.y_rotations[i]);
-      // gameobject_rotate_x(enemies[i], -server_players.x_rotations[i]+server_players_last_frame.x_rotations[i]);
+    //   gameobject_rotate_y(enemies[i], -server_players.y_rotations[i]+server_players_last_frame.y_rotations[i]);
+    //   // gameobject_rotate_x(enemies[i], -server_players.x_rotations[i]+server_players_last_frame.x_rotations[i]);
 
-      gameobject_translate( enemies[i],
-                            server_players.x_positions[i]-server_players_last_frame.x_positions[i],
-                            server_players.y_positions[i]-server_players_last_frame.y_positions[i],
-                            server_players.z_positions[i]-server_players_last_frame.z_positions[i]);
-    }
+    //   gameobject_translate( enemies[i],
+    //                         server_players.x_positions[i]-server_players_last_frame.x_positions[i],
+    //                         server_players.y_positions[i]-server_players_last_frame.y_positions[i],
+    //                         server_players.z_positions[i]-server_players_last_frame.z_positions[i]);
+    // }
 
-    for (int i=0; i<10; i++)
-    {
-      server_players_last_frame.ids[i]         = server_players.ids[i];
-      server_players_last_frame.x_positions[i] = server_players.x_positions[i];
-      server_players_last_frame.y_positions[i] = server_players.y_positions[i];
-      server_players_last_frame.z_positions[i] = server_players.z_positions[i];
-      server_players_last_frame.x_rotations[i] = server_players.x_rotations[i];
-      server_players_last_frame.y_rotations[i] = server_players.y_rotations[i];
-    }
+    // for (int i=0; i<10; i++)
+    // {
+    //   server_players_last_frame.ids[i]         = server_players.ids[i];
+    //   server_players_last_frame.x_positions[i] = server_players.x_positions[i];
+    //   server_players_last_frame.y_positions[i] = server_players.y_positions[i];
+    //   server_players_last_frame.z_positions[i] = server_players.z_positions[i];
+    //   server_players_last_frame.x_rotations[i] = server_players.x_rotations[i];
+    //   server_players_last_frame.y_rotations[i] = server_players.y_rotations[i];
+    // }
 
 
     pthread_cond_broadcast(&main_ready);

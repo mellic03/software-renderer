@@ -7,7 +7,7 @@ Camera *create_camera(void)
 {
   Camera *cam = (Camera *)calloc(1, sizeof(Camera));
   // cam->pos = (Vector3){0, 0, 0};
-  // cam->dir = (Vector3){0, 0, 1};
+  cam->dir = (Vector3){0, 0, 1};
   cam->rot = (Vector3){0, 0, 0};
 
   cam->speed = 1;

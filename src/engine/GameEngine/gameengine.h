@@ -5,6 +5,8 @@
 #include "../GraphicsEngine/graphics.h"
 #include "../math/vector.h"
 
+extern int toggle;
+
 typedef struct gameobject {
 
   int object_id;
