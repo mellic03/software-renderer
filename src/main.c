@@ -111,15 +111,6 @@ int main(int argc, char** argv)
   graphicsengine_cam = player->cam;
 
 
-  GameObject **enemies = (GameObject **)calloc(10, sizeof(GameObject *));
-
-  for (int i=0; i<5; i++)
-  {
-    enemies[i] = gameobject_create();
-    gameobject_assign_model(enemies[i], model_load("src/assets/enemy"));
-    gameobject_translate(enemies[i], 0, -3, 5);
-  }
-
   
   //------------------------------------------------------------
 
