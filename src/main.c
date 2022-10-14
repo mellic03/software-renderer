@@ -15,8 +15,6 @@
 
 #include "engine/engine.h"
 
-#include "../sockets/client.h"
-
 SDL_Window *win;
 SDL_Event event;
 
@@ -30,9 +28,6 @@ pthread_mutex_t mutex, mutex_render_1, mutex_render_2;
 pthread_cond_t main_ready;
 
 Player *player;
-int player_id;
-playerpositions server_players;
-playerpositions server_players_last_frame;
 
 void *phys_thread()
 {
@@ -48,23 +43,9 @@ void *phys_thread()
   }
 }
 
-void *socket_thread()
-{
-  // while (1)
-  //   send_position(player_id, player->game_object->pos.x, player->game_object->pos.y, player->game_object->pos.z, player->cam->rot.x, player->cam->rot.y, &server_players);
-}
-
 int main(int argc, char** argv)
 {
-  for (int i=0; i<10; i++)
-  {
-    server_players.x_positions[i] = 0;
-    server_players.y_positions[i] = 0;
-    server_players.z_positions[i] = 0;
-  }
-
   srand(clock());
-  player_id = rand()%1000000;
 
   // SDL setup
   //-------------------------------------------------------
@@ -100,17 +81,8 @@ int main(int argc, char** argv)
 
   // Load assets
   //------------------------------------------------------------
-
-  // GameObject *cube = gameobject_create();
-  // gameobject_assign_model(cube, model_load("src/assets/cube"));
-  // physobject_give_plane_collider(cube->phys_object, (Vector3){0, -1, 0});
-  // gameobject_scale(cube, 50, 0.1, 50);
-  // gameobject_translate(cube, 0, 10, 0);
-  // gameobject_rotate_z(cube, 0.05);
-
-
   GameObject *map = gameobject_create();
-  gameobject_assign_model(map, model_load("src/assets/enemy"));
+  gameobject_assign_model(map, model_load("src/assets/person"));
   map->model->shade_style = SHADE_NONE;
 
   player = player_create();
@@ -123,8 +95,6 @@ int main(int argc, char** argv)
   player->game_object->phys_object->vel.x = 0.1;
   player->game_object->phys_object->vel.z = 0.1;
   GE_cam = player->cam;
-
-  
   //------------------------------------------------------------
 
   pthread_mutex_init(&mutex, NULL);
@@ -133,10 +103,6 @@ int main(int argc, char** argv)
 
   pthread_create(&thread_physics, NULL, phys_thread, NULL);
   pthread_detach(thread_physics);
-
-  pthread_create(&thread_socket, NULL, socket_thread, NULL);
-  pthread_detach(thread_socket);
-
 
   // Render loop
   //------------------------------------------------------------
