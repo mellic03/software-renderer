@@ -17,6 +17,7 @@
 #include "camera.h"
 #include "../math/vector.h"
 
+
 SDL_Surface *pixel_array;
 
 float z_buffer[SCREEN_WIDTH * SCREEN_HEIGHT];

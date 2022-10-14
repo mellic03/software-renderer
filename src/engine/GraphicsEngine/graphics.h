@@ -33,9 +33,6 @@ extern Polygon *front_faces;
 
 //----------------------------------------
 
-float *precompute_sine(void);
-
-
 void triangle_2d_flat(Model *model, Polygon *tri);
 
 void pixel(int x, int y, Uint8 r, Uint8 g, Uint8 b);

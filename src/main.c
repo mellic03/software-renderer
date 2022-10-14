@@ -47,6 +47,7 @@ int main(int argc, char** argv)
 {
   srand(clock());
 
+
   // SDL setup
   //-------------------------------------------------------
   if (SDL_Init(SDL_INIT_VIDEO) != 0)
