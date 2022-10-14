@@ -1127,6 +1127,7 @@ Polygon *clip_against_planes(Camera *cam, int in_size, Polygon *polygons_in, int
  */
 void GE_model_enque(Model *model)
 {
+
   // Only queue front faces
   for (int i=0; i<model->poly_count; i++)
     if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], *GE_cam->pos), model->polygons[i].face_normal) < 0)
@@ -1238,10 +1239,14 @@ void GE_queue_rotate(void)
   // for (int i=0; i<size; i++)
   //   RSR_enque(GE_rasterise_queue, &front_faces[i]);
 
-  for (int i=0; i<size; i++)
+  int clippedcount;
+  Polygon * clipped = clip_against_planes(GE_cam, size, front_faces, &clippedcount);
+
+  for (int i=0; i<clippedcount; i++)
   {
-    triangle_2d(RSR_front(GE_rasterise_queue));
-    RSR_dequeue(GE_rasterise_queue);
+    triangle_2d(&clipped[i]);
+    // triangle_2d(RSR_front(GE_rasterise_queue));
+    // RSR_dequeue(GE_rasterise_queue);
   }
 
 }

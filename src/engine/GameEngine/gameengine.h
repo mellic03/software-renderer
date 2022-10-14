@@ -45,7 +45,7 @@ void gameobject_scale(GameObject *object, float x, float y, float z);
 
 void gameobject_delete(GameObject *object);
 
-void gameobject_draw_all(Camera *cam);
+void gameobject_draw_all();
 
 void player_collision(Player *player);
 

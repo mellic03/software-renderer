@@ -191,7 +191,7 @@ void gameobject_delete(GameObject *object)
   }
 }
 
-void gameobject_draw_all(Camera *cam) {
+void gameobject_draw_all() {
 
   GameObject *temp = head;
 
