@@ -59,6 +59,7 @@ Polygon *RSR_front(RSR_queue_t *queue)
 {
   if (queue->head != NULL)
     return queue->head->data;
+  else return NULL;
 }
 
 Polygon *RSR_rear(RSR_queue_t *queue)

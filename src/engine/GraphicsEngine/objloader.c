@@ -263,22 +263,6 @@ void load_material(FILE *fh, char *filepath, Model *model)
       printf("FILE: %s\n", filepath_copy);
       model->materials[mat_index] = SDL_LoadBMP(filepath_copy);
 
-      // load 50% image
-      // strcpy(filepath_copy, filepath);
-      // strcat(filepath_copy, "/");
-      // strcat(filepath_copy, token);
-      // strcat(filepath_copy, "50");
-      // model->materials[mat_index + model->mat_count] = SDL_LoadBMP(filepath_copy);
-
-      // load normal map
-      // strcpy(filepath_copy, filepath);
-      // strcat(filepath_copy, "/");
-      // strcat(filepath_copy, token);
-      // strcat(filepath_copy, "nmap");
-      // printf("FILE: %s\n", filepath_copy);
-      // model->materials[mat_index + model->mat_count] = SDL_LoadBMP(filepath_copy);
-
-
       mat_index -= 1;
     }
   }

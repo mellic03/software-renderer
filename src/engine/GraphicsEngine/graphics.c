@@ -34,6 +34,16 @@ Polygon *GE_clipped_polygons;
 Polygon *front_faces;
 
 
+float *precomputed_sine;
+
+float *precompute_sine(void)
+{
+  float *sine_arr = (float *)malloc(360 * sizeof(float));
+  for (int i=0; i<360; i++)
+    sine_arr[i] = sin((i*3.1415) / 180);
+  return sine_arr;
+}
+
 // TRANSFORMATIONS
 //-------------------------------------------------------------------------------
 void translate_model(Model *model, float x, float y, float z)
@@ -1157,36 +1167,6 @@ void GE_model_enque(Model *model)
   // int clipped_count;
   // Polygon *clipped_polygons = clip_against_planes(cam, frontface_count, front_faces, &clipped_count);
 
-  // if (model->visible)
-  // {
-  //   switch (model->shade_style)
-  //   {
-  //     case (SHADE_FLAT):
-  //       for (int i=0; i<clipped_count; i++)
-  //         triangle_2d_flat(model, &clipped_polygons[i]);
-  //       break;
-
-  //     case (SHADE_GOURAUD):
-  //       for (int i=0; i<clipped_count; i++)
-  //         triangle_2d_gouraud(model, &clipped_polygons[i]);
-  //       break;
-
-  //     case (SHADE_PHONG):
-  //       for (int i=0; i<clipped_count; i++)
-  //         triangle_2d_phong(model, &clipped_polygons[i]);
-  //       break;
-
-  //     case (SIMD_SHADE_NONE):
-  //       for (int i=0; i<clipped_count; i++)
-  //         SIMD_triangle_2d(model, &clipped_polygons[i]);
-  //       break;
-
-  //     case (SHADE_NONE):
-  //       for (int i=0; i<clipped_count; i++)
-  //         triangle_2d(model, &clipped_polygons[i]);
-  //       break;
-  //   }
-  // }
 
   // free(frontface_indices);
   // free(front_faces);
@@ -1240,12 +1220,12 @@ void GE_queue_rotate(void)
   // for (int i=0; i<size; i++)
   //   RSR_enque(GE_rasterise_queue, &front_faces[i]);
 
-  int clippedcount;
-  Polygon * clipped = clip_against_planes(GE_cam, size, front_faces, &clippedcount);
+  int clipped_count;
+  Polygon *clipped_polygons = clip_against_planes(GE_cam, size, front_faces, &clipped_count);
 
-  for (int i=0; i<clippedcount; i++)
+  for (int i=0; i<clipped_count; i++)
   {
-    triangle_2d(&clipped[i]);
+    triangle_2d(&clipped_polygons[i]);
     // triangle_2d(RSR_front(GE_rasterise_queue));
     // RSR_dequeue(GE_rasterise_queue);
   }
