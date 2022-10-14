@@ -5,8 +5,6 @@
 #define G 55 // Gravitational constant
 #define DEFAULT_ELASTICITY 1
 
-extern double phys_delta_time;
-
 typedef struct {
   Vector3 *pos, dir;
 } PlaneCollider;

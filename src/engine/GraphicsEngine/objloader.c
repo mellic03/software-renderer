@@ -171,7 +171,6 @@ void load_polygons(FILE *fh, Model *model)
         token = strtok(NULL, space); // token == "xxx/xxx/xxx"
         extract_vert_text_norm(temp, token);
         model->polygons[polygon_index].vertices[i] = vertices[temp[0]-1];
-        model->polygons[polygon_index].og_vertices[i] = vertices[temp[0]-1];
         model->polygons[polygon_index].vertex_indices[i] = temp[0]-1;
         model->polygons[polygon_index].uvs[i] = tex_coords[temp[1]-1];
       }
@@ -329,12 +328,12 @@ Model *model_load(char *filepath)
 
   for (int i=0; i<model->poly_count; i++)
   {
+    model->polygons[i].texture = model->materials[model->polygons[i].mat_index];
     for (int j=0; j<3; j++)
     {
-      // model->polygons[i].uvs[j].x = 1 - model->polygons[i].uvs[j].x;
       model->polygons[i].uvs[j].y = 1 - model->polygons[i].uvs[j].y;
-      model->polygons[i].uvs[j].x *= model->materials[model->polygons[i].mat_index]->w;
-      model->polygons[i].uvs[j].y *= model->materials[model->polygons[i].mat_index]->h;
+      model->polygons[i].uvs[j].x *= model->polygons[i].texture->w;
+      model->polygons[i].uvs[j].y *= model->polygons[i].texture->h;
     }
   }
 

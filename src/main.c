@@ -42,12 +42,9 @@ void *phys_thread()
   {
     pthread_cond_wait(&main_ready, &mutex);
 
-    t = clock();
     physics_tick();
     gameobject_tick();
     player_collision(player);
-
-    phys_delta_time = (double)(clock() - t) / CLOCKS_PER_SEC;
   }
 }
 
@@ -94,7 +91,6 @@ int main(int argc, char** argv)
 
   SDL_SetRelativeMouseMode(SDL_TRUE);
   pixel_array = SDL_GetWindowSurface(win);
-  pixel_buffer = SDL_DuplicateSurface(pixel_array);
 
   // Load assets
   //------------------------------------------------------------
@@ -160,6 +156,8 @@ int main(int argc, char** argv)
   
     map->model->shade_style = toggle;
 
+
+
     // gameobject_translate(enemies[0], 0, 0, 0.01);
     // gameobject_rotate_y(enemies[0], 0.003);
     // gameobject_rotate_x(enemies[0], 0.1);
@@ -190,7 +188,6 @@ int main(int argc, char** argv)
 
     pthread_cond_broadcast(&main_ready);
 
-    SDL_BlitSurface(pixel_buffer, NULL, pixel_array, NULL);
     SDL_UpdateWindowSurface(win);
 
     gettimeofday(&sometime2, NULL);
@@ -212,5 +209,3 @@ int main(int argc, char** argv)
 
   return 0;
 }
-
-

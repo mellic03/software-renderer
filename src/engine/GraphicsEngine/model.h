@@ -14,15 +14,15 @@ typedef enum {SHADE_NONE, SIMD_SHADE_NONE, SHADE_FLAT, SHADE_GOURAUD, SHADE_PHON
 
 typedef struct {
 
+  Vector3 og_vertices[3];
   Vector3 vertices[3];
   Vector3 normals[3];
-  Vector3 og_vertices[3];
-
-  int vertex_indices[3]; // Used only in load_polygons for generating vertex normals
-
   Vector3 face_normal;
-
   Vector2 uvs[3];
+
+  SDL_Surface *texture;
+  
+  int vertex_indices[3]; // Used only in load_polygons for generating vertex normals
   int mat_index; // index of material to use
 
 } Polygon;

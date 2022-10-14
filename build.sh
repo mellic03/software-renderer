@@ -6,6 +6,7 @@ gcc \
 ./src/engine/GraphicsEngine/model.c \
 ./src/engine/GraphicsEngine/objloader.c \
 ./src/engine/GraphicsEngine/camera.c \
+./src/engine/GraphicsEngine/queue.c \
 ./src/engine/PhysicsEngine/physics.c \
 ./src/engine/PhysicsEngine/collision.c \
 ./src/engine/GameEngine/gameengine.c \

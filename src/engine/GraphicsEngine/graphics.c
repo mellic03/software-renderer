@@ -17,7 +17,6 @@
 #include "camera.h"
 #include "../math/vector.h"
 
-SDL_Surface *pixel_buffer;
 SDL_Surface *pixel_array;
 
 float z_buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
@@ -26,6 +25,8 @@ Vector3 lightsource = {0, -1, 0};
 
 double delta_time = 0.001;
 Camera *graphicsengine_cam;
+
+QUEUE *GE_poly_queue;
 
 
 // TRANSFORMATIONS
@@ -271,7 +272,6 @@ void scale_xyz(Model *model, float x, float y, float z)
       model->polygons[i].og_vertices[j].z *= z;
     }
 }
-
 //-------------------------------------------------------------------------------
 
 // DRAWING
@@ -284,28 +284,7 @@ void clear_screen(Uint8 r, Uint8 g, Uint8 b)
 
   Uint32 red = r << 16;
   Uint16 green = g << 8;
-  SDL_FillRect(pixel_buffer, NULL, red + green + b);
-
-  // // top left
-  // for (int i=0; i<SCREEN_WIDTH/2; i++)
-  //   for (int j=0; j<SCREEN_HEIGHT/2; j++)
-  //     pixel(i, j, 255, 0, 0);  
-
-  // // top right
-  // for (int i=SCREEN_WIDTH/2; i<SCREEN_WIDTH; i++)
-  //   for (int j=0; j<SCREEN_HEIGHT/2; j++)
-  //     pixel(i, j, 0, 255, 0);  
-
-  // // bottom left
-  // for (int i=0; i<SCREEN_WIDTH/2; i++)
-  //   for (int j=SCREEN_HEIGHT/2; j<SCREEN_HEIGHT; j++)
-  //     pixel(i, j, 0, 0, 255);  
-
-  // // bottom right
-  // for (int i=SCREEN_WIDTH/2; i<SCREEN_WIDTH; i++)
-  //   for (int j=SCREEN_HEIGHT/2; j<SCREEN_HEIGHT; j++)
-  //     pixel(i, j, 255, 255, 0);  
-
+  SDL_FillRect(pixel_array, NULL, red + green + b);
 
   for (int i=0; i<SCREEN_WIDTH; i++)
     for (int j=0; j<SCREEN_HEIGHT; j++)
@@ -315,11 +294,11 @@ void clear_screen(Uint8 r, Uint8 g, Uint8 b)
 inline void pixel(int x, int y, Uint8 r, Uint8 g, Uint8 b)
 {
   // printf("%d %d\n", x, y);
-  Uint8 *const blue  = ((Uint8 *) pixel_buffer->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 0));
+  Uint8 *const blue  = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 0));
   *blue = b;
-  Uint8 *const green = ((Uint8 *) pixel_buffer->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 1));
+  Uint8 *const green = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 1));
   *green = g;
-  Uint8 *const red   = ((Uint8 *) pixel_buffer->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 2));
+  Uint8 *const red   = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 2));
   *red = r;
 }
 
@@ -627,7 +606,7 @@ void triangle_2d(Model *model, Polygon *tri)
 
   Vector3 vert_weights;
   Uint8 *red, *green, *blue;
-  Uint8 *pixels = model->materials[tri->mat_index]->pixels;
+  Uint8 *pixels = tri->texture->pixels;
 
 
   for (Uint16 x=lx; x<=hx; x++)
@@ -644,17 +623,16 @@ void triangle_2d(Model *model, Polygon *tri)
         {
           z_buffer[SCREEN_WIDTH*y + x] = z_index;
 
-          u = (Uint16)((vert_weights.x*tex_inv_x.x + vert_weights.y*tex_inv_x.y + vert_weights.z*tex_inv_x.z) / z_index) % model->materials[tri->mat_index]->w;
-          v = (Uint16)((vert_weights.x*tex_inv_y.x + vert_weights.y*tex_inv_y.y + vert_weights.z*tex_inv_y.z) / z_index) % model->materials[tri->mat_index]->h;
+          u = (Uint16)((vert_weights.x*tex_inv_x.x + vert_weights.y*tex_inv_x.y + vert_weights.z*tex_inv_x.z) / z_index) % tri->texture->w;
+          v = (Uint16)((vert_weights.x*tex_inv_y.x + vert_weights.y*tex_inv_y.y + vert_weights.z*tex_inv_y.z) / z_index) % tri->texture->h;
 
           u *= model->materials[tri->mat_index]->format->BytesPerPixel;
 
-          red   = pixels + v*model->materials[tri->mat_index]->pitch + u+2;
-          green = pixels + v*model->materials[tri->mat_index]->pitch + u+1;
-          blue  = pixels + v*model->materials[tri->mat_index]->pitch + u+0;
+          red   = pixels + v*tri->texture->pitch + u+2;
+          green = pixels + v*tri->texture->pitch + u+1;
+          blue  = pixels + v*tri->texture->pitch + u+0;
 
           pixel(x, y, *red, *green, *blue);
-          // pixel(x, y, 0, 0, 0);
         }
       }
     }
@@ -664,7 +642,7 @@ void triangle_2d(Model *model, Polygon *tri)
 /**
  * @return __m128 where each element is the weighting of each (x, y) with respect to the first input vertex
  */
-inline __m128 SIMD_calculate_barycentric_first(__m128 *_x, __m128 *_y, __m128 *_v3x, __m128 *_v3y, __m128 *_v2y_take_v3y, __m128 *_v3x_take_v2x, float *denom)
+__m128 SIMD_calculate_barycentric_first(__m128 *_x, __m128 *_y, __m128 *_v3x, __m128 *_v3y, __m128 *_v2y_take_v3y, __m128 *_v3x_take_v2x, float *denom)
 {
   // first = ((v2.y-v3.y)*(x-v3.x) + (v3.x-v2.x)*(y-v3.y)) / denom
 
@@ -678,7 +656,7 @@ inline __m128 SIMD_calculate_barycentric_first(__m128 *_x, __m128 *_y, __m128 *_
 /**
  * @return __m128 where each element is the weighting of each (x, y) with respect to the second input vertex
  */
-inline __m128 SIMD_calculate_barycentric_second(__m128 *_x, __m128 *_y, __m128 *_v3x, __m128 *_v3y, __m128 *_v3y_take_v1y, __m128 *_v1x_take_v3x, float *denom)
+__m128 SIMD_calculate_barycentric_second(__m128 *_x, __m128 *_y, __m128 *_v3x, __m128 *_v3y, __m128 *_v3y_take_v1y, __m128 *_v1x_take_v3x, float *denom)
 {
   // second = ((v3.y-v1.y)*(x-v3.x) + (v1.x-v3.x)*(y-v3.y)) / denom
   __m128 _second = _mm_sub_ps(*_x, *_v3x);
@@ -691,7 +669,7 @@ inline __m128 SIMD_calculate_barycentric_second(__m128 *_x, __m128 *_y, __m128 *
 /**
  * @return __m128 where each element is the weighting of each (x, y) with respect to the third input vertex
  */
-inline void SIMD_calculate_barycentric_third(__m128 *identity, __m128 *first, __m128 *second, __m128 *output)
+void SIMD_calculate_barycentric_third(__m128 *identity, __m128 *first, __m128 *second, __m128 *output)
 {
   *output = _mm_sub_ps(*identity, *first);
   *output = _mm_sub_ps(*output, *second);
@@ -702,6 +680,12 @@ void SIMD_triangle_2d(Model *model, Polygon *tri)
   Vector2 v1 = project_coordinate(&tri->vertices[0]);
   Vector2 v2 = project_coordinate(&tri->vertices[1]);
   Vector2 v3 = project_coordinate(&tri->vertices[2]);
+
+  Vector3 tex_inv_x = (Vector3){tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
+  Vector3 tex_inv_y = (Vector3){tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
+  Uint8 *red, *green, *blue;
+  Uint8 *pixels = model->materials[tri->mat_index]->pixels;
+
 
   __m128 _vertices_x = _mm_set_ps(v1.x, v2.x, v3.x, 1);
   __m128 _vertices_y = _mm_set_ps(v1.y, v2.y, v3.y, 1);
@@ -729,7 +713,7 @@ void SIMD_triangle_2d(Model *model, Polygon *tri)
 
   __m128 _x, _y;
   __m128 _identity = _mm_set1_ps(1);
-  __m128 _zeroes = _mm_set1_ps(0);
+  __m128 _zeroes = _mm_set1_ps(0.0f);
   __m128 _threes = _mm_set1_ps(3);
 
   __m128 _v1w = _mm_set1_ps(v1.w);
@@ -759,59 +743,81 @@ void SIMD_triangle_2d(Model *model, Polygon *tri)
       _second = SIMD_calculate_barycentric_first(&_x, &_y, &_v3x, &_v3y, &_v3y_take_v1y, &_v1x_take_v3x, &denom);
       SIMD_calculate_barycentric_third(&_identity, &_first, &_second, &_third);
 
-      _v1w_by_first  = _mm_mul_ps(_v1w, _first);
-      _v2w_by_second = _mm_mul_ps(_v2w, _second);
-      _v3w_by_third  = _mm_mul_ps(_v3w, _third);
+      _v1w_by_first  = _mm_mul_ps(1/_v1w, _first);
+      _v2w_by_second = _mm_mul_ps(1/_v2w, _second);
+      _v3w_by_third  = _mm_mul_ps(1/_v3w, _third);
 
       _z_index = _mm_add_ps(_v1w_by_first, _mm_add_ps(_v2w_by_second, _v3w_by_third));
 
+
       // Check whether barycentric coordinates are all >= 0
       //------------------------------------------------------
-      _first  = _mm_cmp_ps(_first,  _zeroes, 0x0D);
-      _second = _mm_cmp_ps(_second, _zeroes, 0x0D);
-      _third  = _mm_cmp_ps(_third,  _zeroes, 0x0D);
+      __m128 _cmp_first  = _mm_cmpgt_ps(_first,  _zeroes);
+      __m128 _cmp_second = _mm_cmpgt_ps(_second, _zeroes);
+      __m128 _cmp_third  = _mm_cmpgt_ps(_third,  _zeroes);
 
-      __m128 _in_triangle = _mm_cmp_ps(_first, _second, 0x00);
-      _in_triangle = _mm_cmp_ps(_in_triangle, _third, 0x00);
+      Uint8 _out_first  = _mm_movemask_ps(_cmp_first);        // 0000 1111
+      Uint8 _out_second = _mm_movemask_ps(_cmp_second);       // 0000 1101
+      Uint8 _out_third  = _mm_movemask_ps(_cmp_third);        // 0000 1011
+
+      Uint8 _out_all = _out_first & _out_second & _out_third; // 0000 1001
+
+      Uint8 masks[4] = {0b00001000, 0b00000100, 0b00000010, 0b00000001};
       //------------------------------------------------------
 
-
       __m128 _z_buffer = _mm_set_ps(z_buffer[SCREEN_WIDTH*y + x], z_buffer[SCREEN_WIDTH*(y+1) + x], z_buffer[SCREEN_WIDTH*(y+2) + x], z_buffer[SCREEN_WIDTH*(y+3) + x]);
-
-      __m128 _index_greaterthan_buffer = _mm_cmp_ps(_z_index, _z_buffer, 0x0E);
+      __m128 _zindex_greaterthan_zbuffer = _mm_cmpgt_ps(_z_index, _z_buffer);
+      Uint8 _out_z = _mm_movemask_ps(_zindex_greaterthan_zbuffer);
 
       for (int i=0; i<4; i++)
       {
-        if (_in_triangle[i] != 0.0f);
+        if (masks[i] & _out_all) // If in triangle
         {
-          if (_index_greaterthan_buffer[i] != 0.0f)
+          if (masks[i] & _out_z) // If z-index is greater than value in z-buffer
           {
-            z_buffer[SCREEN_WIDTH*(y+3-i) + x] = _z_index[i];
+            _z_buffer[SCREEN_WIDTH*(y+i) + x] = _z_index[i];
 
-            pixel(x, y+3-i, 0, 0, 0);
+            u = (Uint16)((_first[3-i]*tex_inv_x.x + _second[3-i]*tex_inv_x.y + _third[3-i]*tex_inv_x.z) / z_index) % tri->texture->w;
+            v = (Uint16)((_first[3-i]*tex_inv_y.x + _second[3-i]*tex_inv_y.y + _third[3-i]*tex_inv_y.z) / z_index) % tri->texture->h;
+
+            u *= tri->texture->format->BytesPerPixel;
+
+            red   = pixels + v*tri->texture->pitch + u+2;
+            green = pixels + v*tri->texture->pitch + u+1;
+            blue  = pixels + v*tri->texture->pitch + u+0;
+
+            pixel(x, y+i, *red, *green, *blue);
           }
         }
       }
+
     }
-    // for (y=hy-remainder-1; y<=hy; y++)
-    // {
-    //   vert_weights = calculate_barycentric(x, y, v1, v2, v3);
 
-    //   if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
-    //   {
-    //     z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
+    for (y=hy-remainder; y<=hy; y++)
+    {
+      vert_weights = calculate_barycentric(x, y, v1, v2, v3);
 
-    //     if (z_index > z_buffer[SCREEN_WIDTH*y + x])
-    //     {
-    //       z_buffer[SCREEN_WIDTH*y + x] = z_index;
+      if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
+      {
+        z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
 
-    //       // pixel(x, y, *red, *green, *blue);
-    //       pixel(x, y, 0, 0, 0);
-    //     }
-    //   }
-    // }
+        if (z_index > z_buffer[SCREEN_WIDTH*y + x])
+        {
+          u = (Uint16)((vert_weights.x*tex_inv_x.x + vert_weights.y*tex_inv_x.y + vert_weights.z*tex_inv_x.z) / z_index) % model->materials[tri->mat_index]->w;
+          v = (Uint16)((vert_weights.x*tex_inv_y.x + vert_weights.y*tex_inv_y.y + vert_weights.z*tex_inv_y.z) / z_index) % model->materials[tri->mat_index]->h;
+
+          u *= model->materials[tri->mat_index]->format->BytesPerPixel;
+
+          red   = pixels + v*model->materials[tri->mat_index]->pitch + u+2;
+          green = pixels + v*model->materials[tri->mat_index]->pitch + u+1;
+          blue  = pixels + v*model->materials[tri->mat_index]->pitch + u+0;
+
+          pixel(x, y, *red, *green, *blue);
+          // pixel(x, y, 0, 0, 0);
+        }
+      }
+    }
   }
-
 }
 
 
@@ -1112,51 +1118,6 @@ Polygon *clip_against_planes(Camera *cam, int in_size, Polygon *polygons_in, int
   return clipped_4;
 }
 
-struct wrapper {
-  int poly_count;
-  Polygon *polygons;
-  SDL_Surface **textures;
-  Model *model;
-  int start, stop;
-};
-
-pthread_t thread1, thread2, thread3, thread4;
-struct wrapper wrap1;
-struct wrapper wrap2;
-struct wrapper wrap3;
-struct wrapper wrap4;
-
-void *render_polygons_pthread_flat(void *ptr)
-{
-  struct wrapper *w1 = (struct wrapper *)ptr;
-  
-  switch (w1->model->shade_style)
-  {
-    case (SHADE_NONE):
-      for (int i=w1->start; i<w1->stop; i++)
-        triangle_2d(w1->model, &w1->polygons[i]);
-      break;
-
-    case (SHADE_FLAT):
-      for (int i=w1->start; i<w1->stop; i++)
-        triangle_2d_flat(w1->model, &w1->polygons[i]);
-      break;
-
-    case (SHADE_GOURAUD):
-      for (int i=w1->start; i<w1->stop; i++)
-        triangle_2d_gouraud(w1->model, &w1->polygons[i]);
-      break;
-
-    case (SHADE_PHONG):
-      for (int i=w1->start; i<w1->stop; i++)
-        triangle_2d_phong(w1->model, &w1->polygons[i]);
-      break;
-  }
-
-
-  pthread_exit(NULL);
-}
-
 void model_draw(Camera *cam, Model *model)
 {
   int *frontface_indices = (int *)malloc(model->poly_count * sizeof(int));
@@ -1165,7 +1126,7 @@ void model_draw(Camera *cam, Model *model)
   for (int i=0; i<model->poly_count; i++)
     if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], *cam->pos), model->polygons[i].face_normal) < 0)
       frontface_indices[frontface_count++] = i;
-  
+
   Polygon *front_faces = (Polygon *)malloc(frontface_count * sizeof(Polygon));
   for (int i=0; i<frontface_count; i++)
     front_faces[i] = model->polygons[frontface_indices[i]];
@@ -1226,59 +1187,6 @@ void model_draw(Camera *cam, Model *model)
         break;
     }
   }
-
-
-
-  // Multithreading
-  //------------------------------------------------------------------
-  // wrap1.poly_count = clipped_count;
-  // wrap1.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
-  // wrap1.textures = model->materials;
-  // wrap1.start = 0;
-  // wrap1.stop = clipped_count/4;
-  // wrap1.model = model;
-  // memcpy(wrap1.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
-
-  // wrap2.poly_count = clipped_count;
-  // wrap2.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
-  // wrap2.textures = model->materials;
-  // wrap2.start = clipped_count/4;
-  // wrap2.stop = clipped_count/2;
-  // wrap2.model = model;
-  // memcpy(wrap2.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
-
-  // wrap3.poly_count = clipped_count;
-  // wrap3.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
-  // wrap3.textures = model->materials;
-  // wrap3.start = clipped_count/2;
-  // wrap3.stop = 3*clipped_count/4;
-  // wrap3.model = model;
-  // memcpy(wrap3.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
-
-  // wrap4.poly_count = clipped_count;
-  // wrap4.polygons = (Polygon *)malloc(clipped_count * sizeof(Polygon));
-  // wrap4.textures = model->materials;
-  // wrap4.start = 3*clipped_count/4;
-  // wrap4.stop = clipped_count;
-  // wrap4.model = model;
-  // memcpy(wrap4.polygons, clipped_polygons, clipped_count * sizeof(Polygon));
-
-  // pthread_create(&thread1, NULL, render_polygons_pthread_flat, &wrap1);
-  // pthread_create(&thread2, NULL, render_polygons_pthread_flat, &wrap2);
-  // pthread_create(&thread3, NULL, render_polygons_pthread_flat, &wrap3);
-  // pthread_create(&thread4, NULL, render_polygons_pthread_flat, &wrap4);
-
-  // pthread_join(thread1, NULL);
-  // pthread_join(thread2, NULL);
-  // pthread_join(thread3, NULL);
-  // pthread_join(thread4, NULL);
-
-  // free(wrap1.polygons);
-  // free(wrap2.polygons);
-  // free(wrap3.polygons);
-  // free(wrap4.polygons);
-  // ------------------------------------------------------------------
-
 
   free(frontface_indices);
   free(front_faces);

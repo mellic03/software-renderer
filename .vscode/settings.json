@@ -60,6 +60,8 @@
     "unistd.h": "c",
     "inet.h": "c",
     "in.h": "c",
-    "client.h": "c"
+    "client.h": "c",
+    "__node_handle": "c",
+    "queue.h": "c"
   }
 }

@@ -8,6 +8,7 @@
 #include "camera.h"
 #include "../math/vector.h"
 #include "model.h"
+#include "queue.h"
 
 #ifndef GRAPHICS_H
 #define GRAPHICS_H
@@ -44,8 +45,6 @@ void scale_xyz(Model *model, float x, float y, float z);
 
 void clear_screen(Uint8 r, Uint8 g, Uint8 b);
 void draw_screen(SDL_Window *window);
-
-void box_3d(Vector3 *pos, float w, float h, float d);
 
 Vector3 calculate_barycentric_3d(int x, int y, Vector3 v1, Vector3 v2, Vector3 v3);
 

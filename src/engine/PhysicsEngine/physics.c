@@ -8,7 +8,6 @@
 
 static PhysObject *head = NULL;
 static int physobject_count = 0;
-double phys_delta_time = 0;
 
 void physics_tick(void)
 {

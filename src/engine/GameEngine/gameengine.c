@@ -42,7 +42,7 @@ void player_collision(Player *player)
     {
       for (int i=0; i<obj->model->poly_count; i++)
       {
-        if (vector3_dot(obj->model->polygons[i].face_normal, player->ray_down) < 0)
+        if (vector3_dot(obj->model->polygons[i].face_normal, player->ray_down) < -0.2)
         {
           if (point_over_triangle(&obj->model->polygons[i], player->game_object->pos))
           {
