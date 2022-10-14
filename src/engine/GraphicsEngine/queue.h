@@ -10,34 +10,33 @@
 
 #include "model.h"
 
-typedef struct node {
+typedef struct RSR_node {
   Polygon *data;
-  struct node *next;
-} NODE;
+  struct RSR_node *next;
+} RSR_node_t;
 
-typedef struct queue {
+typedef struct RSR_queue {
   int size;
-  NODE *head;
-  NODE *tail;
-} QUEUE;
+  RSR_node_t *head;
+  RSR_node_t *tail;
+} RSR_queue_t;
 
 
 // LINKED LIST
 //----------------------------------------------
-NODE *RSR_node_create(Polygon *polygon);
-void RSR_node_free(NODE *node);
+RSR_node_t *RSR_node_create(Polygon *polygon);
+void RSR_node_free(RSR_node_t *node);
 //----------------------------------------------
 
 
 // QUEUE
 //----------------------------------------------
-void RSR_enque(QUEUE *queue, Polygon *polygon);
-void RSR_dequeue(QUEUE *queue);
-Polygon *RSR_front(QUEUE *queue);
-Polygon *RSR_rear(QUEUE *queue);
-QUEUE *RSR_queue_create(void);
+void RSR_enque(RSR_queue_t *queue, Polygon *polygon);
+void RSR_dequeue(RSR_queue_t *queue);
+Polygon *RSR_front(RSR_queue_t *queue);
+Polygon *RSR_rear(RSR_queue_t *queue);
+RSR_queue_t *RSR_queue_create(void);
 //----------------------------------------------
-
 
 
 

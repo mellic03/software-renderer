@@ -199,14 +199,14 @@ void gameobject_draw_all(Camera *cam) {
     return;
 
   if (temp->model != NULL)
-    model_draw(cam, temp->model);
+    GE_model_enque(temp->model);
   
   while (temp->next != NULL)
   {
     temp = temp->next;
 
     if (temp->model != NULL)
-      model_draw(cam, temp->model);
+      GE_model_enque(temp->model);
   }
 
 }

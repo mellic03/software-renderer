@@ -11,21 +11,19 @@
 #include "model.h"
 
 
-NODE *RSR_node_create(Polygon *polygon)
+RSR_node_t *RSR_node_create(Polygon *polygon)
 {
-  NODE *new = (NODE *)malloc(sizeof(NODE));
+  RSR_node_t *new = (RSR_node_t *)malloc(sizeof(RSR_node_t));
   new->data = polygon;
   return new;
 }
 
-void RSR_node_free(NODE *node)
+void RSR_node_free(RSR_node_t *node)
 {
-  SDL_FreeSurface(node->data->texture);
-  free(node->data);
   free(node);
 }
 
-void RSR_enque(QUEUE *queue, Polygon *polygon)
+void RSR_enque(RSR_queue_t *queue, Polygon *polygon)
 {
   if (queue->size == 0)
   {
@@ -35,39 +33,40 @@ void RSR_enque(QUEUE *queue, Polygon *polygon)
   }
   else
   {
-    NODE *new = RSR_node_create(polygon);
+    RSR_node_t *new = RSR_node_create(polygon);
     queue->tail->next = new;
     queue->tail = new;
   }
   queue->size += 1;
 }
 
-void RSR_dequeue(QUEUE *queue)
+void RSR_dequeue(RSR_queue_t *queue)
 {
   if (queue->size == 0)
     return;
 
   else
   {
-    NODE *temp = queue->head->next;
+    RSR_node_t *temp = queue->head->next;
     RSR_node_free(queue->head);
     queue->head = temp;
+
+    queue->size -= 1;
   }
-  queue->size -= 1;
 }
 
-Polygon *RSR_front(QUEUE *queue)
+Polygon *RSR_front(RSR_queue_t *queue)
 {
   return queue->head->data;
 }
 
-Polygon *RSR_rear(QUEUE *queue)
+Polygon *RSR_rear(RSR_queue_t *queue)
 {
   return queue->tail->data;
 }
 
-QUEUE *RSR_queue_create(void)
+RSR_queue_t *RSR_queue_create(void)
 {
-  QUEUE *new = calloc(1, sizeof(QUEUE));
+  RSR_queue_t *new = calloc(1, sizeof(RSR_queue_t));
   return new;
 }

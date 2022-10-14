@@ -92,6 +92,12 @@ int main(int argc, char** argv)
   SDL_SetRelativeMouseMode(SDL_TRUE);
   pixel_array = SDL_GetWindowSurface(win);
 
+  GE_transform_queue = RSR_queue_create();
+  GE_clip_queue = RSR_queue_create();
+  GE_rasterise_queue = RSR_queue_create();
+
+  front_faces = (Polygon *)calloc(1, sizeof(Polygon));
+
   // Load assets
   //------------------------------------------------------------
 
@@ -104,7 +110,7 @@ int main(int argc, char** argv)
 
 
   GameObject *map = gameobject_create();
-  gameobject_assign_model(map, model_load("src/assets/benchmark"));
+  gameobject_assign_model(map, model_load("src/assets/enemy"));
   map->model->shade_style = SHADE_NONE;
 
   player = player_create();
@@ -116,7 +122,7 @@ int main(int argc, char** argv)
   player->game_object->phys_object->elasticity = 0;
   player->game_object->phys_object->vel.x = 0.1;
   player->game_object->phys_object->vel.z = 0.1;
-  graphicsengine_cam = player->cam;
+  GE_cam = player->cam;
 
 
   // GameObject **enemies = (GameObject **)calloc(10, sizeof(GameObject *));
@@ -150,12 +156,11 @@ int main(int argc, char** argv)
     clear_screen(109, 133, 169);
     // clear_screen(0, 0, 0);
 
-    input(event, graphicsengine_cam, player);
+    input(event, GE_cam, player);
 
-    gameobject_draw_all(graphicsengine_cam);
+    gameobject_draw_all(GE_cam);
   
     map->model->shade_style = toggle;
-
 
 
     // gameobject_translate(enemies[0], 0, 0, 0.01);
@@ -184,6 +189,10 @@ int main(int argc, char** argv)
     //   server_players_last_frame.x_rotations[i] = server_players.x_rotations[i];
     //   server_players_last_frame.y_rotations[i] = server_players.y_rotations[i];
     // }
+
+    GE_queue_rotate();
+    GE_queue_clip();
+    GE_queue_rasterise();
 
 
     pthread_cond_broadcast(&main_ready);

@@ -24,7 +24,12 @@ extern SDL_Surface *pixel_buffer;
 extern SDL_Surface *pixel_array;
 extern double delta_time;
 extern Vector3 lightsource;
-extern Camera *graphicsengine_cam;
+extern Camera *GE_cam;
+
+extern RSR_queue_t *GE_transform_queue;
+extern RSR_queue_t *GE_clip_queue;
+extern RSR_queue_t *GE_rasterise_queue;
+extern Polygon *front_faces;
 
 //----------------------------------------
 
@@ -32,8 +37,12 @@ void triangle_2d_flat(Model *model, Polygon *tri);
 
 void pixel(int x, int y, Uint8 r, Uint8 g, Uint8 b);
 
-void model_draw(Camera *cam, Model *model);
-void bounding_box_draw(Camera *cam, Model *model);
+void GE_model_enque(Model *model);
+
+void GE_queue_rotate(void);
+void GE_queue_clip(void);
+void GE_queue_rasterise(void);
+
 
 void rotate_x(Model *model, float rotation);
 void rotate_y(Model *model, float r);

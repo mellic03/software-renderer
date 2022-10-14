@@ -62,6 +62,7 @@
     "in.h": "c",
     "client.h": "c",
     "__node_handle": "c",
-    "queue.h": "c"
+    "queue.h": "c",
+    "queue": "c"
   }
 }

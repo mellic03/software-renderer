@@ -24,9 +24,14 @@ float z_buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
 Vector3 lightsource = {0, -1, 0};
 
 double delta_time = 0.001;
-Camera *graphicsengine_cam;
+Camera *GE_cam;
 
-QUEUE *GE_poly_queue;
+RSR_queue_t *GE_transform_queue;  // Queue of polygons waiting to be rotated
+RSR_queue_t *GE_clip_queue;       // Queue of polygons waiting to be clipped
+RSR_queue_t *GE_rasterise_queue;  // Queue of polygons waiting to be rasterised
+
+Polygon *GE_clipped_polygons;
+Polygon *front_faces;
 
 
 // TRANSFORMATIONS
@@ -582,7 +587,7 @@ void triangle_2d_flat(Model *model, Polygon *tri)
   }
 }
 
-void triangle_2d(Model *model, Polygon *tri)
+void triangle_2d(Polygon *tri)
 {
   Vector2 v1 = project_coordinate(&tri->vertices[0]);
   Vector2 v2 = project_coordinate(&tri->vertices[1]);
@@ -626,7 +631,7 @@ void triangle_2d(Model *model, Polygon *tri)
           u = (Uint16)((vert_weights.x*tex_inv_x.x + vert_weights.y*tex_inv_x.y + vert_weights.z*tex_inv_x.z) / z_index) % tri->texture->w;
           v = (Uint16)((vert_weights.x*tex_inv_y.x + vert_weights.y*tex_inv_y.y + vert_weights.z*tex_inv_y.z) / z_index) % tri->texture->h;
 
-          u *= model->materials[tri->mat_index]->format->BytesPerPixel;
+          u *= tri->texture->format->BytesPerPixel;
 
           red   = pixels + v*tri->texture->pitch + u+2;
           green = pixels + v*tri->texture->pitch + u+1;
@@ -1118,81 +1123,169 @@ Polygon *clip_against_planes(Camera *cam, int in_size, Polygon *polygons_in, int
   return clipped_4;
 }
 
-void model_draw(Camera *cam, Model *model)
+/** Enque a model's polygons in the GE_transform_queue
+ */
+void GE_model_enque(Model *model)
 {
-  int *frontface_indices = (int *)malloc(model->poly_count * sizeof(int));
-  int frontface_count = 0;
-
+  // Only queue front faces
   for (int i=0; i<model->poly_count; i++)
-    if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], *cam->pos), model->polygons[i].face_normal) < 0)
-      frontface_indices[frontface_count++] = i;
+    if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], *GE_cam->pos), model->polygons[i].face_normal) < 0)
+      RSR_enque(GE_clip_queue, &model->polygons[0]);
 
-  Polygon *front_faces = (Polygon *)malloc(frontface_count * sizeof(Polygon));
-  for (int i=0; i<frontface_count; i++)
-    front_faces[i] = model->polygons[frontface_indices[i]];
 
-  for (int i=0; i<frontface_count; i++)
+  // for (int i=0; i<frontface_count; i++)
+  // {
+  //   for (int j=0; j<3; j++)
+  //   {
+  //     front_faces[i].vertices[j].x -= cam->pos->x;
+  //     front_faces[i].vertices[j].y -= cam->pos->y;
+  //     front_faces[i].vertices[j].z -= cam->pos->z;
+
+  //     front_faces[i].og_vertices[j].x -= cam->pos->x;
+  //     front_faces[i].og_vertices[j].y -= cam->pos->y;
+  //     front_faces[i].og_vertices[j].z -= cam->pos->z;
+
+  //     rotate_point(&front_faces[i].vertices[j], 0, cam->rot.y, 0);
+  //     rotate_point(&front_faces[i].vertices[j], cam->rot.x, 0, 0);
+
+  //     rotate_point(&front_faces[i].og_vertices[j], 0, cam->rot.y, 0);
+  //     rotate_point(&front_faces[i].og_vertices[j], cam->rot.x, 0, 0);
+  //   }
+  // }
+
+  // int clipped_count;
+  // Polygon *clipped_polygons = clip_against_planes(cam, frontface_count, front_faces, &clipped_count);
+
+  // if (model->visible)
+  // {
+  //   switch (model->shade_style)
+  //   {
+  //     case (SHADE_FLAT):
+  //       for (int i=0; i<clipped_count; i++)
+  //         triangle_2d_flat(model, &clipped_polygons[i]);
+  //       break;
+
+  //     case (SHADE_GOURAUD):
+  //       for (int i=0; i<clipped_count; i++)
+  //         triangle_2d_gouraud(model, &clipped_polygons[i]);
+  //       break;
+
+  //     case (SHADE_PHONG):
+  //       for (int i=0; i<clipped_count; i++)
+  //         triangle_2d_phong(model, &clipped_polygons[i]);
+  //       break;
+
+  //     case (SIMD_SHADE_NONE):
+  //       for (int i=0; i<clipped_count; i++)
+  //         SIMD_triangle_2d(model, &clipped_polygons[i]);
+  //       break;
+
+  //     case (SHADE_NONE):
+  //       for (int i=0; i<clipped_count; i++)
+  //         triangle_2d(model, &clipped_polygons[i]);
+  //       break;
+  //   }
+  // }
+
+  // free(frontface_indices);
+  // free(front_faces);
+  // free(clipped_polygons);
+}
+//-------------------------------------------------------------------------------
+
+
+//             copy
+// input --> rotation --> clipping --> rasterisation
+
+/** Rotate all polygons in GE_transform_queue by -cam.rot and move them to GE_clip_queue.
+ *  GE_transform_queue will be emptied.
+ */
+void GE_queue_rotate(void)
+{
+  int size = GE_transform_queue->size;
+
+  free(front_faces);
+  front_faces = (Polygon *)malloc(size * sizeof(Polygon));
+
+  RSR_dequeue(GE_transform_queue);
+
+  for (int i=0; i<size; i++)
+  {
+    front_faces[i] = *RSR_front(GE_transform_queue);
+    RSR_dequeue(GE_transform_queue);
+  }
+
+  for (int i=0; i<size; i++)
   {
     for (int j=0; j<3; j++)
     {
-      front_faces[i].vertices[j].x -= cam->pos->x;
-      front_faces[i].vertices[j].y -= cam->pos->y;
-      front_faces[i].vertices[j].z -= cam->pos->z;
+      front_faces[i].vertices[j].x -= GE_cam->pos->x;
+      front_faces[i].vertices[j].y -= GE_cam->pos->y;
+      front_faces[i].vertices[j].z -= GE_cam->pos->z;
 
-      front_faces[i].og_vertices[j].x -= cam->pos->x;
-      front_faces[i].og_vertices[j].y -= cam->pos->y;
-      front_faces[i].og_vertices[j].z -= cam->pos->z;
+      front_faces[i].og_vertices[j].x -= GE_cam->pos->x;
+      front_faces[i].og_vertices[j].y -= GE_cam->pos->y;
+      front_faces[i].og_vertices[j].z -= GE_cam->pos->z;
 
-      rotate_point(&front_faces[i].vertices[j], 0, cam->rot.y, 0);
-      rotate_point(&front_faces[i].vertices[j], cam->rot.x, 0, 0);
+      rotate_point(&front_faces[i].vertices[j], 0, GE_cam->rot.y, 0);
+      rotate_point(&front_faces[i].vertices[j], GE_cam->rot.x, 0, 0);
 
-      rotate_point(&front_faces[i].og_vertices[j], 0, cam->rot.y, 0);
-      rotate_point(&front_faces[i].og_vertices[j], cam->rot.x, 0, 0);
-
-      front_faces[i].normals[j] = model->vertex_normals[front_faces[i].vertex_indices[j]];
-      vector3_normalise(&front_faces[i].normals[j]);
+      rotate_point(&front_faces[i].og_vertices[j], 0, GE_cam->rot.y, 0);
+      rotate_point(&front_faces[i].og_vertices[j], GE_cam->rot.x, 0, 0);
     }
   }
 
-  int clipped_count;
-  Polygon *clipped_polygons = clip_against_planes(cam, frontface_count, front_faces, &clipped_count);
+  // for (int i=0; i<size; i++)
+  //   RSR_enque(GE_rasterise_queue, &front_faces[i]);
 
-  if (model->visible)
+  for (int i=0; i<size; i++)
   {
-    switch (model->shade_style)
-    {
-      case (SHADE_FLAT):
-        for (int i=0; i<clipped_count; i++)
-          triangle_2d_flat(model, &clipped_polygons[i]);
-        break;
-
-      case (SHADE_GOURAUD):
-        for (int i=0; i<clipped_count; i++)
-          triangle_2d_gouraud(model, &clipped_polygons[i]);
-        break;
-
-      case (SHADE_PHONG):
-        for (int i=0; i<clipped_count; i++)
-          triangle_2d_phong(model, &clipped_polygons[i]);
-        break;
-
-      case (SIMD_SHADE_NONE):
-        for (int i=0; i<clipped_count; i++)
-          SIMD_triangle_2d(model, &clipped_polygons[i]);
-        break;
-
-      case (SHADE_NONE):
-        for (int i=0; i<clipped_count; i++)
-          triangle_2d(model, &clipped_polygons[i]);
-        break;
-    }
+    triangle_2d(RSR_front(GE_rasterise_queue));
+    RSR_dequeue(GE_rasterise_queue);
   }
 
-  free(frontface_indices);
-  free(front_faces);
-  free(clipped_polygons);
 }
-//-------------------------------------------------------------------------------
+
+/** Clip all polygons in GE_clip_queue and move them to GE_rasterise_queue
+ *  GE_clip_queue will be emptied.
+ */
+void GE_queue_clip(void)
+{
+
+}
+
+/** Rasterise all polygons in GE_rasterise_queue
+ *  GE_rasterise_queue will be emptied.
+ */
+void GE_queue_rasterise(void)
+{
+  for (int i=0; i<GE_rasterise_queue->size; i++)
+  {
+    triangle_2d(RSR_front(GE_rasterise_queue));
+    RSR_dequeue(GE_rasterise_queue);
+  }
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /** Project a 3D world coordinate onto a 2D screen coordinate.
  * z coordinate is preserved for z-buffering.
