@@ -57,7 +57,8 @@ void RSR_dequeue(RSR_queue_t *queue)
 
 Polygon *RSR_front(RSR_queue_t *queue)
 {
-  return queue->head->data;
+  if (queue->head != NULL)
+    return queue->head->data;
 }
 
 Polygon *RSR_rear(RSR_queue_t *queue)
