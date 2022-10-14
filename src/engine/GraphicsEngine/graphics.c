@@ -34,16 +34,6 @@ Polygon *GE_clipped_polygons;
 Polygon *front_faces;
 
 
-float *precomputed_sine;
-
-float *precompute_sine(void)
-{
-  float *sine_arr = (float *)malloc(360 * sizeof(float));
-  for (int i=0; i<360; i++)
-    sine_arr[i] = sin((i*3.1415) / 180);
-  return sine_arr;
-}
-
 // TRANSFORMATIONS
 //-------------------------------------------------------------------------------
 void translate_model(Model *model, float x, float y, float z)
@@ -1141,7 +1131,7 @@ void GE_model_enque(Model *model)
   // Only queue front faces
   for (int i=0; i<model->poly_count; i++)
     if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], *GE_cam->pos), model->polygons[i].face_normal) < 0)
-      RSR_enque(GE_transform_queue, &model->polygons[0]);
+      RSR_enque(GE_transform_queue, &model->polygons[i]);
 
 
   // for (int i=0; i<frontface_count; i++)
@@ -1188,12 +1178,9 @@ void GE_queue_rotate(void)
   free(front_faces);
   front_faces = (Polygon *)malloc(size * sizeof(Polygon));
 
-  RSR_dequeue(GE_transform_queue);
-
   for (int i=0; i<size; i++)
   {
     front_faces[i] = *RSR_front(GE_transform_queue);
-    printf("%f\n", front_faces[i].vertices[0].x);
     RSR_dequeue(GE_transform_queue);
   }
 

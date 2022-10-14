@@ -31,7 +31,6 @@ extern RSR_queue_t *GE_clip_queue;
 extern RSR_queue_t *GE_rasterise_queue;
 extern Polygon *front_faces;
 
-extern float *precomputed_sine;
 //----------------------------------------
 
 float *precompute_sine(void);

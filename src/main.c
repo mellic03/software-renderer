@@ -37,7 +37,7 @@ void *phys_thread()
   {
     pthread_cond_wait(&main_ready, &mutex);
 
-    // physics_tick();
+    physics_tick();
     gameobject_tick();
     player_collision(player);
   }
@@ -70,8 +70,6 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  precomputed_sine = precompute_sine();
-
   SDL_SetRelativeMouseMode(SDL_TRUE);
   pixel_array = SDL_GetWindowSurface(win);
 
@@ -84,7 +82,7 @@ int main(int argc, char** argv)
   // Load assets
   //------------------------------------------------------------
   GameObject *map = gameobject_create();
-  gameobject_assign_model(map, model_load("src/assets/enemy"));
+  gameobject_assign_model(map, model_load("src/assets/benchmark"));
   map->model->shade_style = SHADE_NONE;
 
   player = player_create();
