@@ -140,42 +140,15 @@ int main(int argc, char** argv)
   {
     gettimeofday(&sometime1, NULL);
     clear_screen(109, 133, 169);
-    // clear_screen(0, 0, 0);
 
     input(event, graphicsengine_cam, player);
 
     gameobject_draw_all(graphicsengine_cam);
   
-    map->model->shade_style = toggle;
-
-    for (int i=0; i<5; i++)
-    {
-      if (server_players.ids[i] != player_id)
-      {
-        gameobject_rotate_y(enemies[i], -server_players.y_rotations[i]+server_players_last_frame.y_rotations[i]);
-
-        gameobject_translate( enemies[i],
-                              server_players.x_positions[i]-server_players_last_frame.x_positions[i],
-                              server_players.y_positions[i]-server_players_last_frame.y_positions[i],
-                              server_players.z_positions[i]-server_players_last_frame.z_positions[i]);
-      }
-    }
-
-    for (int i=0; i<5; i++)
-    {
-      server_players_last_frame.ids[i]         = server_players.ids[i];
-      server_players_last_frame.x_positions[i] = server_players.x_positions[i];
-      server_players_last_frame.y_positions[i] = server_players.y_positions[i];
-      server_players_last_frame.z_positions[i] = server_players.z_positions[i];
-      server_players_last_frame.x_rotations[i] = server_players.x_rotations[i];
-      server_players_last_frame.y_rotations[i] = server_players.y_rotations[i];
-    }
-
 
     pthread_cond_broadcast(&main_ready);
 
     SDL_UpdateWindowSurface(win);
-
     gettimeofday(&sometime2, NULL);
     if (sometime2.tv_usec < sometime1.tv_usec)
       sometime2.tv_usec += 1000000;
