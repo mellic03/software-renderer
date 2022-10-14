@@ -41,7 +41,6 @@ void *phys_thread()
   while (1)
   {
     pthread_cond_wait(&main_ready, &mutex);
-
     physics_tick();
     gameobject_tick();
     player_collision(player);
@@ -50,8 +49,8 @@ void *phys_thread()
 
 void *socket_thread()
 {
-  while (1)
-    send_position(player_id, player->game_object->pos.x, player->game_object->pos.y, player->game_object->pos.z, player->cam->rot.x, player->cam->rot.y, &server_players);
+  // while (1)
+  //   send_position(player_id, player->game_object->pos.x, player->game_object->pos.y, player->game_object->pos.z, player->cam->rot.x, player->cam->rot.y, &server_players);
 }
 
 int main(int argc, char** argv)

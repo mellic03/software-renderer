@@ -28,12 +28,11 @@ extern Camera *graphicsengine_cam;
 
 //----------------------------------------
 
-void triangle_2d_flat(Model *model, Polygon *tri);
 
 void pixel(int x, int y, Uint8 r, Uint8 g, Uint8 b);
 
 void model_draw(Camera *cam, Model *model);
-void bounding_box_draw(Camera *cam, Model *model);
+
 
 void rotate_x(Model *model, float rotation);
 void rotate_y(Model *model, float r);

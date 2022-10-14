@@ -29,6 +29,11 @@ Camera *graphicsengine_cam;
 QUEUE *GE_poly_queue;
 
 
+
+
+
+
+
 // TRANSFORMATIONS
 //-------------------------------------------------------------------------------
 void translate_model(Model *model, float x, float y, float z)
