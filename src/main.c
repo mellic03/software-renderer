@@ -36,7 +36,6 @@ void *phys_thread()
   while (1)
   {
     pthread_cond_wait(&main_ready, &mutex);
-
     physics_tick();
     gameobject_tick();
     player_collision(player);
@@ -89,7 +88,7 @@ int main(int argc, char** argv)
   player = player_create();
   player->game_object = gameobject_create();
   player->cam->pos = &player->game_object->phys_object->pos;
-  gameobject_translate(player->game_object, 0, -5, 0);
+  gameobject_translate(player->game_object, 0, -5, -10);
   player->game_object->phys_object->mass = 1;
   player->game_object->phys_object->inv_mass = 1/player->game_object->phys_object->mass;
   player->game_object->phys_object->elasticity = 0;

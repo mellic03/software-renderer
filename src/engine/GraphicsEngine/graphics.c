@@ -92,8 +92,8 @@ void rotate_point(Vector3 *pt, float x, float y, float z)
   float output3[3][1];
 
   float pt_as_arr[3][1] = {{pt->x}, {pt->y}, {pt->z}};
-  matrix_mult(3, 3, 3, 1, output, rot_x, pt_as_arr);
-  matrix_mult(3, 3, 3, 1, output2, rot_y, output);
+  matrix_mult(3, 3, 3, 1, output, rot_y, pt_as_arr);
+  matrix_mult(3, 3, 3, 1, output2, rot_x, output);
   matrix_mult(3, 3, 3, 1, output3, rot_z, output2);
 
   pt->x = output3[0][0];
@@ -299,7 +299,6 @@ void clear_screen(Uint8 r, Uint8 g, Uint8 b)
 
 inline void pixel(int x, int y, Uint8 r, Uint8 g, Uint8 b)
 {
-  // printf("%d %d\n", x, y);
   Uint8 *const blue  = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 0));
   *blue = b;
   Uint8 *const green = ((Uint8 *) pixel_array->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 1));
@@ -594,55 +593,56 @@ void triangle_2d(Polygon *tri)
   Vector2 v2 = project_coordinate(&tri->vertices[1]);
   Vector2 v3 = project_coordinate(&tri->vertices[2]);
 
-  // line_2d((Vector3){0, 0, 0}, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1});
-  // line_2d((Vector3){0, 0, 0}, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1});
-  // line_2d((Vector3){0, 0, 0}, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1});
+  line_2d((Vector3){0, 0, 0}, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1});
+  line_2d((Vector3){0, 0, 0}, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1});
+  line_2d((Vector3){0, 0, 0}, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1});
 
-  Vector3 tex_inv_x = (Vector3){tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
-  Vector3 tex_inv_y = (Vector3){tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
+  // Vector3 tex_inv_x = (Vector3){tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
+  // Vector3 tex_inv_y = (Vector3){tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
 
-  Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
-  Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
-  Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
-  Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
-
-
-  Uint16 u=0, v=0;
-  float z_index;
-
-  Vector3 vert_weights;
-  Uint8 *red, *green, *blue;
-  Uint8 *pixels = tri->texture->pixels;
+  // Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
+  // Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
+  // Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
+  // Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
 
 
-  for (Uint16 x=lx; x<=hx; x++)
-  {
-    for (Uint16 y=ly; y<=hy; y++)
-    {
-      vert_weights = calculate_barycentric(x, y, v1, v2, v3);
+  // Uint16 u=0, v=0;
+  // float z_index;
 
-      if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
-      {
-        z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
+  // Vector3 vert_weights;
+  // Uint8 *red, *green, *blue;
+  // Uint8 *pixels = tri->texture->pixels;
 
-        if (z_index > z_buffer[SCREEN_WIDTH*y + x])
-        {
-          z_buffer[SCREEN_WIDTH*y + x] = z_index;
 
-          u = (Uint16)((vert_weights.x*tex_inv_x.x + vert_weights.y*tex_inv_x.y + vert_weights.z*tex_inv_x.z) / z_index) % tri->texture->w;
-          v = (Uint16)((vert_weights.x*tex_inv_y.x + vert_weights.y*tex_inv_y.y + vert_weights.z*tex_inv_y.z) / z_index) % tri->texture->h;
+  // for (Uint16 x=lx; x<=hx; x++)
+  // {
+  //   for (Uint16 y=ly; y<=hy; y++)
+  //   {
+  //     vert_weights = calculate_barycentric(x, y, v1, v2, v3);
 
-          u *= tri->texture->format->BytesPerPixel;
+  //     if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
+  //     {
+  //       z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
 
-          red   = pixels + v*tri->texture->pitch + u+2;
-          green = pixels + v*tri->texture->pitch + u+1;
-          blue  = pixels + v*tri->texture->pitch + u+0;
+  //       if (z_index > z_buffer[SCREEN_WIDTH*y + x])
+  //       {
+  //         z_buffer[SCREEN_WIDTH*y + x] = z_index;
 
-          pixel(x, y, *red, *green, *blue);
-        }
-      }
-    }
-  }
+  //         u = (Uint16)((vert_weights.x*tex_inv_x.x + vert_weights.y*tex_inv_x.y + vert_weights.z*tex_inv_x.z) / z_index) % tri->texture->w;
+  //         v = (Uint16)((vert_weights.x*tex_inv_y.x + vert_weights.y*tex_inv_y.y + vert_weights.z*tex_inv_y.z) / z_index) % tri->texture->h;
+
+  //         u *= tri->texture->format->BytesPerPixel;
+
+  //         red   = pixels + v*tri->texture->pitch + u+2;
+  //         green = pixels + v*tri->texture->pitch + u+1;
+  //         blue  = pixels + v*tri->texture->pitch + u+0;
+
+  //         pixel(x, y, *red, *green, *blue);
+  //         // pixel(x, y, 0, 0, 0);
+  //       }
+  //     }
+  //   }
+  // }
 }
 
 /**
@@ -826,7 +826,6 @@ void SIMD_triangle_2d(Model *model, Polygon *tri)
   }
 }
 
-
 /**
  * @param p1 start of line
  * @param p2 end of line
@@ -836,7 +835,6 @@ Vector3 line_plane_intersect(Vector3 plane_normal, Vector3 p1, Vector3 p2, float
   float ad = vector3_dot(p1, plane_normal);
   float bd = vector3_dot(p2, plane_normal);
   *t = (-ad) / (bd - ad);
-  // printf("t: %f\n", *t);
   Vector3 lste = vector3_sub(p2, p1);
   Vector3 lti = vector3_scale(lste, *t);
   return vector3_add(p1, lti);
@@ -856,8 +854,6 @@ int points_inside_plane(Vector3 plane_normal, Polygon *tri, int *index_of_inside
   if (dot1 > 0) number_of_inside += 1;
   if (dot2 > 0) number_of_inside += 1;
   if (dot3 > 0) number_of_inside += 1;
-
-  // printf("d0: %f, d1: %f, d2: %f, count: %d\n", dot1, dot2, dot3, number_of_inside);
 
   if (dot1 > dot2 && dot1 > dot3) *index_of_inside = 0;
   else if (dot2 > dot1 && dot2 > dot3) *index_of_inside = 1;
@@ -887,7 +883,6 @@ int clip_polygon(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polyg
 
   // number of points inside of plane
   int n = points_inside_plane(plane_normal, tri_in, &index_of_inside, &index_of_outside);
-  // printf("n: %d\n", n);
   Vector2 tex_Aprime, tex_Bprime, tex_Cprime;
 
   switch (n)
@@ -1069,105 +1064,68 @@ int clip_polygon(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polyg
  * @param clipped_triangles array of clipped polygons
  * @return number of polygons formed due to clipping
  */
-int clip_against_plane(Vector3 plane_normal, int poly_count, Polygon *unclipped_triangles, Polygon *clipped_triangles)
+void clip_against_plane(Vector3 plane_normal, RSR_queue_t *in_queue, RSR_queue_t *out_queue)
 {
-  int unclipped_index = 0;
-  int clipped_index = 0;
+  int size = in_queue->size;
 
-  while (unclipped_index < poly_count)  
+  Polygon tri_in_nonptr;
+
+  for (int i=0; i<size; i++)
   {
-    Polygon tri1 = unclipped_triangles[unclipped_index];
-    Polygon tri2 = unclipped_triangles[unclipped_index];
+    tri_in_nonptr = *RSR_front(in_queue);
+    RSR_dequeue(in_queue);
+
+    Polygon *tri_in = (Polygon *)malloc(sizeof(Polygon));
+    Polygon *tri1 = (Polygon *)malloc(sizeof(Polygon));
+    Polygon *tri2 = (Polygon *)malloc(sizeof(Polygon));
+
+    *tri_in = tri_in_nonptr;
+    *tri1 = tri_in_nonptr;
+    *tri2 = tri_in_nonptr;
 
     // n == number of triangles formed due to clipping
-    int n = clip_polygon(plane_normal, &unclipped_triangles[unclipped_index], &tri1, &tri2);
+    int n = clip_polygon(plane_normal, tri_in, tri1, tri2);
     switch (n)
     {
+      default: 
+      
       case (0):
+        free(tri_in);
+        free(tri1);
+        free(tri2);
         break;
 
       case (1):
-        clipped_triangles[clipped_index] = unclipped_triangles[unclipped_index];
-        clipped_index += 1;
+        RSR_enque(out_queue, tri_in);
+        free(tri1);
+        free(tri2);
         break;
       
       case (2):
-        clipped_triangles[clipped_index] = tri1;
-        clipped_triangles[clipped_index+1] = tri2;
-        clipped_index += 2;
+        RSR_enque(out_queue, tri1);
+        RSR_enque(out_queue, tri2);
+        free(tri_in);
         break;
     }
-    unclipped_index += 1;
   }
-  
-  return clipped_index;
 }
 
-Polygon *clip_against_planes(Camera *cam, int in_size, Polygon *polygons_in, int *out_size)
-{
-  Polygon *clipped_1 = (Polygon *)malloc(in_size*2 * sizeof(Polygon));
-  int n = clip_against_plane(cam->l_norm, in_size, polygons_in, clipped_1);
-
-  Polygon *clipped_2 = (Polygon *)malloc(n*2 * sizeof(Polygon));
-  n = clip_against_plane(cam->r_norm, n, clipped_1, clipped_2);
-
-  Polygon *clipped_3 = (Polygon *)malloc(n*2 * sizeof(Polygon));
-  n = clip_against_plane(cam->t_norm, n, clipped_2, clipped_3);
-  
-  Polygon *clipped_4 = (Polygon *)malloc(n*2 * sizeof(Polygon));
-  *out_size = clip_against_plane(cam->b_norm, n, clipped_3, clipped_4);
-
-  free(clipped_1);
-  free(clipped_2);
-  free(clipped_3);
-
-  return clipped_4;
-}
 
 /** Enque a model's polygons in the GE_transform_queue
  */
 void GE_model_enque(Model *model)
 {
-
   // Only queue front faces
   for (int i=0; i<model->poly_count; i++)
     if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], *GE_cam->pos), model->polygons[i].face_normal) < 0)
       RSR_enque(GE_transform_queue, &model->polygons[i]);
-
-
-  // for (int i=0; i<frontface_count; i++)
-  // {
-  //   for (int j=0; j<3; j++)
-  //   {
-  //     front_faces[i].vertices[j].x -= cam->pos->x;
-  //     front_faces[i].vertices[j].y -= cam->pos->y;
-  //     front_faces[i].vertices[j].z -= cam->pos->z;
-
-  //     front_faces[i].og_vertices[j].x -= cam->pos->x;
-  //     front_faces[i].og_vertices[j].y -= cam->pos->y;
-  //     front_faces[i].og_vertices[j].z -= cam->pos->z;
-
-  //     rotate_point(&front_faces[i].vertices[j], 0, cam->rot.y, 0);
-  //     rotate_point(&front_faces[i].vertices[j], cam->rot.x, 0, 0);
-
-  //     rotate_point(&front_faces[i].og_vertices[j], 0, cam->rot.y, 0);
-  //     rotate_point(&front_faces[i].og_vertices[j], cam->rot.x, 0, 0);
-  //   }
-  // }
-
-  // int clipped_count;
-  // Polygon *clipped_polygons = clip_against_planes(cam, frontface_count, front_faces, &clipped_count);
-
-
-  // free(frontface_indices);
-  // free(front_faces);
-  // free(clipped_polygons);
 }
 //-------------------------------------------------------------------------------
 
 
 //             copy
-// input --> rotation --> clipping --> rasterisation
+// input --> rotation    --> clipping    --> rasterisation
+// model --> front_faces --> front_faces --> free(front_faces)
 
 /** Rotate all polygons in GE_transform_queue by -cam.rot and move them to GE_clip_queue.
  *  GE_transform_queue will be emptied.
@@ -1183,41 +1141,19 @@ void GE_queue_rotate(void)
   {
     front_faces[i] = *RSR_front(GE_transform_queue);
     RSR_dequeue(GE_transform_queue);
-  }
 
-  for (int i=0; i<size; i++)
-  {
     for (int j=0; j<3; j++)
     {
-      front_faces[i].vertices[j].x -= GE_cam->pos->x;
-      front_faces[i].vertices[j].y -= GE_cam->pos->y;
-      front_faces[i].vertices[j].z -= GE_cam->pos->z;
+      front_faces[i].vertices[j] = vector3_sub(front_faces[i].vertices[j],  *GE_cam->pos);
+      front_faces[i].og_vertices[j] = vector3_sub(front_faces[i].og_vertices[j],  *GE_cam->pos);
 
-      front_faces[i].og_vertices[j].x -= GE_cam->pos->x;
-      front_faces[i].og_vertices[j].y -= GE_cam->pos->y;
-      front_faces[i].og_vertices[j].z -= GE_cam->pos->z;
+      rotate_point(&front_faces[i].vertices[j], GE_cam->rot.x, GE_cam->rot.y, 0);
 
-      rotate_point(&front_faces[i].vertices[j], 0, GE_cam->rot.y, 0);
-      rotate_point(&front_faces[i].vertices[j], GE_cam->rot.x, 0, 0);
-
-      rotate_point(&front_faces[i].og_vertices[j], 0, GE_cam->rot.y, 0);
-      rotate_point(&front_faces[i].og_vertices[j], GE_cam->rot.x, 0, 0);
+      rotate_point(&front_faces[i].og_vertices[j], GE_cam->rot.x, GE_cam->rot.y, 0);
     }
+
+    RSR_enque(GE_clip_queue, &front_faces[i]);
   }
-
-  // for (int i=0; i<size; i++)
-  //   RSR_enque(GE_rasterise_queue, &front_faces[i]);
-
-  int clipped_count;
-  Polygon *clipped_polygons = clip_against_planes(GE_cam, size, front_faces, &clipped_count);
-
-  for (int i=0; i<clipped_count; i++)
-  {
-    triangle_2d(&clipped_polygons[i]);
-    // triangle_2d(RSR_front(GE_rasterise_queue));
-    // RSR_dequeue(GE_rasterise_queue);
-  }
-
 }
 
 /** Clip all polygons in GE_clip_queue and move them to GE_rasterise_queue
@@ -1225,7 +1161,14 @@ void GE_queue_rotate(void)
  */
 void GE_queue_clip(void)
 {
-
+  clip_against_plane(GE_cam->l_norm, GE_clip_queue, GE_clip_queue);
+  clip_against_plane(GE_cam->r_norm, GE_clip_queue, GE_clip_queue);
+  clip_against_plane(GE_cam->t_norm, GE_clip_queue, GE_clip_queue);
+  clip_against_plane(GE_cam->b_norm, GE_clip_queue, GE_rasterise_queue);
+ 
+  int size = GE_clip_queue->size;
+  for (int i=0; i<size; i++)
+    RSR_dequeue(GE_clip_queue);
 }
 
 /** Rasterise all polygons in GE_rasterise_queue

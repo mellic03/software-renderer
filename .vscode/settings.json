@@ -63,6 +63,17 @@
     "client.h": "c",
     "__node_handle": "c",
     "queue.h": "c",
-    "queue": "c"
+    "queue": "c",
+    "string_view": "c",
+    "initializer_list": "c",
+    "__hash_table": "c",
+    "__split_buffer": "c",
+    "deque": "c",
+    "list": "c",
+    "set": "c",
+    "stack": "c",
+    "unordered_map": "c",
+    "unordered_set": "c",
+    "vector": "c"
   }
 }

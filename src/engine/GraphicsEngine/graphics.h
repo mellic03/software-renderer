@@ -62,7 +62,6 @@ Vector3 calculate_barycentric_3d(int x, int y, Vector3 v1, Vector3 v2, Vector3 v
 Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3);
 Polygon *clip_against_planes(Camera *cam, int in_size, Polygon *polygons_in, int *out_size);
 Vector2 project_coordinate(Vector3 *pt);
-int clip_against_plane(Vector3 plane_normal, int poly_count, Polygon *unclipped_triangles, Polygon *clipped_triangles);
 int clip_polygon(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polygon *tri_out2);
 int points_inside_plane(Vector3 plane_normal, Polygon *tri, int *index_of_inside, int *index_of_outside);
 Vector3 line_plane_intersect(Vector3 plane_normal, Vector3 p1, Vector3 p2, float *t);

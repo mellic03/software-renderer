@@ -58,15 +58,9 @@ void RSR_dequeue(RSR_queue_t *queue)
 Polygon *RSR_front(RSR_queue_t *queue)
 {
   if (queue->head->data != NULL)
-  {
-    // printf("not null: %f\n", queue->head->data->vertices[0].x);
     return queue->head->data;
-  }
   else
-  {
-    // printf("is null");
     return NULL;
-  }
 }
 
 Polygon *RSR_rear(RSR_queue_t *queue)
@@ -79,3 +73,4 @@ RSR_queue_t *RSR_queue_create(void)
   RSR_queue_t *new = calloc(1, sizeof(RSR_queue_t));
   return new;
 }
+
