@@ -20,6 +20,8 @@ typedef struct {
   Vector3 face_normal;
   Vector2 uvs[3];
 
+  Vector2 proj_verts[3];
+
   SDL_Surface *texture;
   
   int vertex_indices[3]; // Used only in load_polygons for generating vertex normals

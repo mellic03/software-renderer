@@ -23,16 +23,13 @@ double framerate;
 int count = 0;
 
 pthread_t thread_physics;
-pthread_t thread_socket;
-pthread_mutex_t mutex, mutex_render_1, mutex_render_2;
+pthread_mutex_t mutex;
 pthread_cond_t main_ready;
 
 Player *player;
 
 void *phys_thread()
 {
-  clock_t t;
-
   while (1)
   {
     pthread_cond_wait(&main_ready, &mutex);
@@ -41,6 +38,7 @@ void *phys_thread()
     player_collision(player);
   }
 }
+
 
 int main(int argc, char** argv)
 {
@@ -71,13 +69,7 @@ int main(int argc, char** argv)
   }
 
   SDL_SetRelativeMouseMode(SDL_TRUE);
-  pixel_array = SDL_GetWindowSurface(win);
 
-  GE_transform_queue = RSR_queue_create();
-  GE_clip_queue = RSR_queue_create();
-  GE_rasterise_queue = RSR_queue_create();
-
-  front_faces = (Polygon *)calloc(1, sizeof(Polygon));
 
   // Load assets
   //------------------------------------------------------------
@@ -88,7 +80,7 @@ int main(int argc, char** argv)
   player = player_create();
   player->game_object = gameobject_create();
   player->cam->pos = &player->game_object->phys_object->pos;
-  gameobject_translate(player->game_object, 0, -5, -10);
+  gameobject_translate(player->game_object, 0, -5, 0);
   player->game_object->phys_object->mass = 1;
   player->game_object->phys_object->inv_mass = 1/player->game_object->phys_object->mass;
   player->game_object->phys_object->elasticity = 0;
@@ -98,7 +90,6 @@ int main(int argc, char** argv)
   //------------------------------------------------------------
 
   pthread_mutex_init(&mutex, NULL);
-  pthread_mutex_init(&mutex_render_1, NULL);
   pthread_cond_init(&main_ready, NULL);
 
   pthread_create(&thread_physics, NULL, phys_thread, NULL);
@@ -106,10 +97,14 @@ int main(int argc, char** argv)
 
   // Render loop
   //------------------------------------------------------------
+
+  GE_init(win);
+
   while (1)
   {
     gettimeofday(&sometime1, NULL);
-    clear_screen(109, 133, 169);
+    // clear_screen(pixel_array, 109, 133, 169);
+
     // clear_screen(0, 0, 0);
 
     input(event, GE_cam, player);
@@ -119,7 +114,7 @@ int main(int argc, char** argv)
     map->model->shade_style = toggle;
 
 
-    GE_queue_rotate();
+    GE_queue_transform();
     GE_queue_clip();
     GE_queue_rasterise();
 

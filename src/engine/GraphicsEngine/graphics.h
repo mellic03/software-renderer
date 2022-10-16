@@ -5,13 +5,14 @@
   #include <SDL.h>
 #endif
 
+#ifndef GRAPHICS_H
+#define GRAPHICS_H
+
 #include "camera.h"
 #include "../math/vector.h"
 #include "model.h"
 #include "queue.h"
 
-#ifndef GRAPHICS_H
-#define GRAPHICS_H
 
 #define RENDER_DISTANCE 50
 
@@ -32,19 +33,21 @@ extern RSR_queue_t *GE_rasterise_queue;
 extern Polygon *front_faces;
 
 //----------------------------------------
+void GE_init(SDL_Window *win);
 
-void triangle_2d_flat(Model *model, Polygon *tri);
+void triangle_2d(Polygon *tri, SDL_Surface *pixel_arr);
 
-void pixel(int x, int y, Uint8 r, Uint8 g, Uint8 b);
+
+void pixel(SDL_Surface *pixel_arr, int x, int y, Uint8 r, Uint8 g, Uint8 b);
 
 void GE_model_enque(Model *model);
 
-void GE_queue_rotate(void);
+void GE_queue_transform(void);
 void GE_queue_clip(void);
 void GE_queue_rasterise(void);
 
 
-void rotate_x(Model *model, float rotation);
+void rotate_x(Model *model, float r);
 void rotate_y(Model *model, float r);
 void rotate_z(Model *model, float r);
 void rotate_point(Vector3 *pt, float x, float y, float z);
@@ -52,20 +55,17 @@ void translate_model(Model *model, float x, float y, float z);
 void scale(Model *model, float alpha);
 void scale_xyz(Model *model, float x, float y, float z);
 
-void clear_screen(Uint8 r, Uint8 g, Uint8 b);
+void clear_screen(SDL_Surface *pixel_arr, Uint8 r, Uint8 g, Uint8 b);
 void draw_screen(SDL_Window *window);
 
-Vector3 calculate_barycentric_3d(int x, int y, Vector3 v1, Vector3 v2, Vector3 v3);
 
-// INTERNAL
-//-----------------------------------------
-Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3);
-Polygon *clip_against_planes(Camera *cam, int in_size, Polygon *polygons_in, int *out_size);
-Vector2 project_coordinate(Vector3 *pt);
-int clip_polygon(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polygon *tri_out2);
-int points_inside_plane(Vector3 plane_normal, Polygon *tri, int *index_of_inside, int *index_of_outside);
-Vector3 line_plane_intersect(Vector3 plane_normal, Vector3 p1, Vector3 p2, float *t);
-//-----------------------------------------
+
+static Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3);
+static Polygon *clip_against_planes(Camera *cam, int in_size, Polygon *polygons_in, int *out_size);
+static Vector2 GE_world_to_screen(Vector3 *pt);
+static int clip_polygon(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polygon *tri_out2);
+static int points_inside_plane(Vector3 plane_normal, Polygon *tri, int *index_of_inside, int *index_of_outside);
+static Vector3 line_plane_intersect(Vector3 plane_normal, Vector3 p1, Vector3 p2, float *t);
 
 
 

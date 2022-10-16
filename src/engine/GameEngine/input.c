@@ -13,14 +13,6 @@ void input(SDL_Event event, Camera *cam, Player *player)
   player->game_object->phys_object->vel.x *= 0.9;
   player->game_object->phys_object->vel.z *= 0.9;
 
-  // cam->pos.y = 0.2*(sin(something)) + height;
-  // something += cam->vel.z + cam->vel.x;
-
-  // if (cam->pos.y < -5)
-  //   cam->vel.y += delta_time;
-  // else if (cam->pos.y > -5)
-  //   cam->vel.y -= delta_time;
-
   if (state[SDL_SCANCODE_W])
   {
     player->game_object->phys_object->vel.x += cam->dir.x * cam->speed;
@@ -42,11 +34,6 @@ void input(SDL_Event event, Camera *cam, Player *player)
     player->game_object->phys_object->vel.x += cam->dir.z * cam->speed;
     player->game_object->phys_object->vel.z -= cam->dir.x * cam->speed;
   }
-
-  // if (state[SDL_SCANCODE_SPACE])
-  //   player->game_object->phys_object->vel.y -= 250*delta_time;
-  // if (state[SDL_SCANCODE_LCTRL])
-  //   player->game_object->phys_object->vel.y += 10*delta_time;
 
   if (state[SDL_SCANCODE_UP])
     rotate_point(&lightsource, 0.01, 0, 0);

@@ -74,6 +74,14 @@
     "stack": "c",
     "unordered_map": "c",
     "unordered_set": "c",
-    "vector": "c"
+    "vector": "c",
+    "iomanip": "c",
+    "istream": "c",
+    "ostream": "c",
+    "stop_token": "c",
+    "streambuf": "c",
+    "__config": "c",
+    "iterator": "c",
+    "*.inc": "c"
   }
 }

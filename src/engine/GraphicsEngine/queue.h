@@ -11,7 +11,7 @@
 #include "model.h"
 
 typedef struct RSR_node {
-  Polygon *data;
+  Polygon *polygon;
   struct RSR_node *next;
 } RSR_node_t;
 
@@ -31,11 +31,12 @@ void RSR_node_free(RSR_node_t *node);
 
 // QUEUE
 //----------------------------------------------
+RSR_node_t *RSR_node_mid(RSR_queue_t *queue);
 void RSR_enque(RSR_queue_t *queue, Polygon *polygon);
 void RSR_dequeue(RSR_queue_t *queue);
 Polygon *RSR_front(RSR_queue_t *queue);
 Polygon *RSR_rear(RSR_queue_t *queue);
-RSR_queue_t *RSR_queue_create(void);
+RSR_queue_t *RSR_queue_init(void);
 //----------------------------------------------
 
 

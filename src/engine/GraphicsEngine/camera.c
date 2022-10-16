@@ -20,5 +20,8 @@ Camera *create_camera(void)
   cam->t_norm = (Vector3){0, 1/sqrt(2), 1/sqrt(2)};
   cam->b_norm = (Vector3){0, -1/sqrt(2), 1/sqrt(2)};
 
+  cam->ml_norm = (Vector3){-1, 0, 0};
+  cam->mr_norm = (Vector3){1, 0, 0};
+
   return cam;
 }
