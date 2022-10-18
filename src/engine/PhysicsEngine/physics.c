@@ -23,7 +23,7 @@ void physics_tick(void)
     {
       obj1->acc = vector3_scale(obj1->acc, 0.99);
       obj1->vel = vector3_scale(obj1->vel, 0.999);
-      // obj1->vel = vector3_add(obj1->vel, (Vector3){0, G*obj1->mass*delta_time, 0});
+      obj1->vel = vector3_add(obj1->vel, (Vector3){0, G*obj1->mass*delta_time, 0});
 
       obj2 = head;
 

@@ -68,6 +68,10 @@ void input(SDL_Event event, Camera *cam, Player *player)
       cam->dir.x = sin(-cam->rot.y);
       cam->dir.y = sin(cam->rot.x);
       cam->dir.z = cos(-cam->rot.y);
+      rotate_point(&player->ray_left, 0, event.motion.xrel * 0.001, 0);
+      rotate_point(&player->ray_right, 0, event.motion.xrel * 0.001, 0);
+      rotate_point(&player->ray_front, 0, event.motion.xrel * 0.001, 0);
+      rotate_point(&player->ray_back, 0, event.motion.xrel * 0.001, 0);
     }
 
     if (event.type == SDL_KEYDOWN)

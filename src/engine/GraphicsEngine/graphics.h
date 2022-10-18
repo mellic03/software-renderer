@@ -11,8 +11,7 @@
 #include "camera.h"
 #include "../math/vector.h"
 #include "model.h"
-#include "queue.h"
-
+#include "datastructures/datastructures.h"
 
 #define RENDER_DISTANCE 50
 
@@ -21,7 +20,6 @@
 
 // GLOBALS
 //----------------------------------------
-extern SDL_Surface *pixel_buffer;
 extern SDL_Surface *pixel_array;
 extern double delta_time;
 extern Vector3 lightsource;
@@ -35,7 +33,7 @@ extern Polygon *front_faces;
 //----------------------------------------
 void GE_init(SDL_Window *win);
 
-void triangle_2d(SDL_Surface *buffer, Polygon *tri);
+void triangle_2d(SDL_Surface *buffer, float depth_buffer[SCREEN_WDTH*SCREEN_HGHT], Polygon *tri);
 
 
 void pixel(SDL_Surface *pixel_arr, int x, int y, Uint8 r, Uint8 g, Uint8 b);

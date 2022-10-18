@@ -44,7 +44,6 @@ int main(int argc, char** argv)
 {
   srand(clock());
 
-
   // SDL setup
   //-------------------------------------------------------
   if (SDL_Init(SDL_INIT_VIDEO) != 0)
@@ -78,6 +77,8 @@ int main(int argc, char** argv)
   // gameobject_rotate_y(map, 2);
   map->model->shade_style = SHADE_NONE;
 
+  BSPnode_t *root = BSP_tree_generate(map->model->polygons, map->model->poly_count);
+
   player = player_create();
   player->game_object = gameobject_create();
   player->cam->pos = &player->game_object->phys_object->pos;
@@ -110,7 +111,7 @@ int main(int argc, char** argv)
 
     input(event, GE_cam, player);
 
-    gameobject_draw_all(GE_cam);
+    gameobject_draw_all();
   
     map->model->shade_style = toggle;
 

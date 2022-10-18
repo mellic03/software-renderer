@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "../engine.h"
 #include "gameengine.h"
@@ -8,28 +9,62 @@
 GameObject *head = NULL;
 int gameobject_count = 0;
 
-int point_over_triangle(Polygon *tri, Vector3 point)
+/** Determine if a ray intersects a triangle
+ *  Pulled straight from wikipedia
+ */
+bool ray_intersects_triangle(Vector3 ray_origin, Vector3 ray_vector, Polygon *tri_in, Vector3 *intersect_point)
 {
-  Vector3 n1 = vector3_cross(vector3_sub(tri->vertices[1], tri->vertices[0]), vector3_sub(tri->vertices[2], tri->vertices[0]));
-  Vector3 n2 = vector3_cross(vector3_sub(tri->vertices[1], tri->vertices[0]), vector3_sub(point, tri->vertices[0]));
-  Vector3 n3 = vector3_cross(vector3_sub(tri->vertices[2], tri->vertices[1]), vector3_sub(point, tri->vertices[1]));
-  Vector3 n4 = vector3_cross(vector3_sub(tri->vertices[0], tri->vertices[2]), vector3_sub(point, tri->vertices[2]));
-  return vector3_dot(n1, n2) >0 && vector3_dot(n1, n3) > 0 && vector3_dot(n1, n4) > 0;
+  const float EPSILON = 0.0000001;
+  Vector3 vertex0 = tri_in->vertices[0];
+  Vector3 vertex1 = tri_in->vertices[1];  
+  Vector3 vertex2 = tri_in->vertices[2];
+  Vector3 edge1, edge2, h, s, q;
+  float a,f,u,v;
+
+  edge1 = vector3_sub(vertex1, vertex0);
+  edge2 = vector3_sub(vertex2, vertex0);
+  h = vector3_cross(ray_vector, edge2);
+  a = vector3_dot(edge1, h);
+  if (a > -EPSILON && a < EPSILON)
+    return false;
+
+  f = 1.0/a;
+  s = vector3_sub(ray_origin, vertex0);
+  u = f * vector3_dot(s, h);
+  if (u < 0.0 || u > 1.0)
+    return false;
+
+  q = vector3_cross(s, edge1);
+  v = f * vector3_dot(ray_vector, q);
+  if (v < 0.0 || u + v > 1.0)
+      return false;
+
+  float t = f * vector3_dot(edge2, q);
+  if (t > EPSILON)
+  {
+    *intersect_point = vector3_add(ray_origin, vector3_scale(ray_vector, t));
+    return true;
+  }
+  else
+    return false;
 }
 
-
-void Barycentric(Vector3 a, Vector3 b, Vector3 c, Vector3 p, float *u, float *v, float *w)
+void player_collide(Player *player, Polygon *tri, Vector3 ray_direction, float d)
 {
-  Vector3 v0 = vector3_sub(b, a), v1 = vector3_sub(c, a), v2 = vector3_sub(p, a);
-  float d00 = vector3_dot(v0, v0);
-  float d01 = vector3_dot(v0, v1);
-  float d11 = vector3_dot(v1, v1);
-  float d20 = vector3_dot(v2, v0);
-  float d21 = vector3_dot(v2, v1);
-  float denom = d00 * d11 - d01 * d01;
-  *v = (d11 * d20 - d01 * d21) / denom;
-  *w = (d00 * d21 - d01 * d20) / denom;
-  *u = 1.0f - *v - *w;
+  Vector3 intersect;
+  if (ray_intersects_triangle(player->game_object->pos, ray_direction, tri, &intersect))
+  {
+    float dist = vector3_dist(player->game_object->pos, intersect);
+    if (0 < dist && dist < d)
+    {
+      float impulse_1d = calculate_impulse(player->game_object->phys_object->vel, tri->face_normal, player->game_object->phys_object->mass, 0, player->game_object->phys_object->elasticity);
+      Vector3 impulse = vector3_scale(tri->face_normal, impulse_1d);
+      player->game_object->phys_object->vel.y += player->game_object->phys_object->inv_mass * impulse.y;
+
+      player->game_object->pos = vector3_sub(player->game_object->pos, vector3_scale(ray_direction, (d-dist)));
+      // player->game_object->pos.y -= (4-dist);
+    }
+  }
 }
 
 void player_collision(Player *player)
@@ -42,20 +77,12 @@ void player_collision(Player *player)
     {
       for (int i=0; i<obj->model->poly_count; i++)
       {
-        if (vector3_dot(obj->model->polygons[i].face_normal, player->ray_down) < -0.2)
-        {
-          if (point_over_triangle(&obj->model->polygons[i], player->game_object->pos))
-          {
-            float dist = vector3_dot(obj->model->polygons[i].face_normal, vector3_sub(player->game_object->pos, obj->model->polygons[i].vertices[0]));
-            if (0 < dist && dist < 4)
-            {
-              float impulse_1d = calculate_impulse(player->game_object->phys_object->vel, obj->model->polygons[i].face_normal, player->game_object->phys_object->mass, 0, player->game_object->phys_object->elasticity);
-              Vector3 impulse = vector3_scale(obj->model->polygons[i].face_normal, impulse_1d);
-              player->game_object->phys_object->vel.y += player->game_object->phys_object->inv_mass * impulse.y;
-              player->game_object->pos.y -= (4-dist);
-            }
-          }
-        }
+        player_collide(player, &obj->model->polygons[i], player->ray_up , 2);
+        player_collide(player, &obj->model->polygons[i], player->ray_down , 4);
+        player_collide(player, &obj->model->polygons[i], player->ray_front, 2);
+        player_collide(player, &obj->model->polygons[i], player->ray_left , 2);
+        player_collide(player, &obj->model->polygons[i], player->ray_right, 2);
+        player_collide(player, &obj->model->polygons[i], player->ray_back , 2);
       }
     }
     obj = obj->next;

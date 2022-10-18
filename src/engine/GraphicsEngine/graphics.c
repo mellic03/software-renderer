@@ -19,9 +19,19 @@
 
 
 // pixel buffers are blitted onto pixel_array after thread finishes
-SDL_Surface *pixel_buffer_left; 
-SDL_Surface *pixel_buffer_right; 
 SDL_Surface *pixel_array;
+
+SDL_Surface *pix_buf_tl;
+SDL_Surface *pix_buf_tr;
+SDL_Surface *pix_buf_bl;
+SDL_Surface *pix_buf_br;
+
+float *dep_buf_tl;
+float *dep_buf_tr;
+float *dep_buf_bl;
+float *dep_buf_br;
+
+RSR_queue_t *GE_rasterise_tl, *GE_rasterise_tr, *GE_rasterise_bl, *GE_rasterise_br; 
 
 float z_buffer[SCREEN_WDTH * SCREEN_HGHT];
 
@@ -34,92 +44,85 @@ RSR_queue_t *GE_transform_queue;  // Queue of polygons waiting to be rotated
 RSR_queue_t *GE_clip_queue;       // Queue of polygons waiting to be clipped
 RSR_queue_t *GE_rasterise_queue;  // Queue of polygons waiting to be rasterised
 
-RSR_queue_t *GE_rasterise_left, *GE_rasterise_right;
-pthread_t thread_render_1, thread_render_2;
+pthread_t thread_render_1, thread_render_2, thread_render_3, thread_render_4;
 
-pthread_cond_t rasterise_ready;
-pthread_cond_t thread_done;
-pthread_mutex_t rasterise_left, rasterise_right, rasterise_done;
+void GE_tile_render(  int xmin, int xmax, int ymin, int ymax,
+                      SDL_Surface *pixel_buffer,
+                      float *depth_buffer,
+                      RSR_queue_t *queue_in   )
+{
+  clear_screen(pixel_buffer, 109, 133, 169);
+
+  int size = queue_in->size;
+  for (int i=0; i<size; i++)
+  {
+    triangle_2d(pixel_buffer, depth_buffer, RSR_front(queue_in));
+    RSR_dequeue(queue_in);
+  }
+  
+  SDL_Rect src;
+  src.x = xmin;
+  src.y = ymin;
+  src.w = xmax-xmin;
+  src.h = ymax-ymin;
+
+  SDL_Rect dest;
+  dest.x = xmin;
+  dest.y = ymin;
+  dest.w = xmax-xmin;
+  dest.h = ymax-ymin;
+
+  SDL_BlitSurface(pixel_buffer, &src, pixel_array, &dest);
+
+  for (int x=xmin; x<xmax; x++)
+    for (int y=ymin; y<ymax; y++)
+      depth_buffer[SCREEN_WDTH*y + x] = 0;
+}
+
 
 void *render_1()
 {
-  clear_screen(pixel_buffer_left, 109, 133, 169);
-
-  int size = GE_rasterise_left->size;
-  for (int i=0; i<size; i++)
-  {
-    triangle_2d(pixel_buffer_left, RSR_front(GE_rasterise_left));
-    RSR_dequeue(GE_rasterise_left);
-  }
-  
-  SDL_Rect src;
-  src.x = 0;
-  src.y = 0;
-  src.w = HALF_SCREEN_WDTH;
-  src.h = SCREEN_HGHT;
-
-  SDL_Rect dest;
-  dest.x = 0;
-  dest.y = 0;
-  dest.w = HALF_SCREEN_WDTH;
-  dest.h = SCREEN_HGHT;
-
-  SDL_BlitSurface(pixel_buffer_left, &src, pixel_array, &dest);
+  GE_tile_render(0, HALF_SCREEN_WDTH, 0, HALF_SCREEN_HGHT, pix_buf_tl, dep_buf_tl, GE_rasterise_tl);
 }
-
 void *render_2()
 {
-  clear_screen(pixel_buffer_right, 109, 133, 169);
-
-  int size = GE_rasterise_right->size;
-  for (int i=0; i<size; i++)
-  {
-    triangle_2d(pixel_buffer_right, RSR_front(GE_rasterise_right));
-    RSR_dequeue(GE_rasterise_right);
-  }
-  
-  SDL_Rect src;
-  src.x = HALF_SCREEN_WDTH;
-  src.y = 0;
-  src.w = SCREEN_WDTH;
-  src.h = SCREEN_HGHT;
-
-  SDL_Rect dest;
-  dest.x = HALF_SCREEN_WDTH;
-  dest.y = 0;
-  dest.w = SCREEN_WDTH;
-  dest.h = SCREEN_HGHT;
-
-  SDL_BlitSurface(pixel_buffer_right, &src, pixel_array, &dest);
+  GE_tile_render(HALF_SCREEN_WDTH, SCREEN_WDTH, 0, HALF_SCREEN_HGHT, pix_buf_tr, dep_buf_tr, GE_rasterise_tr);
 }
+void *render_3()
+{
+  GE_tile_render(0, HALF_SCREEN_WDTH, HALF_SCREEN_HGHT, SCREEN_HGHT, pix_buf_bl, dep_buf_bl, GE_rasterise_bl);
+}
+void *render_4()
+{
+  GE_tile_render(HALF_SCREEN_WDTH, SCREEN_WDTH, HALF_SCREEN_HGHT, SCREEN_HGHT, pix_buf_br, dep_buf_br, GE_rasterise_br);
+}
+
 
 /** Initialise GraphicsEngine
  */
 void GE_init(SDL_Window *win)
 {
+  pixel_array = SDL_GetWindowSurface(win);
+  
   GE_transform_queue = RSR_queue_init();
   GE_clip_queue = RSR_queue_init();
   GE_rasterise_queue = RSR_queue_init();
   
-  GE_rasterise_left = RSR_queue_init();
-  GE_rasterise_right = RSR_queue_init();
+  GE_rasterise_tl = RSR_queue_init();
+  GE_rasterise_tr = RSR_queue_init();
+  GE_rasterise_bl = RSR_queue_init();
+  GE_rasterise_br = RSR_queue_init();
 
+  pix_buf_tl = SDL_DuplicateSurface(pixel_array);
+  pix_buf_tr = SDL_DuplicateSurface(pixel_array);
+  pix_buf_bl = SDL_DuplicateSurface(pixel_array);
+  pix_buf_br = SDL_DuplicateSurface(pixel_array);
 
-  pixel_array = SDL_GetWindowSurface(win);
+  dep_buf_tl = (float *)calloc(SCREEN_WDTH*SCREEN_HGHT, sizeof(float));
+  dep_buf_tr = (float *)calloc(SCREEN_WDTH*SCREEN_HGHT, sizeof(float));
+  dep_buf_bl = (float *)calloc(SCREEN_WDTH*SCREEN_HGHT, sizeof(float));
+  dep_buf_br = (float *)calloc(SCREEN_WDTH*SCREEN_HGHT, sizeof(float));
 
-  pthread_cond_init(&rasterise_ready, NULL);
-  pthread_cond_init(&thread_done, NULL);
-  pthread_mutex_init(&rasterise_left, NULL);
-  pthread_mutex_init(&rasterise_right, NULL);
-  pthread_mutex_init(&rasterise_done, NULL);
-
-  pixel_buffer_left = SDL_DuplicateSurface(pixel_array);
-  // pthread_create(&thread_render_1, NULL, render_1, NULL);
-  // pthread_detach(thread_render_1);
-
-  pixel_buffer_right = SDL_DuplicateSurface(pixel_array);
-  // pthread_create(&thread_render_2, NULL, render_2, NULL);
-  // pthread_detach(thread_render_2);
 }
 
 
@@ -380,18 +383,18 @@ void clear_screen(SDL_Surface *pixel_arr, Uint8 r, Uint8 g, Uint8 b)
   Uint16 green = g << 8;
   SDL_FillRect(pixel_arr, NULL, red + green + b);
 
-  for (int i=0; i<SCREEN_WDTH; i++)
-    for (int j=0; j<SCREEN_HGHT; j++)
-      z_buffer[SCREEN_WDTH*j + i] = 0;
+  // for (int i=0; i<SCREEN_WDTH; i++)
+  //   for (int j=0; j<SCREEN_HGHT; j++)
+  //     z_buffer[SCREEN_WDTH*j + i] = 0;
 }
 
-inline void pixel(SDL_Surface *pixel_arr, int x, int y, Uint8 r, Uint8 g, Uint8 b)
+inline void pixel(SDL_Surface *pixel_buffer, int x, int y, Uint8 r, Uint8 g, Uint8 b)
 {
-  Uint8 *const blue  = ((Uint8 *) pixel_arr->pixels + (y*4*SCREEN_WDTH) + (x*4 + 0));
+  Uint8 *const blue  = ((Uint8 *) pixel_buffer->pixels + (y*4*SCREEN_WDTH) + (x*4 + 0));
   *blue = b;
-  Uint8 *const green = ((Uint8 *) pixel_arr->pixels + (y*4*SCREEN_WDTH) + (x*4 + 1));
+  Uint8 *const green = ((Uint8 *) pixel_buffer->pixels + (y*4*SCREEN_WDTH) + (x*4 + 1));
   *green = g;
-  Uint8 *const red   = ((Uint8 *) pixel_arr->pixels + (y*4*SCREEN_WDTH) + (x*4 + 2));
+  Uint8 *const red   = ((Uint8 *) pixel_buffer->pixels + (y*4*SCREEN_WDTH) + (x*4 + 2));
   *red = r;
 }
 
@@ -451,59 +454,59 @@ Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3)
   return weights;
 }
 
-void triangle_2d(SDL_Surface *buffer, Polygon *tri)
+void triangle_2d(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri)
 {
   Vector2 v1 = tri->proj_verts[0];
   Vector2 v2 = tri->proj_verts[1];
   Vector2 v3 = tri->proj_verts[2];
 
-  line_2d((Vector3){0, 0, 0}, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1}, buffer);
-  line_2d((Vector3){0, 0, 0}, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1}, buffer);
-  line_2d((Vector3){0, 0, 0}, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1}, buffer);
+  // line_2d((Vector3){0, 0, 0}, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1}, pixel_buffer);
+  // line_2d((Vector3){0, 0, 0}, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1}, pixel_buffer);
+  // line_2d((Vector3){0, 0, 0}, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1}, pixel_buffer);
 
-  // float inverse_u_coords[3] = {tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
-  // float inverse_v_coords[3] = {tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
+  float inverse_u_coords[3] = {tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
+  float inverse_v_coords[3] = {tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
 
-  // Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
-  // Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
-  // Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
-  // Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
+  Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
+  Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
+  Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
+  Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
 
-  // Uint16 u=0, v=0;
-  // float z_index;
+  Uint16 u=0, v=0;
+  float z_index;
 
-  // Vector3 vert_weights;
-  // Uint8 *red, *green, *blue;
-  // Uint8 *pixels = tri->texture->pixels;
+  Vector3 vert_weights;
+  Uint8 *red, *green, *blue;
+  Uint8 *pixels = tri->texture->pixels;
 
-  // for (Uint16 y=ly; y<=hy; y++)
-  // {
-  //   for (Uint16 x=lx; x<=hx; x++)
-  //   {
-  //     vert_weights = calculate_barycentric(x, y, v1, v2, v3);
+  for (Uint16 y=ly; y<=hy; y++)
+  {
+    for (Uint16 x=lx; x<=hx; x++)
+    {
+      vert_weights = calculate_barycentric(x, y, v1, v2, v3);
 
-  //     if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
-  //     {
-  //       z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
+      if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
+      {
+        z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
 
-  //       if (z_index > z_buffer[SCREEN_WDTH*y + x])
-  //       {
-  //         z_buffer[SCREEN_WDTH*y + x] = z_index;
+        if (z_index > depth_buffer[SCREEN_WDTH*y + x])
+        {
+          depth_buffer[SCREEN_WDTH*y + x] = z_index;
 
-  //         u = (Uint16)((vert_weights.x*inverse_u_coords[0] + vert_weights.y*inverse_u_coords[1] + vert_weights.z*inverse_u_coords[2]) / z_index) % tri->texture->w;
-  //         v = (Uint16)((vert_weights.x*inverse_v_coords[0] + vert_weights.y*inverse_v_coords[1] + vert_weights.z*inverse_v_coords[2]) / z_index) % tri->texture->h;
+          u = (Uint16)((vert_weights.x*inverse_u_coords[0] + vert_weights.y*inverse_u_coords[1] + vert_weights.z*inverse_u_coords[2]) / z_index) % tri->texture->w;
+          v = (Uint16)((vert_weights.x*inverse_v_coords[0] + vert_weights.y*inverse_v_coords[1] + vert_weights.z*inverse_v_coords[2]) / z_index) % tri->texture->h;
 
-  //         u *= tri->texture->format->BytesPerPixel;
+          u *= tri->texture->format->BytesPerPixel;
 
-  //         red   = pixels + v*tri->texture->pitch + u+2;
-  //         green = pixels + v*tri->texture->pitch + u+1;
-  //         blue  = pixels + v*tri->texture->pitch + u+0;
+          red   = pixels + v*tri->texture->pitch + u+2;
+          green = pixels + v*tri->texture->pitch + u+1;
+          blue  = pixels + v*tri->texture->pitch + u+0;
 
-  //         pixel(buffer, x, y, *red, *green, *blue);
-  //       }
-  //     }
-  //   }
-  // }
+          pixel(pixel_buffer, x, y, *red, *green, *blue);
+        }
+      }
+    }
+  }
 }
 
 /*
@@ -525,73 +528,6 @@ void triangle_2d(SDL_Surface *buffer, Polygon *tri)
   };
 */
 
-void triangle_2d_shaded(SDL_Surface *buffer, Polygon *tri)
-{
-  Vector2 v1 = tri->proj_verts[0];
-  Vector2 v2 = tri->proj_verts[1];
-  Vector2 v3 = tri->proj_verts[2];
-
-  float inverse_u_coords[3] = {tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
-  float inverse_v_coords[3] = {tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
-
-  float shade1 = vector3_dot(tri->normals[0], lightsource);
-  float shade2 = vector3_dot(tri->normals[1], lightsource);
-  float shade3 = vector3_dot(tri->normals[2], lightsource);
-
-  Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
-  Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
-  Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
-  Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
-
-  Uint16 u=0, v=0;
-  float z_index;
-
-  Vector3 vert_weights, light_weights;
-  Uint8 *red, *green, *blue;
-  Uint8 *pixels = tri->texture->pixels;
-  Uint8 *nmap = tri->normal_map->pixels;
-
-  for (Uint16 x=lx; x<=hx; x++)
-  {
-    for (Uint16 y=ly; y<=hy; y++)
-    {
-      vert_weights = calculate_barycentric(x, y, v1, v2, v3);
-
-      if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
-      {
-        z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
-
-        if (z_index > z_buffer[SCREEN_WDTH*y + x])
-        {
-          z_buffer[SCREEN_WDTH*y + x] = z_index;
-
-          u = (Uint16)((vert_weights.x*inverse_u_coords[0] + vert_weights.y*inverse_u_coords[1] + vert_weights.z*inverse_u_coords[2]) / z_index) % tri->texture->w;
-          v = (Uint16)((vert_weights.x*inverse_v_coords[0] + vert_weights.y*inverse_v_coords[1] + vert_weights.z*inverse_v_coords[2]) / z_index) % tri->texture->h;
-
-          u *= tri->texture->format->BytesPerPixel;
-
-          red   = pixels + v*tri->texture->pitch + u+2;
-          green = pixels + v*tri->texture->pitch + u+1;
-          blue  = pixels + v*tri->texture->pitch + u+0;
-
-          float shade = vert_weights.x*shade1 + vert_weights.y*shade2 + vert_weights.z*shade3;
-          shade += 1;
-          shade /= 2;
-
-          float r = *red;
-          float g = *green;
-          float b = *blue;
-
-          r *= shade;
-          g *= shade; 
-          b *= shade; 
-
-          pixel(buffer, x, y, (Uint8)r, (Uint8)g, (Uint8)b);
-        }
-      }
-    }
-  }
-}
 
 /**
  * @return __m128 where each element is the weighting of each (x, y) with respect to the first input vertex
@@ -929,163 +865,6 @@ void GE_queue_perform_transformation(void)
   }
 }
 
-void GE_clip_2D_to_center(Polygon *tri)
-{
-  Polygon out1 = *tri, out2 = *tri, out3 = *tri;
-
-  Vector2 *left_verts[3]; int left_count = 0;
-  Vector2 *right_verts[3]; int right_count = 0;
-
-  int left_index = 0;
-  int right_index = 0;
-
-  // get signed distance between each vertex and center
-  // negative distance means point is on left of screen,
-  // positive means point is on right of screen
-
-  float d0 = tri->proj_verts[0].x - HALF_SCREEN_WDTH;
-  float d1 = tri->proj_verts[1].x - HALF_SCREEN_WDTH;
-  float d2 = tri->proj_verts[2].x - HALF_SCREEN_WDTH;
-
-  if (d0 >= 0)
-  {
-    right_verts[right_count] = &tri->proj_verts[0];
-    right_count += 1;
-    right_index = 0;
-  }
-  else
-  {
-    left_verts[left_count] = &tri->proj_verts[0];
-    left_count += 1;
-    left_index = 0;
-  }
-
-  if (d1 >= 0)
-  {
-    right_verts[right_count] = &tri->proj_verts[1];
-    right_count += 1;
-    right_index = 1;
-  }
-  else
-  {
-    left_verts[left_count] = &tri->proj_verts[1];
-    left_count += 1;
-    left_index = 1;
-  }
-
-  if (d2 >= 0)
-  {
-    right_verts[right_count] = &tri->proj_verts[2];
-    right_count += 1;
-    right_index = 2;
-  }
-  else
-  {
-    left_verts[left_count] = &tri->proj_verts[2];
-    left_count += 1;
-    left_index = 2;
-  }
-
-  float slope, c;
-
-  switch (left_count)
-  {
-    case (1): // 1 new tri on left, 2 new tris on right
-
-      // Left triangle 
-      int left = left_index;
-      int right1 = (left_index+1)%3;
-      int right2 = (left_index+2)%3;
-
-      out1.proj_verts[left] = *left_verts[0];
-
-      slope = GE_calc_slope(left_verts[0], right_verts[0]);
-      c = GE_calc_y_intercept(left_verts[0], &slope);
-      out1.proj_verts[right1].x = HALF_SCREEN_WDTH-1;
-      out1.proj_verts[right1].y = slope*(HALF_SCREEN_WDTH-1) + c;
-      if (out1.proj_verts[right1].y >= SCREEN_HGHT)
-        return;
-
-      slope = GE_calc_slope(left_verts[0], right_verts[1]);
-      c = GE_calc_y_intercept(left_verts[0], &slope);
-      out1.proj_verts[right2].x = HALF_SCREEN_WDTH-1;
-      out1.proj_verts[right2].y = slope*(HALF_SCREEN_WDTH-1) + c;
-      if (out1.proj_verts[right2].y >= SCREEN_HGHT)
-        return;
-
-      RSR_enque(GE_rasterise_left, &out1);
-
-
-      // // Right triangle
-      slope = GE_calc_slope(left_verts[0], right_verts[0]);
-      c = GE_calc_y_intercept(left_verts[0], &slope);
-      out2.proj_verts[0] = *right_verts[0];
-      out2.proj_verts[1] = *right_verts[1];
-      out2.proj_verts[2].x = HALF_SCREEN_WDTH;
-      out2.proj_verts[2].y = slope*HALF_SCREEN_WDTH + c;
-      if (out2.proj_verts[2].y >= SCREEN_HGHT)
-        return;
-      RSR_enque(GE_rasterise_right, &out2);
-
-
-      slope = GE_calc_slope(left_verts[0], right_verts[1]);
-      c = GE_calc_y_intercept(left_verts[0], &slope);
-      out3.proj_verts[0] = *right_verts[1];
-      out3.proj_verts[1] = out2.proj_verts[2];
-      out3.proj_verts[2].x = HALF_SCREEN_WDTH;
-      out3.proj_verts[2].y = slope*HALF_SCREEN_WDTH + c;
-      if (out3.proj_verts[2].y >= SCREEN_HGHT)
-        return;
-      RSR_enque(GE_rasterise_right, &out3);
-
-      break;
-
-    case (2): // 2 new tris on left, 1 new tri on right
-
-      int right = right_index;
-      int left1 = (right_index+1)%3;
-      int left2 = (right_index+2)%3;
-      
-      slope = GE_calc_slope(right_verts[0], left_verts[0]);
-      c = GE_calc_y_intercept(right_verts[0], &slope);
-      out1.proj_verts[left1].x = HALF_SCREEN_WDTH;
-      out1.proj_verts[left1].y = slope*(HALF_SCREEN_WDTH) + c;
-      if (out1.proj_verts[right1].y >= SCREEN_HGHT)
-        return;
-
-      slope = GE_calc_slope(right_verts[0], left_verts[1]);
-      c = GE_calc_y_intercept(right_verts[0], &slope);
-      out1.proj_verts[left2].x = HALF_SCREEN_WDTH;
-      out1.proj_verts[left2].y = slope*(HALF_SCREEN_WDTH) + c;
-      if (out1.proj_verts[right2].y >= SCREEN_HGHT)
-        return;
-      RSR_enque(GE_rasterise_right, &out1);
-
-
-      slope = GE_calc_slope(right_verts[0], left_verts[0]);
-      c = GE_calc_y_intercept(right_verts[0], &slope);
-      out2.proj_verts[0] = *left_verts[0];
-      out2.proj_verts[1] = *left_verts[1];
-      out2.proj_verts[2].x = HALF_SCREEN_WDTH-1;
-      out2.proj_verts[2].y = slope*(HALF_SCREEN_WDTH-1) + c;
-      if (out2.proj_verts[2].y >= SCREEN_HGHT)
-        return;
-      RSR_enque(GE_rasterise_left, &out2);
-
-
-      slope = GE_calc_slope(right_verts[0], left_verts[1]);
-      c = GE_calc_y_intercept(right_verts[0], &slope);
-      out3.proj_verts[0] = *left_verts[1];
-      out3.proj_verts[1] = out2.proj_verts[2];
-      out3.proj_verts[2].x = HALF_SCREEN_WDTH-1;
-      out3.proj_verts[2].y = slope*(HALF_SCREEN_WDTH-1) + c;
-      if (out3.proj_verts[2].y >= SCREEN_HGHT)
-        return;
-      RSR_enque(GE_rasterise_left, &out3);
-
-      break;
-  }
-}
 
 void GE_queue_perform_clipping(void)
 {
@@ -1102,7 +881,7 @@ void GE_queue_perform_clipping(void)
  */
 void GE_queue_perform_rasterisation(void)
 {
-  clear_screen(pixel_array, 200, 200, 200);
+  // clear_screen(pixel_array, 200, 200, 200);
   int size = GE_rasterise_queue->size;
 
   for (int i=0; i<size; i++)
@@ -1113,22 +892,82 @@ void GE_queue_perform_rasterisation(void)
     for (int j=0; j<3; j++)
       tri.proj_verts[j] = GE_world_to_screen(&tri.vertices[j]);
 
-
+    // If left
     if (tri.proj_verts[0].x < HALF_SCREEN_WDTH && tri.proj_verts[1].x < HALF_SCREEN_WDTH && tri.proj_verts[2].x < HALF_SCREEN_WDTH)
-      RSR_enque(GE_rasterise_left, &tri);
-    else if (tri.proj_verts[0].x >= HALF_SCREEN_WDTH && tri.proj_verts[1].x >= HALF_SCREEN_WDTH && tri.proj_verts[2].x >= HALF_SCREEN_WDTH)
-      RSR_enque(GE_rasterise_right, &tri);
-    else
-      GE_clip_2D_to_center(&tri);
+    {
+      // If top
+      if (tri.proj_verts[0].y < HALF_SCREEN_HGHT && tri.proj_verts[1].y < HALF_SCREEN_HGHT && tri.proj_verts[2].y < HALF_SCREEN_HGHT)
+        RSR_enque(GE_rasterise_tl, &tri);
 
+      // If bottom
+      else if (tri.proj_verts[0].y >= HALF_SCREEN_HGHT && tri.proj_verts[1].y >= HALF_SCREEN_HGHT && tri.proj_verts[2].y >= HALF_SCREEN_HGHT)
+        RSR_enque(GE_rasterise_bl, &tri);
+    
+      // If top and bottom
+      else
+      {
+        RSR_enque(GE_rasterise_tl, &tri);
+        RSR_enque(GE_rasterise_bl, &tri);
+      }
+
+    }
+    
+    // If right
+    else if (tri.proj_verts[0].x >= HALF_SCREEN_WDTH && tri.proj_verts[1].x >= HALF_SCREEN_WDTH && tri.proj_verts[2].x >= HALF_SCREEN_WDTH)
+    {
+      // If top
+      if (tri.proj_verts[0].y < HALF_SCREEN_HGHT && tri.proj_verts[1].y < HALF_SCREEN_HGHT && tri.proj_verts[2].y < HALF_SCREEN_HGHT)
+        RSR_enque(GE_rasterise_tr, &tri);
+      
+      // If bottom
+      else if (tri.proj_verts[0].y >= HALF_SCREEN_HGHT && tri.proj_verts[1].y >= HALF_SCREEN_HGHT && tri.proj_verts[2].y >= HALF_SCREEN_HGHT)
+        RSR_enque(GE_rasterise_br, &tri);
+
+      // If top and bottom
+      else
+      {
+        RSR_enque(GE_rasterise_tr, &tri);
+        RSR_enque(GE_rasterise_br, &tri);
+      }
+    }    
+
+    // If left and right
+    else
+    {
+      // If top
+      if (tri.proj_verts[0].y < HALF_SCREEN_HGHT && tri.proj_verts[1].y < HALF_SCREEN_HGHT && tri.proj_verts[2].y < HALF_SCREEN_HGHT)
+      {
+        RSR_enque(GE_rasterise_tl, &tri);
+        RSR_enque(GE_rasterise_tr, &tri);
+      }
+
+      // If bottom
+      else if (tri.proj_verts[0].y >= HALF_SCREEN_HGHT && tri.proj_verts[1].y >= HALF_SCREEN_HGHT && tri.proj_verts[2].y >= HALF_SCREEN_HGHT)
+      {
+        RSR_enque(GE_rasterise_bl, &tri);
+        RSR_enque(GE_rasterise_br, &tri);
+      }
+
+      // If all four quadrants
+      else
+      {
+        RSR_enque(GE_rasterise_tl, &tri);
+        RSR_enque(GE_rasterise_tr, &tri);
+        RSR_enque(GE_rasterise_bl, &tri);
+        RSR_enque(GE_rasterise_br, &tri);
+      }
+    }
   }
 
   pthread_create(&thread_render_1, NULL, render_1, NULL);
   pthread_create(&thread_render_2, NULL, render_2, NULL);
+  pthread_create(&thread_render_3, NULL, render_3, NULL);
+  pthread_create(&thread_render_4, NULL, render_4, NULL);
 
   pthread_join(thread_render_1, NULL);
   pthread_join(thread_render_2, NULL);
-
+  pthread_join(thread_render_3, NULL);
+  pthread_join(thread_render_4, NULL);
 }
 
 

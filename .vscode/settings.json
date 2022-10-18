@@ -82,6 +82,7 @@
     "streambuf": "c",
     "__config": "c",
     "iterator": "c",
-    "*.inc": "c"
+    "*.inc": "c",
+    "datastructures.h": "c"
   }
 }
