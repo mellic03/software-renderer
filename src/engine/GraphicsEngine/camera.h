@@ -3,10 +3,10 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 
-#define SCREEN_WIDTH 1000
-#define SCREEN_HEIGHT 1000
-#define HALF_SCREEN_WIDTH SCREEN_WIDTH/2
-#define HALF_SCREEN_HEIGHT SCREEN_HEIGHT/2
+#define SCREEN_WDTH 1000
+#define SCREEN_HGHT 1000
+#define HALF_SCREEN_WDTH (SCREEN_WDTH/2)
+#define HALF_SCREEN_HGHT (SCREEN_HGHT/2)
 
 typedef struct Camera {
   
@@ -17,11 +17,9 @@ typedef struct Camera {
 
   int speed;
 
-  Vector3 near_norm, far_norm;
-  Vector3 l_norm, r_norm;
-  Vector3 t_norm, b_norm;
-
-  Vector3 ml_norm, mr_norm;
+  Vector3 left_plane, right_plane;
+  Vector3 top_plane, bottom_plane;
+  Vector3 near_plane, far_plane;
 
 } Camera;
 

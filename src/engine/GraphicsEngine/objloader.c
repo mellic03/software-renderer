@@ -209,8 +209,6 @@ void load_polygons(FILE *fh, Model *model)
     }
   }
 
-  printf("WOOOO\n");
-
   // Calculate vertex normals from face normals
   rewind(fh);
   // An array of normals where index n corresponds to vertex n
@@ -231,6 +229,10 @@ void load_polygons(FILE *fh, Model *model)
   model->vertices = (Vector3 *)malloc(model->vertex_count * sizeof(Vector3));
   for (int i=0; i<model->vertex_count; i++)
     model->vertices[i] = vertices[i];
+
+  for (int i=0; i<model->poly_count; i++)
+    for (int j=0; j<3; j++)
+      model->polygons[i].normals[j] = vertex_normals[model->polygons[i].vertex_indices[j]];
 
   free(vertex_normals);
   free(vertices);
@@ -262,6 +264,14 @@ void load_material(FILE *fh, char *filepath, Model *model)
       strcat(filepath_copy, token);
       printf("FILE: %s\n", filepath_copy);
       model->materials[mat_index] = SDL_LoadBMP(filepath_copy);
+
+      // load normal map
+      // strcpy(filepath_copy, filepath);
+      // strcat(filepath_copy, "/");
+      // strcat(filepath_copy, token);
+      // strcat(filepath_copy, "n");
+      // printf("FILE: %s\n", filepath_copy);
+      // model->normal_maps[mat_index] = SDL_LoadBMP(filepath_copy);
 
       mat_index -= 1;
     }
@@ -299,6 +309,7 @@ Model *model_load(char *filepath)
 
   model->polygons = (Polygon *)malloc(model->poly_count * sizeof(Polygon)); // Array of polygons
   model->materials = (SDL_Surface **)malloc(model->mat_count*2 * sizeof(SDL_Surface *)); // Array of sdl surfaces
+  model->normal_maps = (SDL_Surface **)malloc(model->mat_count*2 * sizeof(SDL_Surface *)); // Array of sdl surfaces
 
   load_polygons(fh, model);
   fclose(fh);
@@ -313,6 +324,7 @@ Model *model_load(char *filepath)
   for (int i=0; i<model->poly_count; i++)
   {
     model->polygons[i].texture = model->materials[model->polygons[i].mat_index];
+    model->polygons[i].normal_map = model->normal_maps[model->polygons[i].mat_index];
     for (int j=0; j<3; j++)
     {
       model->polygons[i].uvs[j].y = 1 - model->polygons[i].uvs[j].y;

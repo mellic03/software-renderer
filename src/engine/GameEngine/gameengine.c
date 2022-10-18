@@ -171,24 +171,24 @@ void gameobject_free(GameObject *object)
 
 void gameobject_delete(GameObject *object)
 {
-  int id = object->object_id;
+  // int id = object->object_id;
 
-  GameObject *temp = head;
+  // GameObject *temp = head;
   
-  if (head->object_id == id)
-  {
-    head = head->next;
-    gameobject_free(temp);
-  }
-  else
-  {
-    while (temp->next != NULL && temp->next->object_id != id)
-      temp = temp->next;
+  // if (head->object_id == id)
+  // {
+  //   head = head->next;
+  //   gameobject_free(temp);
+  // }
+  // else
+  // {
+  //   while (temp->next != NULL && temp->next->object_id != id)
+  //     temp = temp->next;
 
-    GameObject *temp2 = temp->next->next;
-    gameobject_free(temp->next);
-    temp->next = temp2;
-  }
+  //   GameObject *temp2 = temp->next->next;
+  //   gameobject_free(temp->next);
+  //   temp->next = temp2;
+  // }
 }
 
 void gameobject_draw_all() {

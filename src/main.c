@@ -57,8 +57,8 @@ int main(int argc, char** argv)
     "Graphics",
     SDL_WINDOWPOS_UNDEFINED,
     SDL_WINDOWPOS_UNDEFINED,
-    SCREEN_WIDTH,
-    SCREEN_HEIGHT,
+    SCREEN_WDTH,
+    SCREEN_HGHT,
     0
   );
 
@@ -75,6 +75,7 @@ int main(int argc, char** argv)
   //------------------------------------------------------------
   GameObject *map = gameobject_create();
   gameobject_assign_model(map, model_load("src/assets/benchmark"));
+  // gameobject_rotate_y(map, 2);
   map->model->shade_style = SHADE_NONE;
 
   player = player_create();
@@ -114,9 +115,9 @@ int main(int argc, char** argv)
     map->model->shade_style = toggle;
 
 
-    GE_queue_transform();
-    GE_queue_clip();
-    GE_queue_rasterise();
+    GE_queue_perform_transformation();
+    GE_queue_perform_clipping();
+    GE_queue_perform_rasterisation();
 
 
     pthread_cond_broadcast(&main_ready);

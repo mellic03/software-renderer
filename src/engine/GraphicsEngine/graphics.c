@@ -23,7 +23,7 @@ SDL_Surface *pixel_buffer_left;
 SDL_Surface *pixel_buffer_right; 
 SDL_Surface *pixel_array;
 
-float z_buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
+float z_buffer[SCREEN_WDTH * SCREEN_HGHT];
 
 Vector3 lightsource = {0, -1, 0};
 
@@ -48,21 +48,21 @@ void *render_1()
   int size = GE_rasterise_left->size;
   for (int i=0; i<size; i++)
   {
-    triangle_2d(RSR_front(GE_rasterise_left), pixel_buffer_left);
+    triangle_2d(pixel_buffer_left, RSR_front(GE_rasterise_left));
     RSR_dequeue(GE_rasterise_left);
   }
   
   SDL_Rect src;
   src.x = 0;
   src.y = 0;
-  src.w = HALF_SCREEN_WIDTH;
-  src.h = SCREEN_HEIGHT;
+  src.w = HALF_SCREEN_WDTH;
+  src.h = SCREEN_HGHT;
 
   SDL_Rect dest;
   dest.x = 0;
   dest.y = 0;
-  dest.w = HALF_SCREEN_WIDTH;
-  dest.h = SCREEN_HEIGHT;
+  dest.w = HALF_SCREEN_WDTH;
+  dest.h = SCREEN_HGHT;
 
   SDL_BlitSurface(pixel_buffer_left, &src, pixel_array, &dest);
 }
@@ -74,21 +74,21 @@ void *render_2()
   int size = GE_rasterise_right->size;
   for (int i=0; i<size; i++)
   {
-    triangle_2d(RSR_front(GE_rasterise_right), pixel_buffer_right);
+    triangle_2d(pixel_buffer_right, RSR_front(GE_rasterise_right));
     RSR_dequeue(GE_rasterise_right);
   }
   
   SDL_Rect src;
-  src.x = HALF_SCREEN_WIDTH;
+  src.x = HALF_SCREEN_WDTH;
   src.y = 0;
-  src.w = SCREEN_WIDTH;
-  src.h = SCREEN_HEIGHT;
+  src.w = SCREEN_WDTH;
+  src.h = SCREEN_HGHT;
 
   SDL_Rect dest;
-  dest.x = HALF_SCREEN_WIDTH;
+  dest.x = HALF_SCREEN_WDTH;
   dest.y = 0;
-  dest.w = SCREEN_WIDTH;
-  dest.h = SCREEN_HEIGHT;
+  dest.w = SCREEN_WDTH;
+  dest.h = SCREEN_HGHT;
 
   SDL_BlitSurface(pixel_buffer_right, &src, pixel_array, &dest);
 }
@@ -372,26 +372,26 @@ void scale_xyz(Model *model, float x, float y, float z)
 //-------------------------------------------------------------------------------
 void clear_screen(SDL_Surface *pixel_arr, Uint8 r, Uint8 g, Uint8 b)
 {
-  // for (int i=0; i<SCREEN_WIDTH; i++)
-  //   for (int j=0; j<SCREEN_HEIGHT; j++)
+  // for (int i=0; i<SCREEN_WDTH; i++)
+  //   for (int j=0; j<SCREEN_HGHT; j++)
   //     pixel(i, j, r, g, b);
 
   Uint32 red = r << 16;
   Uint16 green = g << 8;
   SDL_FillRect(pixel_arr, NULL, red + green + b);
 
-  for (int i=0; i<SCREEN_WIDTH; i++)
-    for (int j=0; j<SCREEN_HEIGHT; j++)
-      z_buffer[SCREEN_WIDTH*j + i] = 0;
+  for (int i=0; i<SCREEN_WDTH; i++)
+    for (int j=0; j<SCREEN_HGHT; j++)
+      z_buffer[SCREEN_WDTH*j + i] = 0;
 }
 
 inline void pixel(SDL_Surface *pixel_arr, int x, int y, Uint8 r, Uint8 g, Uint8 b)
 {
-  Uint8 *const blue  = ((Uint8 *) pixel_arr->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 0));
+  Uint8 *const blue  = ((Uint8 *) pixel_arr->pixels + (y*4*SCREEN_WDTH) + (x*4 + 0));
   *blue = b;
-  Uint8 *const green = ((Uint8 *) pixel_arr->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 1));
+  Uint8 *const green = ((Uint8 *) pixel_arr->pixels + (y*4*SCREEN_WDTH) + (x*4 + 1));
   *green = g;
-  Uint8 *const red   = ((Uint8 *) pixel_arr->pixels + (y*4*SCREEN_WIDTH) + (x*4 + 2));
+  Uint8 *const red   = ((Uint8 *) pixel_arr->pixels + (y*4*SCREEN_WDTH) + (x*4 + 2));
   *red = r;
 }
 
@@ -451,255 +451,105 @@ Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3)
   return weights;
 }
 
-void triangle_2d_gouraud(Model *model, Polygon *tri)
-{
-  // Vector2 v1 = GE_world_to_screen(&tri->vertices[0]);
-  // Vector2 v2 = GE_world_to_screen(&tri->vertices[1]);
-  // Vector2 v3 = GE_world_to_screen(&tri->vertices[2]);
-
-  // Vector2 ov1 = GE_world_to_screen(&tri->og_vertices[0]);
-  // Vector2 ov2 = GE_world_to_screen(&tri->og_vertices[1]);
-  // Vector2 ov3 = GE_world_to_screen(&tri->og_vertices[2]);
-
-  // Vector3 norm1 = tri->normals[0];
-  // Vector3 norm2 = tri->normals[1];
-  // Vector3 norm3 = tri->normals[2];
-
-  // float ilum1 = (vector3_dot(norm1, lightsource) + 1) / 2;
-  // float ilum2 = (vector3_dot(norm2, lightsource) + 1) / 2;
-  // float ilum3 = (vector3_dot(norm3, lightsource) + 1) / 2;
-
-  // __m128 _reg_uv_x = _mm_set_ps(tri->uvs[0].x, tri->uvs[1].x, tri->uvs[2].x, 1);
-  // __m128 _reg_uv_y = _mm_set_ps(tri->uvs[0].y, tri->uvs[1].y, tri->uvs[2].y, 1);
-  // __m128 _reg_invz = _mm_set_ps(v1.w,          v2.w,          v3.w,          1);
-
-  // _reg_uv_x = _mm_mul_ps(_reg_uv_x, _reg_invz);
-  // _reg_uv_y = _mm_mul_ps(_reg_uv_y, _reg_invz);
-
-  // // line_2d((Vector3){0, 0, 0}, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1});
-  // // line_2d((Vector3){0, 0, 0}, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1});
-  // // line_2d((Vector3){0, 0, 0}, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1});
-
-  // Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
-  // Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
-  // Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
-  // Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
-
-  // Uint16 x=0, y=0, u=0, v=0;
-  // float z_index;
-
-  // Vector3 vert_weights;
-  // Vector3 light_weights;
-  // vector3_normalise(&lightsource);
-  // float shade;
-
-  // for (x=lx; x<=hx; x++)
-  // {
-  //   for (y=ly; y<=hy-0; y+=1)
-  //   {
-  //     vert_weights = calculate_barycentric(x, y, v1, v2, v3);
-
-  //     if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
-  //     {
-  //       z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
-
-  //       if (z_index > z_buffer[SCREEN_WIDTH*y + x])
-  //       {
-  //         z_buffer[SCREEN_WIDTH*y + x] = z_index;
-
-  //         light_weights = calculate_barycentric(x, y, ov1, ov2, ov3);
-          
-  //         shade = light_weights.x*ilum1 + light_weights.y*ilum2 + light_weights.z*ilum3;
-
-  //         u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index);
-  //         v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index);
-
-  //         u *= model->materials[tri->mat_index]->format->BytesPerPixel;
-
-  //         Uint8 *red = (Uint8 *)model->materials[tri->mat_index]->pixels + v*model->materials[tri->mat_index]->pitch + u+2;
-  //         Uint8 *green = (Uint8 *)model->materials[tri->mat_index]->pixels + v*model->materials[tri->mat_index]->pitch + u+1;
-  //         Uint8 *blue = (Uint8 *)model->materials[tri->mat_index]->pixels + v*model->materials[tri->mat_index]->pitch + u+0;
-
-  //         float r = *red * shade;
-  //         float g = *green * shade;
-  //         float b = *blue * shade;
-
-  //         pixel(x, y, (Uint8)r, (Uint8)g, (Uint8)b);
-  //       }
-  //     }
-  //   }
-  // }
-}
-
-void triangle_2d_phong(Model *model, Polygon *tri)
-{
-  // Vector2 v1 = GE_world_to_screen(&tri->vertices[0]);
-  // Vector2 v2 = GE_world_to_screen(&tri->vertices[1]);
-  // Vector2 v3 = GE_world_to_screen(&tri->vertices[2]);
-
-  // Vector2 ov1 = GE_world_to_screen(&tri->og_vertices[0]);
-  // Vector2 ov2 = GE_world_to_screen(&tri->og_vertices[1]);
-  // Vector2 ov3 = GE_world_to_screen(&tri->og_vertices[2]);
-
-  // Vector3 norm1 = tri->normals[0];
-  // Vector3 norm2 = tri->normals[1];
-  // Vector3 norm3 = tri->normals[2];
-
-  // __m128 _reg_uv_x = _mm_set_ps(tri->uvs[0].x, tri->uvs[1].x, tri->uvs[2].x, 1);
-  // __m128 _reg_uv_y = _mm_set_ps(tri->uvs[0].y, tri->uvs[1].y, tri->uvs[2].y, 1);
-  // __m128 _reg_invz = _mm_set_ps(v1.w,          v2.w,          v3.w,          1);
-
-  // _reg_uv_x = _mm_mul_ps(_reg_uv_x, _reg_invz);
-  // _reg_uv_y = _mm_mul_ps(_reg_uv_y, _reg_invz);
-
-  // // line_2d((Vector3){0, 0, 0}, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1});
-  // // line_2d((Vector3){0, 0, 0}, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1});
-  // // line_2d((Vector3){0, 0, 0}, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1});
-
-  // Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
-  // Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
-  // Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
-  // Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
-
-  // Uint16 x=0, y=0, u=0, v=0;
-  // float z_index;
-
-  // Vector3 vert_weights;
-  // Vector3 light_weights;
-  // vector3_normalise(&lightsource);
-  // float shade;
-
-  // for (x=lx; x<=hx; x++)
-  // {
-  //   for (y=ly; y<=hy-0; y+=1)
-  //   {
-  //     vert_weights = calculate_barycentric(x, y, v1, v2, v3);
-
-  //     if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
-  //     {
-  //       z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
-
-  //       if (z_index > z_buffer[SCREEN_WIDTH*y + x])
-  //       {
-  //         z_buffer[SCREEN_WIDTH*y + x] = z_index;
-
-  //         light_weights = calculate_barycentric(x, y, ov1, ov2, ov3);
-          
-  //         Vector3 N1 = vector3_scale(norm1, light_weights.x);
-  //         Vector3 N2 = vector3_scale(norm2, light_weights.y);
-  //         Vector3 N3 = vector3_scale(norm3, light_weights.z);
-          
-  //         Vector3 nn = vector3_add(N1, vector3_add(N2, N3));
-  //         vector3_normalise(&nn);
-
-  //         shade = (vector3_dot(lightsource, nn) + 1) / 2;
-
-  //         u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index);
-  //         v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index);
-
-  //         u *= model->materials[tri->mat_index]->format->BytesPerPixel;
-
-  //         Uint8 *red = (Uint8 *)model->materials[tri->mat_index]->pixels + v*model->materials[tri->mat_index]->pitch + u+2;
-  //         Uint8 *green = (Uint8 *)model->materials[tri->mat_index]->pixels + v*model->materials[tri->mat_index]->pitch + u+1;
-  //         Uint8 *blue = (Uint8 *)model->materials[tri->mat_index]->pixels + v*model->materials[tri->mat_index]->pitch + u+0;
-
-  //         float r = *red * shade;
-  //         float g = *green * shade;
-  //         float b = *blue * shade;
-
-  //         pixel(x, y, (Uint8)r, (Uint8)g, (Uint8)b);
-  //       }
-  //     }
-  //   }
-  // }
-}
-
-void triangle_2d_flat(Model *model, Polygon *tri)
-{
-  // Vector2 v1 = GE_world_to_screen(&tri->vertices[0]);
-  // Vector2 v2 = GE_world_to_screen(&tri->vertices[1]);
-  // Vector2 v3 = GE_world_to_screen(&tri->vertices[2]);
-
-  // __m128 _reg_uv_x = _mm_set_ps(tri->uvs[0].x, tri->uvs[1].x, tri->uvs[2].x, 1);
-  // __m128 _reg_uv_y = _mm_set_ps(tri->uvs[0].y, tri->uvs[1].y, tri->uvs[2].y, 1);
-  // __m128 _reg_invz = _mm_set_ps(v1.w,          v2.w,          v3.w,          1);
-
-  // _reg_uv_x = _mm_mul_ps(_reg_uv_x, _reg_invz);
-  // _reg_uv_y = _mm_mul_ps(_reg_uv_y, _reg_invz);
-
-  // Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
-  // Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
-  // Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
-  // Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
-
-  // Uint16 x=0, y=0, u=0, v=0;
-  // float z_index;
-
-  // Vector3 vert_weights;
-  // float shade = (vector3_dot(tri->face_normal, lightsource) + 1) / 2;
-
-  // Uint8 *pixels_start = (Uint8 *)model->materials[tri->mat_index]->pixels;
-  // int pitch = model->materials[tri->mat_index]->pitch;
-
-  // for (x=lx; x<=hx; x++)
-  // {
-  //   for (y=ly; y<=hy-0; y+=1)
-  //   {
-  //     vert_weights = calculate_barycentric(x, y, v1, v2, v3);
-
-  //     if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
-  //     {
-  //       z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
-
-  //       if (z_index > z_buffer[SCREEN_WIDTH*y + x])
-  //       {
-  //         z_buffer[SCREEN_WIDTH*y + x] = z_index;
-
-  //         u = (Uint16)((vert_weights.x*_reg_uv_x[3] + vert_weights.y*_reg_uv_x[2] + vert_weights.z*_reg_uv_x[1]) / z_index);
-  //         v = (Uint16)((vert_weights.x*_reg_uv_y[3] + vert_weights.y*_reg_uv_y[2] + vert_weights.z*_reg_uv_y[1]) / z_index);
-
-  //         u *= model->materials[tri->mat_index]->format->BytesPerPixel;
-
-  //         Uint8 *red = pixels_start + v*pitch + u+2;
-  //         Uint8 *green = pixels_start + v*pitch + u+1;
-  //         Uint8 *blue = pixels_start + v*pitch + u+0;
-
-  //         float r = *red * shade;
-  //         float g = *green * shade;
-  //         float b = *blue * shade;
-
-  //         pixel(x, y, (Uint8)r, (Uint8)g, (Uint8)b);
-  //       }
-  //     }
-  //   }
-  // }
-}
-
-void triangle_2d(Polygon *tri, SDL_Surface *pixel_arr)
+void triangle_2d(SDL_Surface *buffer, Polygon *tri)
 {
   Vector2 v1 = tri->proj_verts[0];
   Vector2 v2 = tri->proj_verts[1];
   Vector2 v3 = tri->proj_verts[2];
 
-  // line_2d((Vector3){0, 0, 0}, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1}, pixel_arr);
-  // line_2d((Vector3){0, 0, 0}, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1}, pixel_arr);
-  // line_2d((Vector3){0, 0, 0}, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1}, pixel_arr);
+  line_2d((Vector3){0, 0, 0}, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1}, buffer);
+  line_2d((Vector3){0, 0, 0}, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1}, buffer);
+  line_2d((Vector3){0, 0, 0}, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1}, buffer);
 
-  Vector3 tex_inv_x = (Vector3){tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
-  Vector3 tex_inv_y = (Vector3){tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
+  // float inverse_u_coords[3] = {tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
+  // float inverse_v_coords[3] = {tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
+
+  // Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
+  // Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
+  // Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
+  // Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
+
+  // Uint16 u=0, v=0;
+  // float z_index;
+
+  // Vector3 vert_weights;
+  // Uint8 *red, *green, *blue;
+  // Uint8 *pixels = tri->texture->pixels;
+
+  // for (Uint16 y=ly; y<=hy; y++)
+  // {
+  //   for (Uint16 x=lx; x<=hx; x++)
+  //   {
+  //     vert_weights = calculate_barycentric(x, y, v1, v2, v3);
+
+  //     if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
+  //     {
+  //       z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
+
+  //       if (z_index > z_buffer[SCREEN_WDTH*y + x])
+  //       {
+  //         z_buffer[SCREEN_WDTH*y + x] = z_index;
+
+  //         u = (Uint16)((vert_weights.x*inverse_u_coords[0] + vert_weights.y*inverse_u_coords[1] + vert_weights.z*inverse_u_coords[2]) / z_index) % tri->texture->w;
+  //         v = (Uint16)((vert_weights.x*inverse_v_coords[0] + vert_weights.y*inverse_v_coords[1] + vert_weights.z*inverse_v_coords[2]) / z_index) % tri->texture->h;
+
+  //         u *= tri->texture->format->BytesPerPixel;
+
+  //         red   = pixels + v*tri->texture->pitch + u+2;
+  //         green = pixels + v*tri->texture->pitch + u+1;
+  //         blue  = pixels + v*tri->texture->pitch + u+0;
+
+  //         pixel(buffer, x, y, *red, *green, *blue);
+  //       }
+  //     }
+  //   }
+  // }
+}
+
+/*
+  // calculate normal tangent and bitangent
+  Vector3 delta_pos1 = vector3_sub(tri->vertices[0], tri->vertices[0]);
+  Vector3 delta_pos2 = vector3_sub(tri->vertices[2], tri->vertices[0]);
+
+  Vector2 delta_uv1 = vector2_sub(tri->uvs[2], tri->uvs[0]);
+  Vector2 delta_uv2 = vector2_sub(tri->uvs[2], tri->uvs[0]);
+  
+  float tr = 1 / ((delta_uv1.x * delta_uv2.y) - (delta_uv1.y * delta_uv2.x));
+  Vector3 tangent = (vector3_sub(vector3_scale(delta_pos1, delta_uv2.y), vector3_scale(delta_pos2, delta_uv1.y)));
+  Vector3 bitangent = (vector3_add(vector3_scale(delta_pos1, -delta_uv2.y), vector3_scale(delta_pos2, delta_uv1.y)));
+  
+  Vector3 mapped_normal = {
+    *(nmap + v*tri->texture->pitch + u+2),
+    *(nmap + v*tri->texture->pitch + u+1),
+    *(nmap + v*tri->texture->pitch + u+0)
+  };
+*/
+
+void triangle_2d_shaded(SDL_Surface *buffer, Polygon *tri)
+{
+  Vector2 v1 = tri->proj_verts[0];
+  Vector2 v2 = tri->proj_verts[1];
+  Vector2 v3 = tri->proj_verts[2];
+
+  float inverse_u_coords[3] = {tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
+  float inverse_v_coords[3] = {tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
+
+  float shade1 = vector3_dot(tri->normals[0], lightsource);
+  float shade2 = vector3_dot(tri->normals[1], lightsource);
+  float shade3 = vector3_dot(tri->normals[2], lightsource);
 
   Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
   Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
   Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
   Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
 
-
   Uint16 u=0, v=0;
   float z_index;
 
-  Vector3 vert_weights;
+  Vector3 vert_weights, light_weights;
   Uint8 *red, *green, *blue;
   Uint8 *pixels = tri->texture->pixels;
+  Uint8 *nmap = tri->normal_map->pixels;
 
   for (Uint16 x=lx; x<=hx; x++)
   {
@@ -711,12 +561,12 @@ void triangle_2d(Polygon *tri, SDL_Surface *pixel_arr)
       {
         z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
 
-        if (z_index > z_buffer[SCREEN_WIDTH*y + x])
+        if (z_index > z_buffer[SCREEN_WDTH*y + x])
         {
-          z_buffer[SCREEN_WIDTH*y + x] = z_index;
+          z_buffer[SCREEN_WDTH*y + x] = z_index;
 
-          u = (Uint16)((vert_weights.x*tex_inv_x.x + vert_weights.y*tex_inv_x.y + vert_weights.z*tex_inv_x.z) / z_index) % tri->texture->w;
-          v = (Uint16)((vert_weights.x*tex_inv_y.x + vert_weights.y*tex_inv_y.y + vert_weights.z*tex_inv_y.z) / z_index) % tri->texture->h;
+          u = (Uint16)((vert_weights.x*inverse_u_coords[0] + vert_weights.y*inverse_u_coords[1] + vert_weights.z*inverse_u_coords[2]) / z_index) % tri->texture->w;
+          v = (Uint16)((vert_weights.x*inverse_v_coords[0] + vert_weights.y*inverse_v_coords[1] + vert_weights.z*inverse_v_coords[2]) / z_index) % tri->texture->h;
 
           u *= tri->texture->format->BytesPerPixel;
 
@@ -724,13 +574,24 @@ void triangle_2d(Polygon *tri, SDL_Surface *pixel_arr)
           green = pixels + v*tri->texture->pitch + u+1;
           blue  = pixels + v*tri->texture->pitch + u+0;
 
-          pixel(pixel_arr, x, y, *red, *green, *blue);
+          float shade = vert_weights.x*shade1 + vert_weights.y*shade2 + vert_weights.z*shade3;
+          shade += 1;
+          shade /= 2;
+
+          float r = *red;
+          float g = *green;
+          float b = *blue;
+
+          r *= shade;
+          g *= shade; 
+          b *= shade; 
+
+          pixel(buffer, x, y, (Uint8)r, (Uint8)g, (Uint8)b);
         }
       }
     }
   }
 }
-
 
 /**
  * @return __m128 where each element is the weighting of each (x, y) with respect to the first input vertex
@@ -767,420 +628,266 @@ void SIMD_calculate_barycentric_third(__m128 *identity, __m128 *first, __m128 *s
   *output = _mm_sub_ps(*output, *second);
 }
 
-void SIMD_triangle_2d(Model *model, Polygon *tri)
+void SIMD_triangle_2d(SDL_Surface *buffer, Model *model, Polygon *tri)
 {
-  // Vector2 v1 = GE_world_to_screen(&tri->vertices[0]);
-  // Vector2 v2 = GE_world_to_screen(&tri->vertices[1]);
-  // Vector2 v3 = GE_world_to_screen(&tri->vertices[2]);
+  Vector2 v1 = GE_world_to_screen(&tri->vertices[0]);
+  Vector2 v2 = GE_world_to_screen(&tri->vertices[1]);
+  Vector2 v3 = GE_world_to_screen(&tri->vertices[2]);
 
-  // Vector3 tex_inv_x = (Vector3){tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
-  // Vector3 tex_inv_y = (Vector3){tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
-  // Uint8 *red, *green, *blue;
-  // Uint8 *pixels = model->materials[tri->mat_index]->pixels;
+  Vector3 tex_inv_x = (Vector3){tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
+  Vector3 tex_inv_y = (Vector3){tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
+  Uint8 *red, *green, *blue;
+  Uint8 *pixels = model->materials[tri->mat_index]->pixels;
 
 
-  // __m128 _vertices_x = _mm_set_ps(v1.x, v2.x, v3.x, 1);
-  // __m128 _vertices_y = _mm_set_ps(v1.y, v2.y, v3.y, 1);
-  // __m128 _vertices_w = _mm_set_ps(v1.w, v2.w, v3.w, 1);
+  __m128 _vertices_x = _mm_set_ps(v1.x, v2.x, v3.x, 1);
+  __m128 _vertices_y = _mm_set_ps(v1.y, v2.y, v3.y, 1);
+  __m128 _vertices_w = _mm_set_ps(v1.w, v2.w, v3.w, 1);
 
-  // __m128 _v3x = _mm_set1_ps(v3.x);
-  // __m128 _v3y = _mm_set1_ps(v3.y);
+  __m128 _v3x = _mm_set1_ps(v3.x);
+  __m128 _v3y = _mm_set1_ps(v3.y);
 
-  // __m128 _v2y_take_v3y = _mm_set1_ps(v2.y-v3.y);
-  // __m128 _v3x_take_v2x = _mm_set1_ps(v3.x-v2.x);
+  __m128 _v2y_take_v3y = _mm_set1_ps(v2.y-v3.y);
+  __m128 _v3x_take_v2x = _mm_set1_ps(v3.x-v2.x);
 
-  // __m128 _v3y_take_v1y = _mm_set1_ps(v3.y-v1.y);
-  // __m128 _v1x_take_v3x = _mm_set1_ps(v1.x-v3.x);
+  __m128 _v3y_take_v1y = _mm_set1_ps(v3.y-v1.y);
+  __m128 _v1x_take_v3x = _mm_set1_ps(v1.x-v3.x);
 
-  // float denom = (v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y);
+  float denom = (v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y);
 
-  // Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
-  // Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
-  // Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
-  // Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
+  Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
+  Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
+  Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
+  Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
 
-  // Uint16 x=0, y=0, u=0, v=0;
-  // Vector3 vert_weights;
-  // float z_index;
+  Uint16 x=0, y=0, u=0, v=0;
+  Vector3 vert_weights;
+  float z_index;
 
-  // __m128 _x, _y;
-  // __m128 _identity = _mm_set1_ps(1);
-  // __m128 _zeroes = _mm_set1_ps(0.0f);
-  // __m128 _threes = _mm_set1_ps(3);
+  __m128 _x, _y;
+  __m128 _ones = _mm_set1_ps(1);
+  __m128 _zeroes = _mm_set1_ps(0.0f);
+  __m128 _threes = _mm_set1_ps(3);
 
-  // __m128 _v1w = _mm_set1_ps(v1.w);
-  // __m128 _v2w = _mm_set1_ps(v2.w);
-  // __m128 _v3w = _mm_set1_ps(v3.w);
-  // __m128 _v1w_by_first;
-  // __m128 _v2w_by_second;
-  // __m128 _v3w_by_third;
-  // __m128 _z_index;
+  __m128 _v1w = _mm_set1_ps(v1.w);
+  __m128 _v2w = _mm_set1_ps(v2.w);
+  __m128 _v3w = _mm_set1_ps(v3.w);
+  __m128 _v1w_by_first;
+  __m128 _v2w_by_second;
+  __m128 _v3w_by_third;
+  __m128 _z_index;
 
-  // __m128 _first;
-  // __m128 _second;
-  // __m128 _third;
+  __m128 _first;
+  __m128 _second;
+  __m128 _third;
 
-  // Uint16 y_range = hy-ly;
-  // Uint8 remainder = y_range % 4;
+  Uint16 y_range = hy-ly;
+  Uint8 remainder = y_range % 4;
 
-  // for (x=lx; x<=hx; x++)
-  // {
-  //   for (y=ly; y<=hy-remainder-1; y+=4)
-  //   {
-  //     _x = _mm_set1_ps(x);
-  //     _y = _mm_set_ps(y+0, y+1, y+2, y+3);
+  for (x=lx; x<=hx; x++)
+  {
+    for (y=ly; y<=hy-remainder-1; y+=4)
+    {
+      _x = _mm_set1_ps(x);
+      _y = _mm_set_ps(y+0, y+1, y+2, y+3);
       
-  //     // Calculate barycentric coordinates
-  //     _first = SIMD_calculate_barycentric_first(&_x, &_y, &_v3x, &_v3y, &_v2y_take_v3y, &_v3x_take_v2x, &denom);
-  //     _second = SIMD_calculate_barycentric_first(&_x, &_y, &_v3x, &_v3y, &_v3y_take_v1y, &_v1x_take_v3x, &denom);
-  //     SIMD_calculate_barycentric_third(&_identity, &_first, &_second, &_third);
+      // Calculate barycentric coordinates
+      _first = SIMD_calculate_barycentric_first(&_x, &_y, &_v3x, &_v3y, &_v2y_take_v3y, &_v3x_take_v2x, &denom);
+      _second = SIMD_calculate_barycentric_first(&_x, &_y, &_v3x, &_v3y, &_v3y_take_v1y, &_v1x_take_v3x, &denom);
+      SIMD_calculate_barycentric_third(&_ones, &_first, &_second, &_third);
 
-  //     _v1w_by_first  = _mm_mul_ps(1/_v1w, _first);
-  //     _v2w_by_second = _mm_mul_ps(1/_v2w, _second);
-  //     _v3w_by_third  = _mm_mul_ps(1/_v3w, _third);
+    
 
-  //     _z_index = _mm_add_ps(_v1w_by_first, _mm_add_ps(_v2w_by_second, _v3w_by_third));
-
-
-  //     // Check whether barycentric coordinates are all >= 0
-  //     //------------------------------------------------------
-  //     __m128 _cmp_first  = _mm_cmpgt_ps(_first,  _zeroes);
-  //     __m128 _cmp_second = _mm_cmpgt_ps(_second, _zeroes);
-  //     __m128 _cmp_third  = _mm_cmpgt_ps(_third,  _zeroes);
-
-  //     Uint8 _out_first  = _mm_movemask_ps(_cmp_first);        // 0000 1111
-  //     Uint8 _out_second = _mm_movemask_ps(_cmp_second);       // 0000 1101
-  //     Uint8 _out_third  = _mm_movemask_ps(_cmp_third);        // 0000 1011
-
-  //     Uint8 _out_all = _out_first & _out_second & _out_third; // 0000 1001
-
-  //     Uint8 masks[4] = {0b00001000, 0b00000100, 0b00000010, 0b00000001};
-  //     //------------------------------------------------------
-
-  //     __m128 _z_buffer = _mm_set_ps(z_buffer[SCREEN_WIDTH*y + x], z_buffer[SCREEN_WIDTH*(y+1) + x], z_buffer[SCREEN_WIDTH*(y+2) + x], z_buffer[SCREEN_WIDTH*(y+3) + x]);
-  //     __m128 _zindex_greaterthan_zbuffer = _mm_cmpgt_ps(_z_index, _z_buffer);
-  //     Uint8 _out_z = _mm_movemask_ps(_zindex_greaterthan_zbuffer);
-
-  //     for (int i=0; i<4; i++)
-  //     {
-  //       if (masks[i] & _out_all) // If in triangle
-  //       {
-  //         if (masks[i] & _out_z) // If z-index is greater than value in z-buffer
-  //         {
-  //           _z_buffer[SCREEN_WIDTH*(y+i) + x] = _z_index[i];
-
-  //           u = (Uint16)((_first[3-i]*tex_inv_x.x + _second[3-i]*tex_inv_x.y + _third[3-i]*tex_inv_x.z) / z_index) % tri->texture->w;
-  //           v = (Uint16)((_first[3-i]*tex_inv_y.x + _second[3-i]*tex_inv_y.y + _third[3-i]*tex_inv_y.z) / z_index) % tri->texture->h;
-
-  //           u *= tri->texture->format->BytesPerPixel;
-
-  //           red   = pixels + v*tri->texture->pitch + u+2;
-  //           green = pixels + v*tri->texture->pitch + u+1;
-  //           blue  = pixels + v*tri->texture->pitch + u+0;
-
-  //           pixel(x, y+i, *red, *green, *blue);
-  //         }
-  //       }
-  //     }
-
-  //   }
-
-  //   for (y=hy-remainder; y<=hy; y++)
-  //   {
-  //     vert_weights = calculate_barycentric(x, y, v1, v2, v3);
-
-  //     if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
-  //     {
-  //       z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
-
-  //       if (z_index > z_buffer[SCREEN_WIDTH*y + x])
-  //       {
-  //         u = (Uint16)((vert_weights.x*tex_inv_x.x + vert_weights.y*tex_inv_x.y + vert_weights.z*tex_inv_x.z) / z_index) % model->materials[tri->mat_index]->w;
-  //         v = (Uint16)((vert_weights.x*tex_inv_y.x + vert_weights.y*tex_inv_y.y + vert_weights.z*tex_inv_y.z) / z_index) % model->materials[tri->mat_index]->h;
-
-  //         u *= model->materials[tri->mat_index]->format->BytesPerPixel;
-
-  //         red   = pixels + v*model->materials[tri->mat_index]->pitch + u+2;
-  //         green = pixels + v*model->materials[tri->mat_index]->pitch + u+1;
-  //         blue  = pixels + v*model->materials[tri->mat_index]->pitch + u+0;
-
-  //         pixel(x, y, *red, *green, *blue);
-  //         // pixel(x, y, 0, 0, 0);
-  //       }
-  //     }
-  //   }
-  // }
+    }
+  }
 }
 
 /**
  * @param p1 start of line
  * @param p2 end of line
  */
-Vector3 line_plane_intersect(Vector3 plane_normal, Vector3 p1, Vector3 p2, float *t)
+Vector3 line_plane_intersect(Vector3 plane_pos, Vector3 plane_normal, Vector3 p1, Vector3 p2, float *t)
 {
+  vector3_normalise(&plane_normal);
+  float plane_d = -vector3_dot(plane_normal, plane_pos);
   float ad = vector3_dot(p1, plane_normal);
   float bd = vector3_dot(p2, plane_normal);
-  *t = (-ad) / (bd - ad);
+  *t = (-plane_d - ad) / (bd - ad);
   Vector3 lste = vector3_sub(p2, p1);
   Vector3 lti = vector3_scale(lste, *t);
   return vector3_add(p1, lti);
 }
 
-/** Return the number of points with positive signed distance to a plane normal
- * @param index_of_inside index position of point that has +ve distance (if one point is +ve)
- * @param index_of_outside index position of point that has -ve distance (if one point is -ve)
- */
-int points_inside_plane(Vector3 plane_normal, Polygon *tri, int *index_of_inside, int *index_of_outside)
+float GE_point_plane_dist(Vector3 *point, Vector3 *plane_pos, Vector3 *plane_normal)
 {
-  float dot1 = vector3_dot(plane_normal, tri->vertices[0]);
-  float dot2 = vector3_dot(plane_normal, tri->vertices[1]);
-  float dot3 = vector3_dot(plane_normal, tri->vertices[2]);
-  int number_of_inside = 0;
-  
-  if (dot1 > 0) number_of_inside += 1;
-  if (dot2 > 0) number_of_inside += 1;
-  if (dot3 > 0) number_of_inside += 1;
-
-  if (dot1 > dot2 && dot1 > dot3) *index_of_inside = 0;
-  else if (dot2 > dot1 && dot2 > dot3) *index_of_inside = 1;
-  else if (dot3 > dot1 && dot3 > dot2) *index_of_inside = 2;
-  if (dot1 < dot2 && dot1 < dot3) *index_of_outside = 0;
-  else if (dot2 < dot1 && dot2 < dot3) *index_of_outside = 1;
-  else if (dot3 < dot1 && dot3 < dot2) *index_of_outside = 2;
-
-  return number_of_inside;
+  return vector3_dot(*plane_normal, vector3_sub(*point, *plane_pos));
 }
 
-/** Clip triangles to a plane
- * @param tri_in input triangle
- * @param tri_out1 first possible output triangle
- * @param tri_out2 second possible output triangle
- * @return number of triangles formed due to clipping
- */
-int clip_polygon(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polygon *tri_out2)
+int GE_clip_against_plane(Vector3 *plane_pos, Vector3 *plane_normal, Polygon *tri_in, Polygon *tri_out1, Polygon *tri_out2)
 {
-  int index_of_inside = 0;
-  int index_of_outside = 0;
+  vector3_normalise(plane_normal);
 
-  Vector3 A, B, C;
-  Vector3 A_prime, B_prime, C_prime;
+  int inside_index = 0, outside_index = 0;
+  int inside_count = 0, outside_count = 0;
+  Vector3 *inside_verts[3];
+  Vector3 *outside_verts[3];
 
-  float t1, t2;
+  Vector2 *inside_uvs[3];
+  Vector2 *outside_uvs[3];
 
-  // number of points inside of plane
-  int n = points_inside_plane(plane_normal, tri_in, &index_of_inside, &index_of_outside);
-  Vector2 tex_Aprime, tex_Bprime, tex_Cprime;
+  Vector3 *inside_normals[3], *outside_normals[3];
 
-  switch (n)
+  float t;
+
+  float d0 = GE_point_plane_dist(&tri_in->vertices[0], plane_pos, plane_normal);
+  float d1 = GE_point_plane_dist(&tri_in->vertices[1], plane_pos, plane_normal);
+  float d2 = GE_point_plane_dist(&tri_in->vertices[2], plane_pos, plane_normal);
+
+  if (d0 >= 0)
   {
-    case (0): return 0; // all outside
-    case (3): return 1; // all inside
+    inside_verts[inside_count] = &tri_in->vertices[0];
+    inside_uvs[inside_count] = &tri_in->uvs[0];
+    inside_normals[inside_count++] = &tri_in->normals[0];
+    inside_index = 0;
+  }
+  else
+  {
+    outside_verts[outside_count] = &tri_in->vertices[0];
+    outside_uvs[outside_count] = &tri_in->uvs[0];
+    outside_normals[outside_count++] = &tri_in->normals[0];
+    outside_index = 0;
+  }
 
-    case (1): // two outside, one inside
-      switch (index_of_inside)
-      {
-        case (0):
-          A = tri_in->vertices[0];
-          B = tri_in->vertices[1];
-          C = tri_in->vertices[2];
+  if (d1 >= 0)
+  {
+    inside_verts[inside_count] = &tri_in->vertices[1];
+    inside_uvs[inside_count] = &tri_in->uvs[1];
+    inside_normals[inside_count++] = &tri_in->normals[1];
+    inside_index = 1;
+  }
+  else
+  {
+    outside_verts[outside_count] = &tri_in->vertices[1];
+    outside_uvs[outside_count] = &tri_in->uvs[1];
+    outside_normals[outside_count++] = &tri_in->normals[1];
+    outside_index = 1;
+  }
 
-          B_prime = line_plane_intersect(plane_normal, A, B, &t1);
-          C_prime = line_plane_intersect(plane_normal, A, C, &t2);
-          tex_Bprime = (Vector2){ tri_in->uvs[0].x + t1*(tri_in->uvs[1].x - tri_in->uvs[0].x),
-                                  tri_in->uvs[0].y + t1*(tri_in->uvs[1].y - tri_in->uvs[0].y),
-                                  1 };
-          tex_Cprime = (Vector2){ tri_in->uvs[0].x + t2*(tri_in->uvs[2].x - tri_in->uvs[0].x),
-                                  tri_in->uvs[0].y + t2*(tri_in->uvs[2].y - tri_in->uvs[0].y),
-                                  1 };
+  if (d2 >= 0)
+  {
+    inside_verts[inside_count] = &tri_in->vertices[2];
+    inside_uvs[inside_count] = &tri_in->uvs[2];
+    inside_normals[inside_count++] = &tri_in->normals[2];
+    inside_index = 2;
+  }
+  else
+  {
+    outside_verts[outside_count] = &tri_in->vertices[2];
+    outside_uvs[outside_count] = &tri_in->uvs[2];
+    outside_normals[outside_count++] = &tri_in->normals[2];
+    outside_index = 2;
+  }
 
-          tri_in->uvs[1] = tex_Bprime;
-          tri_in->uvs[2] = tex_Cprime;
-          tri_in->vertices[0] = A;
-          tri_in->vertices[1] = B_prime;
-          tri_in->vertices[2] = C_prime;
-          break;
 
-        case (1):
-          A = tri_in->vertices[1];
-          B = tri_in->vertices[0];
-          C = tri_in->vertices[2];
 
-          B_prime = line_plane_intersect(plane_normal, A, B, &t1);
-          C_prime = line_plane_intersect(plane_normal, A, C, &t2);
-          tex_Bprime = (Vector2){ tri_in->uvs[1].x + t1*(tri_in->uvs[0].x - tri_in->uvs[1].x),
-                                  tri_in->uvs[1].y + t1*(tri_in->uvs[0].y - tri_in->uvs[1].y),
-                                  1 };
-          tex_Cprime = (Vector2){ tri_in->uvs[1].x + t2*(tri_in->uvs[2].x - tri_in->uvs[1].x),
-                                  tri_in->uvs[1].y + t2*(tri_in->uvs[2].y - tri_in->uvs[1].y),
-                                  1 };
+  int insd_0 = inside_index;
+  int insd_1 = (inside_index+1)%3;
+  int insd_2 = (inside_index+2)%3;
 
-          tri_in->uvs[2] = tex_Bprime;
-          tri_in->uvs[0] = tex_Cprime;
-          tri_in->vertices[1] = A;
-          tri_in->vertices[2] = B_prime;
-          tri_in->vertices[0] = C_prime;
-          break;
+  int outsd_0 = outside_index;
+  int outsd_1 = (outside_index+1)%3;
+  int outsd_2 = (outside_index+2)%3;
 
-        case (2):
-          A = tri_in->vertices[2];
-          B = tri_in->vertices[0];
-          C = tri_in->vertices[1];
+  switch (inside_count)
+  {
+    case (0): return 0;
 
-          B_prime = line_plane_intersect(plane_normal, A, B, &t1);
-          C_prime = line_plane_intersect(plane_normal, A, C, &t2);
-          tex_Bprime = (Vector2){ tri_in->uvs[2].x + t1*(tri_in->uvs[0].x - tri_in->uvs[2].x),
-                                  tri_in->uvs[2].y + t1*(tri_in->uvs[0].y - tri_in->uvs[2].y),
-                                  1 };
-          tex_Cprime = (Vector2){ tri_in->uvs[2].x + t2*(tri_in->uvs[1].x - tri_in->uvs[2].x),
-                                  tri_in->uvs[2].y + t2*(tri_in->uvs[1].y - tri_in->uvs[2].y),
-                                  1 };
+    case (3):
+      *tri_out1 = *tri_in;
+      return 1;
 
-          tri_in->uvs[0] = tex_Bprime;
-          tri_in->uvs[1] = tex_Cprime;
+    case (1): // 1 point inside, 2 outside
+      *tri_out1 = *tri_in;
 
-          tri_in->vertices[2] = A;
-          tri_in->vertices[0] = B_prime;
-          tri_in->vertices[1] = C_prime;
-          break;
-      }
+      tri_out1->vertices[insd_0] = *inside_verts[0];
+      tri_out1->vertices[insd_1] = line_plane_intersect(*plane_pos, *plane_normal, *inside_verts[0], *outside_verts[0], &t);
+      tri_out1->uvs[insd_1].x = inside_uvs[0]->x + t*(outside_uvs[0]->x - inside_uvs[0]->x);
+      tri_out1->uvs[insd_1].y = inside_uvs[0]->y + t*(outside_uvs[0]->y - inside_uvs[0]->y);
+
+      tri_out1->vertices[insd_2] = line_plane_intersect(*plane_pos, *plane_normal, *inside_verts[0], *outside_verts[1], &t);
+      tri_out1->uvs[insd_2].x = inside_uvs[0]->x + t*(outside_uvs[1]->x - inside_uvs[0]->x);
+      tri_out1->uvs[insd_2].y = inside_uvs[0]->y + t*(outside_uvs[1]->y - inside_uvs[0]->y);
 
       return 1;
 
+    case (2): // 2 points inside, 1 outside
 
-    case (2): // one outside, two inside
-      switch (index_of_outside)
-      {
-        case (0):
-          C = tri_in->vertices[0];
-          A = tri_in->vertices[1];
-          B = tri_in->vertices[2];
+      *tri_out1 = *tri_in;
+      tri_out1->vertices[outsd_0] = *inside_verts[0];
+      tri_out1->vertices[outsd_1] = *inside_verts[1];
+      tri_out1->vertices[outsd_2] = line_plane_intersect(*plane_pos, *plane_normal, *inside_verts[0], *outside_verts[0], &t);
 
-          A_prime = line_plane_intersect(plane_normal, A, C, &t1);
-          B_prime = line_plane_intersect(plane_normal, B, C, &t2);
-          
-          tex_Aprime = (Vector2){  tri_in->uvs[1].x + t1*(tri_in->uvs[0].x - tri_in->uvs[1].x),
-                                  tri_in->uvs[1].y + t1*(tri_in->uvs[0].y - tri_in->uvs[1].y),
-                                  1 };
+      tri_out1->uvs[outsd_0] = *inside_uvs[0];
+      tri_out1->uvs[outsd_1] = *inside_uvs[1];
+      tri_out1->uvs[outsd_2].x = outside_uvs[0]->x + (1-t)*(inside_uvs[0]->x - outside_uvs[0]->x);
+      tri_out1->uvs[outsd_2].y = outside_uvs[0]->y + (1-t)*(inside_uvs[0]->y - outside_uvs[0]->y);
+      
 
-          tex_Bprime = (Vector2){  tri_in->uvs[2].x + t2*(tri_in->uvs[0].x - tri_in->uvs[2].x),
-                                  tri_in->uvs[2].y + t2*(tri_in->uvs[0].y - tri_in->uvs[2].y),
-                                  1 };
+      *tri_out2 = *tri_in;
+      tri_out2->vertices[outsd_0] = *inside_verts[1];
+      tri_out2->vertices[outsd_1] = tri_out1->vertices[outsd_2];
+      tri_out2->vertices[outsd_2] = line_plane_intersect(*plane_pos, *plane_normal, *inside_verts[1], *outside_verts[0], &t);
 
-          tri_out1->uvs[0] = tri_in->uvs[1];
-          tri_out1->uvs[1] = tri_in->uvs[2];
-          tri_out1->uvs[2] = tex_Aprime;
-
-          tri_out2->uvs[0] = tex_Aprime;
-          tri_out2->uvs[1] = tri_in->uvs[2];
-          tri_out2->uvs[2] = tex_Bprime;
-
-          break;
-
-        case (1):
-          C = tri_in->vertices[1];
-          A = tri_in->vertices[0];
-          B = tri_in->vertices[2];
-
-          A_prime = line_plane_intersect(plane_normal, A, C, &t1);
-          B_prime = line_plane_intersect(plane_normal, B, C, &t2);
-          
-          tex_Aprime = (Vector2){  tri_in->uvs[0].x + t1*(tri_in->uvs[1].x - tri_in->uvs[0].x),
-                                  tri_in->uvs[0].y + t1*(tri_in->uvs[1].y - tri_in->uvs[0].y),
-                                  1 };
-
-          tex_Bprime = (Vector2){  tri_in->uvs[2].x + t2*(tri_in->uvs[1].x - tri_in->uvs[2].x),
-                                  tri_in->uvs[2].y + t2*(tri_in->uvs[1].y - tri_in->uvs[2].y),
-                                  1 };
-
-          tri_out1->uvs[0] = tri_in->uvs[0];
-          tri_out1->uvs[1] = tri_in->uvs[2];
-          tri_out1->uvs[2] = tex_Aprime;
-
-          tri_out2->uvs[0] = tex_Aprime;
-          tri_out2->uvs[1] = tri_in->uvs[2];
-          tri_out2->uvs[2] = tex_Bprime;
-          break;
-
-
-        case (2):
-          C = tri_in->vertices[2];
-          A = tri_in->vertices[0];
-          B = tri_in->vertices[1];
-
-          A_prime = line_plane_intersect(plane_normal, A, C, &t1);
-          B_prime = line_plane_intersect(plane_normal, B, C, &t2);
-
-          tex_Aprime = (Vector2){  tri_in->uvs[0].x + t1*(tri_in->uvs[2].x - tri_in->uvs[0].x),
-                                  tri_in->uvs[0].y + t1*(tri_in->uvs[2].y - tri_in->uvs[0].y),
-                                  1 };
-
-          tex_Bprime = (Vector2){  tri_in->uvs[1].x + t2*(tri_in->uvs[2].x - tri_in->uvs[1].x),
-                                  tri_in->uvs[1].y + t2*(tri_in->uvs[2].y - tri_in->uvs[1].y),
-                                  1 };
-
-          tri_out1->uvs[0] = tri_in->uvs[0];
-          tri_out1->uvs[1] = tri_in->uvs[1];
-          tri_out1->uvs[2] = tex_Aprime;
-
-          tri_out2->uvs[0] = tex_Aprime;
-          tri_out2->uvs[1] = tri_in->uvs[1];
-          tri_out2->uvs[2] = tex_Bprime;
-          
-          break;
-      }
-
-      // u' = u1 + t(u2 - u1);
-
-      tri_out1->vertices[0] = A;
-      tri_out1->vertices[1] = B;
-      tri_out1->vertices[2] = A_prime;
-
-      tri_out2->vertices[0] = A_prime;
-      tri_out2->vertices[1] = B;
-      tri_out2->vertices[2] = B_prime;
+      tri_out2->uvs[outsd_0] = *inside_uvs[1];
+      tri_out2->uvs[outsd_1] = tri_out1->uvs[outsd_2];
+      tri_out2->uvs[outsd_2].x = outside_uvs[0]->x + (1-t)*(inside_uvs[1]->x - outside_uvs[0]->x);
+      tri_out2->uvs[outsd_2].y = outside_uvs[0]->y + (1-t)*(inside_uvs[1]->y - outside_uvs[0]->y);
       return 2;
   }
-
-  return -1;
 }
 
-/** clip a polygon against a plane
- * 
- * @param tris array of polygons to clip. altered by function
- * @param clipped_triangles array of clipped polygons
- * @return number of polygons formed due to clipping
- */
-void clip_against_plane(Vector3 plane_normal, RSR_queue_t *in_queue, RSR_queue_t *out_queue)
+void GE_clip_queue_3D(Vector3 plane_pos, Vector3 plane_normal, RSR_queue_t *in_queue, RSR_queue_t *out_queue)
 {
-  int size = in_queue->size;
+  Polygon tri_in, tri_out1, tri_out2;
 
+  int size = in_queue->size;
   for (int i=0; i<size; i++)
   {
-    Polygon tri_in = *RSR_front(in_queue);
-    Polygon tri1 = *RSR_front(in_queue);
-    Polygon tri2 = *RSR_front(in_queue);
+    tri_in = *RSR_front(in_queue);
+    RSR_dequeue(in_queue);
 
-    // n == number of triangles formed due to clipping
-    int n = clip_polygon(plane_normal, &tri_in, &tri1, &tri2);
+    int n = GE_clip_against_plane(&plane_pos, &plane_normal, &tri_in, &tri_out1, &tri_out2);
+
     switch (n)
     {
-      default: 
-      case (0):
-        break;
+      case (0): break;
 
       case (1):
-        RSR_enque(out_queue, &tri_in);
+        RSR_enque(out_queue, &tri_out1);
         break;
-      
+
       case (2):
-        RSR_enque(out_queue, &tri1);
-        RSR_enque(out_queue, &tri2);
+        RSR_enque(out_queue, &tri_out1);
+        RSR_enque(out_queue, &tri_out2);
         break;
     }
-    RSR_dequeue(in_queue);
   }
 }
 
+
+/** Calculate the slope of the line formed between two points in 2D space
+ */
+float GE_calc_slope(Vector2 *p1, Vector2 *p2)
+{
+  return (p1->y - p2->y) / (p1->x - p2->x);
+}
+
+/** Calculate the constant c (y-intercept) of the equation y = mx + c
+ */
+float GE_calc_y_intercept(Vector2 *p1, float *slope)
+{
+  return p1->y - *slope*p1->x;
+}
 
 /** Enque a model's polygons in the GE_transform_queue
  */
@@ -1200,7 +907,7 @@ void GE_model_enque(Model *model)
 /** Translate all polygons in GE_transform_queue by -GE_cam.pos, rotate them by -GE_cam.rot and move them to GE_clip_queue.
  *  GE_transform_queue will be emptied.
  */
-void GE_queue_transform(void)
+void GE_queue_perform_transformation(void)
 {
   int size = GE_transform_queue->size;
 
@@ -1212,198 +919,208 @@ void GE_queue_transform(void)
     for (int j=0; j<3; j++)
     {
       tri.vertices[j] = vector3_sub(tri.vertices[j], *GE_cam->pos);
-      tri.og_vertices[j] = vector3_sub(tri.og_vertices[j], *GE_cam->pos);
+      // tri.og_vertices[j] = vector3_sub(tri.og_vertices[j], *GE_cam->pos);
 
       rotate_point(&tri.vertices[j], GE_cam->rot.x, GE_cam->rot.y, 0);
-      rotate_point(&tri.og_vertices[j], GE_cam->rot.x, GE_cam->rot.y, 0);
+      // rotate_point(&tri.og_vertices[j], GE_cam->rot.x, GE_cam->rot.y, 0);
     }
-
+  if (tri.vertices[0].z > 1 || tri.vertices[1].z > 1 || tri.vertices[2].z > 1)
     RSR_enque(GE_clip_queue, &tri);
   }
 }
 
-/** Clip all polygons in GE_clip_queue and move them to GE_rasterise_queue
- *  GE_clip_queue will be emptied.
- */
-void GE_queue_clip(void)
-{
-  clip_against_plane(GE_cam->l_norm, GE_clip_queue, GE_clip_queue);
-  clip_against_plane(GE_cam->r_norm, GE_clip_queue, GE_clip_queue);
-  clip_against_plane(GE_cam->t_norm, GE_clip_queue, GE_clip_queue);
-  clip_against_plane(GE_cam->b_norm, GE_clip_queue, GE_rasterise_queue);
-}
-
-
 void GE_clip_2D_to_center(Polygon *tri)
 {
-  int left_count = 0;
-  int right_count = 0;
+  Polygon out1 = *tri, out2 = *tri, out3 = *tri;
+
+  Vector2 *left_verts[3]; int left_count = 0;
+  Vector2 *right_verts[3]; int right_count = 0;
+
+  int left_index = 0;
   int right_index = 0;
 
-  Vector2 left_verts[4];
-  Vector2 right_verts[4];
+  // get signed distance between each vertex and center
+  // negative distance means point is on left of screen,
+  // positive means point is on right of screen
 
-  for (int i=0; i<3; i++)
+  float d0 = tri->proj_verts[0].x - HALF_SCREEN_WDTH;
+  float d1 = tri->proj_verts[1].x - HALF_SCREEN_WDTH;
+  float d2 = tri->proj_verts[2].x - HALF_SCREEN_WDTH;
+
+  if (d0 >= 0)
   {
-    if (tri->proj_verts[i].x < HALF_SCREEN_WIDTH)
-    {
-      left_verts[left_count] = tri->proj_verts[i];
-      left_count += 1;
-    }
-    else
-    {
-      right_verts[right_count] = tri->proj_verts[i];
-      right_count += 1;
-      right_index = i;
-    }
+    right_verts[right_count] = &tri->proj_verts[0];
+    right_count += 1;
+    right_index = 0;
+  }
+  else
+  {
+    left_verts[left_count] = &tri->proj_verts[0];
+    left_count += 1;
+    left_index = 0;
   }
 
-  // Return if triangle doesn't cross center of screen
-  if (left_count == 3 || right_count == 3)
-    return;
+  if (d1 >= 0)
+  {
+    right_verts[right_count] = &tri->proj_verts[1];
+    right_count += 1;
+    right_index = 1;
+  }
+  else
+  {
+    left_verts[left_count] = &tri->proj_verts[1];
+    left_count += 1;
+    left_index = 1;
+  }
 
-  float slope, c, y;
+  if (d2 >= 0)
+  {
+    right_verts[right_count] = &tri->proj_verts[2];
+    right_count += 1;
+    right_index = 2;
+  }
+  else
+  {
+    left_verts[left_count] = &tri->proj_verts[2];
+    left_count += 1;
+    left_index = 2;
+  }
+
+  float slope, c;
 
   switch (left_count)
   {
-    case (1):
-      Polygon left_polygon = *tri;
+    case (1): // 1 new tri on left, 2 new tris on right
 
-      // Find eqn of left[0] -> right[0] as y = mx + c
-      slope = (left_verts[0].y - right_verts[0].y) / (left_verts[0].x - right_verts[0].x);
+      // Left triangle 
+      int left = left_index;
+      int right1 = (left_index+1)%3;
+      int right2 = (left_index+2)%3;
 
-      // Find constant c
-      c = left_verts[0].y - slope*left_verts[0].x;
+      out1.proj_verts[left] = *left_verts[0];
 
-      // Find y coordinate of new vert at x = HALF_SCREEN_WIDTH;
-      y = slope*HALF_SCREEN_WIDTH + c;
+      slope = GE_calc_slope(left_verts[0], right_verts[0]);
+      c = GE_calc_y_intercept(left_verts[0], &slope);
+      out1.proj_verts[right1].x = HALF_SCREEN_WDTH-1;
+      out1.proj_verts[right1].y = slope*(HALF_SCREEN_WDTH-1) + c;
+      if (out1.proj_verts[right1].y >= SCREEN_HGHT)
+        return;
 
-      // Create new Vector2 with x and y coordinates. The 2 is the midpoint  of the two w's
-      left_verts[1] = (Vector2){HALF_SCREEN_WIDTH, y, (left_verts[0].w + right_verts[0].w) / 2};
+      slope = GE_calc_slope(left_verts[0], right_verts[1]);
+      c = GE_calc_y_intercept(left_verts[0], &slope);
+      out1.proj_verts[right2].x = HALF_SCREEN_WDTH-1;
+      out1.proj_verts[right2].y = slope*(HALF_SCREEN_WDTH-1) + c;
+      if (out1.proj_verts[right2].y >= SCREEN_HGHT)
+        return;
+
+      RSR_enque(GE_rasterise_left, &out1);
 
 
-      slope = (left_verts[0].y - right_verts[1].y) / (left_verts[0].x - right_verts[1].x);
-      c = left_verts[0].y - slope*left_verts[0].x;
-      y = slope*HALF_SCREEN_WIDTH + c;
-      left_verts[2] = (Vector2){HALF_SCREEN_WIDTH, y, (left_verts[0].w + right_verts[1].w) / 2};
+      // // Right triangle
+      slope = GE_calc_slope(left_verts[0], right_verts[0]);
+      c = GE_calc_y_intercept(left_verts[0], &slope);
+      out2.proj_verts[0] = *right_verts[0];
+      out2.proj_verts[1] = *right_verts[1];
+      out2.proj_verts[2].x = HALF_SCREEN_WDTH;
+      out2.proj_verts[2].y = slope*HALF_SCREEN_WDTH + c;
+      if (out2.proj_verts[2].y >= SCREEN_HGHT)
+        return;
+      RSR_enque(GE_rasterise_right, &out2);
 
-      left_polygon.proj_verts[0] = left_verts[0];
-      left_polygon.proj_verts[1] = left_verts[1];
-      left_polygon.proj_verts[2] = left_verts[2];
 
-      RSR_enque(GE_rasterise_left, &left_polygon);
+      slope = GE_calc_slope(left_verts[0], right_verts[1]);
+      c = GE_calc_y_intercept(left_verts[0], &slope);
+      out3.proj_verts[0] = *right_verts[1];
+      out3.proj_verts[1] = out2.proj_verts[2];
+      out3.proj_verts[2].x = HALF_SCREEN_WDTH;
+      out3.proj_verts[2].y = slope*HALF_SCREEN_WDTH + c;
+      if (out3.proj_verts[2].y >= SCREEN_HGHT)
+        return;
+      RSR_enque(GE_rasterise_right, &out3);
 
       break;
 
-    case (2):
-      Polygon left_polygon_1 = *tri;
-      Polygon left_polygon_2 = *tri;
+    case (2): // 2 new tris on left, 1 new tri on right
 
-      // get y coordinates of new polygons
-
-      slope = (left_verts[0].y - right_verts[0].y) / (left_verts[0].x - right_verts[0].x);
-      c = left_verts[0].y - slope*left_verts[0].x;
-      y = slope*HALF_SCREEN_WIDTH + c;
-      left_verts[2] = (Vector2){HALF_SCREEN_WIDTH, y, (left_verts[0].w + right_verts[0].w) / 2};
+      int right = right_index;
+      int left1 = (right_index+1)%3;
+      int left2 = (right_index+2)%3;
       
-      slope = (left_verts[1].y - right_verts[0].y) / (left_verts[1].x - right_verts[0].x);
-      c = left_verts[1].y - slope*left_verts[1].x;
-      y = slope*HALF_SCREEN_WIDTH + c;
-      left_verts[3] = (Vector2){HALF_SCREEN_WIDTH, y, (left_verts[1].w + right_verts[0].w) / 2};
-      
-      left_polygon_1.proj_verts[0] = left_verts[0];
-      left_polygon_1.proj_verts[1] = left_verts[1];
-      left_polygon_1.proj_verts[2] = left_verts[2];
+      slope = GE_calc_slope(right_verts[0], left_verts[0]);
+      c = GE_calc_y_intercept(right_verts[0], &slope);
+      out1.proj_verts[left1].x = HALF_SCREEN_WDTH;
+      out1.proj_verts[left1].y = slope*(HALF_SCREEN_WDTH) + c;
+      if (out1.proj_verts[right1].y >= SCREEN_HGHT)
+        return;
 
-      left_polygon_2.proj_verts[0] = left_verts[1];
-      left_polygon_2.proj_verts[1] = left_verts[2];
-      left_polygon_2.proj_verts[2] = left_verts[3];
-
-      RSR_enque(GE_rasterise_left, &left_polygon_1);
-      RSR_enque(GE_rasterise_left, &left_polygon_2);
-      break;
-  }
-
-  switch (right_count)
-  {
-    case (1):
-      Polygon right_polygon = *tri;
-      slope = (right_verts[0].y - left_verts[0].y) / (right_verts[0].x - left_verts[0].x);
-      c = right_verts[0].y - slope*right_verts[0].x;
-      y = slope*HALF_SCREEN_WIDTH + c;
-
-      right_verts[1] = (Vector2){HALF_SCREEN_WIDTH, y, (right_verts[0].w + left_verts[0].w) / 2};
-
-      slope = (right_verts[0].y - left_verts[1].y) / (right_verts[0].x - left_verts[1].x);
-      c = right_verts[0].y - slope*right_verts[0].x;
-      y = slope*HALF_SCREEN_WIDTH + c;
-      right_verts[2] = (Vector2){HALF_SCREEN_WIDTH, y, (right_verts[0].w + left_verts[1].w) / 2};
-
-      right_polygon.proj_verts[0] = right_verts[0];
-      right_polygon.proj_verts[1] = right_verts[1];
-      right_polygon.proj_verts[2] = right_verts[2];
-      
-      RSR_enque(GE_rasterise_right, &right_polygon);
-      break;
+      slope = GE_calc_slope(right_verts[0], left_verts[1]);
+      c = GE_calc_y_intercept(right_verts[0], &slope);
+      out1.proj_verts[left2].x = HALF_SCREEN_WDTH;
+      out1.proj_verts[left2].y = slope*(HALF_SCREEN_WDTH) + c;
+      if (out1.proj_verts[right2].y >= SCREEN_HGHT)
+        return;
+      RSR_enque(GE_rasterise_right, &out1);
 
 
-    case (2):
+      slope = GE_calc_slope(right_verts[0], left_verts[0]);
+      c = GE_calc_y_intercept(right_verts[0], &slope);
+      out2.proj_verts[0] = *left_verts[0];
+      out2.proj_verts[1] = *left_verts[1];
+      out2.proj_verts[2].x = HALF_SCREEN_WDTH-1;
+      out2.proj_verts[2].y = slope*(HALF_SCREEN_WDTH-1) + c;
+      if (out2.proj_verts[2].y >= SCREEN_HGHT)
+        return;
+      RSR_enque(GE_rasterise_left, &out2);
 
-      Polygon right_polygon_1 = *tri;
-      Polygon right_polygon_2 = *tri;
 
-      // get y coordinates of new polygons
+      slope = GE_calc_slope(right_verts[0], left_verts[1]);
+      c = GE_calc_y_intercept(right_verts[0], &slope);
+      out3.proj_verts[0] = *left_verts[1];
+      out3.proj_verts[1] = out2.proj_verts[2];
+      out3.proj_verts[2].x = HALF_SCREEN_WDTH-1;
+      out3.proj_verts[2].y = slope*(HALF_SCREEN_WDTH-1) + c;
+      if (out3.proj_verts[2].y >= SCREEN_HGHT)
+        return;
+      RSR_enque(GE_rasterise_left, &out3);
 
-      slope = (right_verts[0].y - left_verts[0].y) / (right_verts[0].x - left_verts[0].x);
-      c = right_verts[0].y - slope*right_verts[0].x;
-      y = slope*HALF_SCREEN_WIDTH + c;
-      right_verts[2] = (Vector2){HALF_SCREEN_WIDTH, y, (right_verts[0].w + left_verts[0].w) / 2};
-      
-      slope = (right_verts[1].y - left_verts[0].y) / (right_verts[1].x - left_verts[0].x);
-      c = right_verts[1].y - slope*right_verts[1].x;
-      y = slope*HALF_SCREEN_WIDTH + c;
-      right_verts[3] = (Vector2){HALF_SCREEN_WIDTH, y, (right_verts[1].w + left_verts[0].w) / 2};
-      
-      right_polygon_1.proj_verts[0] = right_verts[0];
-      right_polygon_1.proj_verts[1] = right_verts[1];
-      right_polygon_1.proj_verts[2] = right_verts[2];
-
-      right_polygon_2.proj_verts[0] = right_verts[1];
-      right_polygon_2.proj_verts[1] = right_verts[2];
-      right_polygon_2.proj_verts[2] = right_verts[3];
-
-      RSR_enque(GE_rasterise_right, &right_polygon_1);
-      RSR_enque(GE_rasterise_right, &right_polygon_2);
       break;
   }
 }
+
+void GE_queue_perform_clipping(void)
+{
+  GE_clip_queue_3D((Vector3){0, 0, 1}, GE_cam->near_plane, GE_clip_queue, GE_clip_queue);
+  GE_clip_queue_3D((Vector3){0, 0, 0}, GE_cam->left_plane, GE_clip_queue, GE_clip_queue);
+  GE_clip_queue_3D((Vector3){0, 0, 0}, GE_cam->right_plane, GE_clip_queue, GE_clip_queue);
+  GE_clip_queue_3D((Vector3){0, 0, 0}, GE_cam->top_plane, GE_clip_queue, GE_clip_queue);
+  GE_clip_queue_3D((Vector3){0, 0, 0}, GE_cam->bottom_plane, GE_clip_queue, GE_rasterise_queue);
+}
+
 
 /** Rasterise all polygons in GE_rasterise_queue
  *  GE_rasterise_queue will be emptied.
  */
-void GE_queue_rasterise(void)
+void GE_queue_perform_rasterisation(void)
 {
+  clear_screen(pixel_array, 200, 200, 200);
   int size = GE_rasterise_queue->size;
 
   for (int i=0; i<size; i++)
   {
     Polygon tri = *RSR_front(GE_rasterise_queue);
+    RSR_dequeue(GE_rasterise_queue);
+   
+    for (int j=0; j<3; j++)
+      tri.proj_verts[j] = GE_world_to_screen(&tri.vertices[j]);
 
 
-    tri.proj_verts[0] = GE_world_to_screen(&tri.vertices[0]);
-    tri.proj_verts[1] = GE_world_to_screen(&tri.vertices[1]);
-    tri.proj_verts[2] = GE_world_to_screen(&tri.vertices[2]);
-
-    if (tri.proj_verts[0].x <= HALF_SCREEN_WIDTH && tri.proj_verts[1].x <= HALF_SCREEN_WIDTH && tri.proj_verts[2].x <= HALF_SCREEN_WIDTH)
+    if (tri.proj_verts[0].x < HALF_SCREEN_WDTH && tri.proj_verts[1].x < HALF_SCREEN_WDTH && tri.proj_verts[2].x < HALF_SCREEN_WDTH)
       RSR_enque(GE_rasterise_left, &tri);
-
-    else if (tri.proj_verts[0].x >= HALF_SCREEN_WIDTH && tri.proj_verts[1].x >= HALF_SCREEN_WIDTH && tri.proj_verts[2].x >= HALF_SCREEN_WIDTH)
+    else if (tri.proj_verts[0].x >= HALF_SCREEN_WDTH && tri.proj_verts[1].x >= HALF_SCREEN_WDTH && tri.proj_verts[2].x >= HALF_SCREEN_WDTH)
       RSR_enque(GE_rasterise_right, &tri);
-
     else
       GE_clip_2D_to_center(&tri);
 
-    RSR_dequeue(GE_rasterise_queue);
   }
 
   pthread_create(&thread_render_1, NULL, render_1, NULL);
@@ -1412,13 +1129,6 @@ void GE_queue_rasterise(void)
   pthread_join(thread_render_1, NULL);
   pthread_join(thread_render_2, NULL);
 
-
-  
-  // for (int i=0; i<size; i++)
-  // {
-  //   triangle_2d(RSR_front(GE_rasterise_queue), pixel_array);
-  //   RSR_dequeue(GE_rasterise_queue);
-  // }
 }
 
 
@@ -1427,14 +1137,14 @@ void GE_queue_rasterise(void)
  */
 Vector2 GE_world_to_screen(Vector3 *pt)
 {
-  float nearplane_width = HALF_SCREEN_WIDTH;
-  float nearplane_height = HALF_SCREEN_HEIGHT;
+  float nearplane_width = HALF_SCREEN_WDTH;
+  float nearplane_height = HALF_SCREEN_HGHT;
   float nearplane_z = 1;
 
   float canvas_x = (nearplane_z/pt->z) * pt->x * nearplane_z * nearplane_width;
   float canvas_y = (nearplane_z/pt->z) * pt->y * nearplane_z * nearplane_height;
-  canvas_x += HALF_SCREEN_WIDTH - 0.5;
-  canvas_y += HALF_SCREEN_HEIGHT - 0.5;
+  canvas_x += HALF_SCREEN_WDTH - 0.5;
+  canvas_y += HALF_SCREEN_HGHT - 0.5;
 
   return (Vector2){canvas_x, canvas_y, 1/pt->z};
 }

@@ -22,7 +22,7 @@ typedef struct {
 
   Vector2 proj_verts[3];
 
-  SDL_Surface *texture;
+  SDL_Surface *texture, *normal_map;
   
   int vertex_indices[3]; // Used only in load_polygons for generating vertex normals
   int mat_index; // index of material to use
@@ -49,6 +49,7 @@ typedef struct {
 
   int mat_count;
   SDL_Surface **materials;
+  SDL_Surface **normal_maps;
 
 } Model;
 

@@ -35,16 +35,16 @@ extern Polygon *front_faces;
 //----------------------------------------
 void GE_init(SDL_Window *win);
 
-void triangle_2d(Polygon *tri, SDL_Surface *pixel_arr);
+void triangle_2d(SDL_Surface *buffer, Polygon *tri);
 
 
 void pixel(SDL_Surface *pixel_arr, int x, int y, Uint8 r, Uint8 g, Uint8 b);
 
 void GE_model_enque(Model *model);
 
-void GE_queue_transform(void);
-void GE_queue_clip(void);
-void GE_queue_rasterise(void);
+void GE_queue_perform_transformation(void);
+void GE_queue_perform_clipping(void);
+void GE_queue_perform_rasterisation(void);
 
 
 void rotate_x(Model *model, float r);
@@ -65,7 +65,7 @@ static Polygon *clip_against_planes(Camera *cam, int in_size, Polygon *polygons_
 static Vector2 GE_world_to_screen(Vector3 *pt);
 static int clip_polygon(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1, Polygon *tri_out2);
 static int points_inside_plane(Vector3 plane_normal, Polygon *tri, int *index_of_inside, int *index_of_outside);
-static Vector3 line_plane_intersect(Vector3 plane_normal, Vector3 p1, Vector3 p2, float *t);
+static Vector3 line_plane_intersect(Vector3 plane_pos, Vector3 plane_normal, Vector3 p1, Vector3 p2, float *t);
 
 
 

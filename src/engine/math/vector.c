@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 #include "vector.h"
 
@@ -23,6 +24,7 @@ float vector2_angle(Vector2 v1, Vector2 v2)
   float cos_angle = dot/(mag1*mag2);
   return acosf(cos_angle);
 } 
+
 
 /** Scale v1 by a scalar
  */
@@ -123,7 +125,7 @@ void matrix_mult(int h1, int w1, int h2, int w2, float m1m2[][w2], float m1[][w1
   if (w1 != h2)
   {
     printf("MATRIX SIZE MISMATCH: %d != %d\n", w1, h2);
-    return;
+    exit(1);
   }
 
   for (int i=0; i<h1; i++) {
