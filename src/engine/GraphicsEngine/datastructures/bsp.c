@@ -109,7 +109,6 @@ void BSP_tree_enque(Vector3 *pos, BSPnode_t *node, RSR_queue_t *queue)
   {
     BSP_tree_enque(pos, node->left, queue);
     RSR_enque(queue, node->polygon);
-    BSP_tree_enque(pos, node->right, queue);
   }
   
   // If on -ve side of polygon
@@ -117,7 +116,6 @@ void BSP_tree_enque(Vector3 *pos, BSPnode_t *node, RSR_queue_t *queue)
   {
     BSP_tree_enque(pos, node->right, queue);
     RSR_enque(queue, node->polygon);
-    BSP_tree_enque(pos, node->left, queue);
   }
 
 }

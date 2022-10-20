@@ -25,22 +25,6 @@ void RSR_node_free(RSR_node_t *node)
   free(node);
 }
 
-/** Return a pointer to the middle node in the queue
- */
-RSR_node_t *RSR_node_mid(RSR_queue_t *queue)
-{
-  int size = queue->size;
-  if (size == 0)
-    return NULL;
-  
-  RSR_node_t *ptr = queue->head;
-
-  for (int i=0; i<size/2; i++)
-    ptr = ptr->next;
-
-  return ptr;
-}
-
 
 void RSR_enque(RSR_queue_t *queue, Polygon *polygon)
 {

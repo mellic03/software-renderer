@@ -79,6 +79,7 @@ void player_collision(Player *player)
       {
         player_collide(player, &obj->model->polygons[i], player->ray_up , 2);
         player_collide(player, &obj->model->polygons[i], player->ray_down , 4);
+        
         player_collide(player, &obj->model->polygons[i], player->ray_front, 2);
         player_collide(player, &obj->model->polygons[i], player->ray_left , 2);
         player_collide(player, &obj->model->polygons[i], player->ray_right, 2);

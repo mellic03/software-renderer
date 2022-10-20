@@ -35,14 +35,17 @@ void input(SDL_Event event, Camera *cam, Player *player)
     player->game_object->phys_object->vel.z -= cam->dir.x * cam->speed;
   }
 
-  if (state[SDL_SCANCODE_UP])
-    rotate_point(&lightsource, 0.01, 0, 0);
-  if (state[SDL_SCANCODE_DOWN])
-    rotate_point(&lightsource, -0.01, 0, 0);
   if (state[SDL_SCANCODE_LEFT])
-    rotate_point(&lightsource, 0, 0.01, 0);
+    lightsource.z += 0.1;
   if (state[SDL_SCANCODE_RIGHT])
-    rotate_point(&lightsource, 0, -0.01, 0);
+    lightsource.z -= 0.1;
+
+  if (state[SDL_SCANCODE_UP])
+    lightsource.x += 0.1;
+    // calculate_frustum(cam, cam->vfov-0.001);
+  if (state[SDL_SCANCODE_DOWN])
+    lightsource.x -= 0.1;
+    // calculate_frustum(cam, cam->vfov+0.001);
 
 
   while(SDL_PollEvent(&event))

@@ -120,6 +120,13 @@ float vector3_angle(Vector3 v1, Vector3 v2)
   return acosf(cos_angle);
 }
 
+/** Move a towards b by alpha
+ */
+Vector3 vector3_lerp(Vector3 *a, Vector3 *b, float alpha)
+{
+  return vector3_add(vector3_scale(*a, 1-alpha), vector3_scale(*b, alpha));
+}
+
 void matrix_mult(int h1, int w1, int h2, int w2, float m1m2[][w2], float m1[][w1], float m2[][w2])
 {
   if (w1 != h2)

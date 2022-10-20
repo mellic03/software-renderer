@@ -15,8 +15,7 @@
 
 #include "engine/engine.h"
 
-SDL_Window *win;
-SDL_Event event;
+
 
 struct timeval sometime1, sometime2;
 double framerate;
@@ -46,6 +45,9 @@ int main(int argc, char** argv)
 
   // SDL setup
   //-------------------------------------------------------
+  SDL_Window *win;
+  SDL_Event event;
+
   if (SDL_Init(SDL_INIT_VIDEO) != 0)
   {
     printf("Error\n");
@@ -68,16 +70,24 @@ int main(int argc, char** argv)
   }
 
   SDL_SetRelativeMouseMode(SDL_TRUE);
+  //-------------------------------------------------------
+
 
 
   // Load assets
   //------------------------------------------------------------
+
+
+  GameObject *enemy = gameobject_create();
+  gameobject_assign_model(enemy, model_load("src/assets/enemy"));
+  gameobject_translate(enemy, 5, -3, 0);
+  enemy->model->fill = (Vector3){0, 0, 150};
+
+
   GameObject *map = gameobject_create();
   gameobject_assign_model(map, model_load("src/assets/benchmark"));
-  // gameobject_rotate_y(map, 2);
-  map->model->shade_style = SHADE_NONE;
+  map->model->fill = (Vector3){150, 0, 0};
 
-  BSPnode_t *root = BSP_tree_generate(map->model->polygons, map->model->poly_count);
 
   player = player_create();
   player->game_object = gameobject_create();

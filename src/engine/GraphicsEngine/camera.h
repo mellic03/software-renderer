@@ -8,12 +8,17 @@
 #define HALF_SCREEN_WDTH (SCREEN_WDTH/2)
 #define HALF_SCREEN_HGHT (SCREEN_HGHT/2)
 
+extern float VIEWPLANE_WDTH;
+extern float VIEWPLANE_HGHT;
+
 typedef struct Camera {
   
   Vector3 rot; // rotation
   Vector3 dir;
   Vector3 *pos;
   Vector3 *vel;
+
+  float vfov;
 
   int speed;
 
@@ -23,6 +28,7 @@ typedef struct Camera {
 
 } Camera;
 
+void calculate_frustum(Camera *cam, float angle);
 Camera *create_camera(void);
 
 #endif /* CAMERA_H */
