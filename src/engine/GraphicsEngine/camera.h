@@ -18,6 +18,8 @@ typedef struct Camera {
   Vector3 *pos;
   Vector3 *vel;
 
+  float translation_matrix[16];
+
   float vfov;
 
   int speed;

@@ -9,24 +9,21 @@
 #endif
 
 #include "../math/vector.h"
+#include "../math/fixedpoint/v3fp.h"
 
 typedef enum {SHADE_NONE, SIMD_SHADE_NONE, SHADE_FLAT, SHADE_GOURAUD, SHADE_PHONG} ShaderType;
 
 typedef struct {
 
-  Vector3 og_og_vertices[3];
   Vector3 og_vertices[3];
   Vector3 vertices[3];
-  Vector3 normals[3];
-  Vector3 face_normal;
-  Vector2 uvs[3];
-
-  float vert_shades[3];
 
   Vector2 proj_verts[3];
   Vector2 og_proj_verts[3];
-  
-  Vector3 fill;
+
+  Vector3 normals[3];
+  Vector3 face_normal;
+  Vector2 uvs[3];
   
   SDL_Surface *texture, *normal_map;
   
@@ -37,20 +34,20 @@ typedef struct {
 
 typedef struct {
   
-  Vector3 fill;
-
-  int textured, visible;
-
   Vector3 pos;
+
+  float xmin, xmax, ymin, ymax, zmin, zmax;
 
   ShaderType shade_style;
 
-  int vertex_count;
-  int normal_count;
-  int uv_count;
+  int vertex_count, normal_count, uv_count;
 
   Vector3 *vertices;
   Vector3 *vertex_normals;
+
+  float *blas_verts_worldspace;
+  float *blas_verts_worldspace_translated;
+  float *blas_verts_viewspace;
 
   int poly_count;
   Polygon *polygons; // Array of polygons

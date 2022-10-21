@@ -81,12 +81,17 @@ int main(int argc, char** argv)
   GameObject *enemy = gameobject_create();
   gameobject_assign_model(enemy, model_load("src/assets/enemy"));
   gameobject_translate(enemy, 5, -3, 0);
-  enemy->model->fill = (Vector3){0, 0, 150};
 
 
   GameObject *map = gameobject_create();
   gameobject_assign_model(map, model_load("src/assets/benchmark"));
-  map->model->fill = (Vector3){150, 0, 0};
+  gameobject_translate(map, 0, 2, 0);
+
+
+  // GameObject *sphere = gameobject_create();
+  // gameobject_assign_model(sphere, model_load("src/assets/sphere"));
+  // gameobject_translate(sphere, 15, -3, 0);
+
 
 
   player = player_create();

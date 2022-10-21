@@ -13,6 +13,15 @@ void input(SDL_Event event, Camera *cam, Player *player)
   player->game_object->phys_object->vel.x *= 0.9;
   player->game_object->phys_object->vel.z *= 0.9;
 
+  // 1, 0, 0, x,
+  // 0, 1, 0, y,
+  // 0, 0, 1, z,
+  // 0, 0, 0, 1
+
+  cam->translation_matrix[3] = -player->game_object->pos.x;
+  cam->translation_matrix[7] = -player->game_object->pos.y;
+  cam->translation_matrix[11] = -player->game_object->pos.z;
+
   if (state[SDL_SCANCODE_W])
   {
     player->game_object->phys_object->vel.x += cam->dir.x * cam->speed;
@@ -41,11 +50,11 @@ void input(SDL_Event event, Camera *cam, Player *player)
     lightsource.z -= 0.1;
 
   if (state[SDL_SCANCODE_UP])
-    lightsource.x += 0.1;
-    // calculate_frustum(cam, cam->vfov-0.001);
+    // lightsource.x += 0.1;
+    calculate_frustum(cam, cam->vfov-0.005);
   if (state[SDL_SCANCODE_DOWN])
-    lightsource.x -= 0.1;
-    // calculate_frustum(cam, cam->vfov+0.001);
+    // lightsource.x -= 0.1;
+    calculate_frustum(cam, cam->vfov+0.005);
 
 
   while(SDL_PollEvent(&event))

@@ -5,13 +5,16 @@
   #include <SDL.h>
 #endif
 
-#include <math.h>
-#include <pthread.h>
-#include <stdbool.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
+#include <math.h>
+
+#include <pthread.h>
 #include <x86intrin.h>
+#include <cblas.h>
+
 
 #include "graphics.h"
 #include "camera.h"
@@ -117,7 +120,6 @@ void GE_init(SDL_Window *win)
   pix_buf_tr = SDL_DuplicateSurface(pixel_array);
   pix_buf_bl = SDL_DuplicateSurface(pixel_array);
   pix_buf_br = SDL_DuplicateSurface(pixel_array);
-
 
   dep_buf_tl = (float *)calloc(SCREEN_WDTH*SCREEN_HGHT, sizeof(float));
   dep_buf_tr = (float *)calloc(SCREEN_WDTH*SCREEN_HGHT, sizeof(float));
@@ -631,10 +633,9 @@ void SIMD_calculate_barycentric_third(__m128 *identity, __m128 *first, __m128 *s
   *output = _mm_sub_ps(*output, *second);
 }
 
-int SIMD_compare_depth_buffer(__m128 _z_index, __m128 _dpth_buf)
+int SIMD_cmp_dpth_buf(__m128 *_z_index, __m128 *_dpth_buf)
 {
-  __m128 _gtr_thn_zbuf = _mm_cmp_ps(_z_index, _dpth_buf, 0x0E);
-  return _mm_movemask_ps(_gtr_thn_zbuf);
+  return _mm_movemask_ps(_mm_cmp_ps(*_z_index, *_dpth_buf, 0x0E));
 }
 
 void SIMD_triangle_2d(SDL_Surface *pxl_buf, float *dpth_buf, Polygon *tri)
@@ -643,31 +644,18 @@ void SIMD_triangle_2d(SDL_Surface *pxl_buf, float *dpth_buf, Polygon *tri)
   Vector2 v2 = GE_view_to_screen(&tri->vertices[1]);
   Vector2 v3 = GE_view_to_screen(&tri->vertices[2]);
 
-  Vector3 light2 = lightsource;
-  vector3_normalise(&light2);
-  float shade = vector3_dot(tri->face_normal, light2);
-  shade += 1;
-  shade /= 2;
+  // Vector3 light2 = lightsource;
+  // vector3_normalise(&light2);
+  // float shade = vector3_dot(tri->face_normal, light2);
+  // shade += 1;
+  // shade /= 2;
 
-  float inverse_u_coords[3] = {tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
-  float inverse_v_coords[3] = {tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
-
-  __m128 _inv_u0 = _mm_set1_ps(tri->uvs[0].x * v1.w);
-  __m128 _inv_u1 = _mm_set1_ps(tri->uvs[1].x * v2.w);
-  __m128 _inv_u2 = _mm_set1_ps(tri->uvs[2].x * v3.w);
-
-  __m128 _inv_v0 = _mm_set1_ps(tri->uvs[0].y * v1.w);
-  __m128 _inv_v1 = _mm_set1_ps(tri->uvs[1].y * v2.w);
-  __m128 _inv_v2 = _mm_set1_ps(tri->uvs[2].y * v3.w);
-
-
-  Vector3 tex_inv_x = (Vector3){tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
-  Vector3 tex_inv_y = (Vector3){tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
-
+  // Barycentric
+  //--------------------------------------------------
   __m128 _v1_w = _mm_set1_ps(v1.w);
   __m128 _v2_w = _mm_set1_ps(v2.w);
   __m128 _v3_w = _mm_set1_ps(v3.w);
-
+  
   __m128 _v3x = _mm_set1_ps(v3.x);
   __m128 _v3y = _mm_set1_ps(v3.y);
 
@@ -678,95 +666,102 @@ void SIMD_triangle_2d(SDL_Surface *pxl_buf, float *dpth_buf, Polygon *tri)
   __m128 _v1x_take_v3x = _mm_set1_ps(v1.x-v3.x);
 
   __m128 _denom = _mm_set1_ps((v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y));
+  
+  __m128 _x, _y;
+  __m128 _ones = _mm_set1_ps(1);
+  __m128 _zeroes = _mm_set1_ps(0.0f);
+  __m128 _first, _second, _third;
+  //--------------------------------------------------
+
+
+  // Texturing
+  //--------------------------------------------------
+  __m128 _inv_u0 = _mm_set1_ps(tri->uvs[0].x * v1.w);
+  __m128 _inv_u1 = _mm_set1_ps(tri->uvs[1].x * v2.w);
+  __m128 _inv_u2 = _mm_set1_ps(tri->uvs[2].x * v3.w);
+
+  __m128 _inv_v0 = _mm_set1_ps(tri->uvs[0].y * v1.w);
+  __m128 _inv_v1 = _mm_set1_ps(tri->uvs[1].y * v2.w);
+  __m128 _inv_v2 = _mm_set1_ps(tri->uvs[2].y * v3.w);
+  Uint8 *red, *green, *blue;
+  //--------------------------------------------------
+
+  Uint8 masks[4] = { 0b00001000, 0b00000100, 0b00000010, 0b00000001 };
+
 
   Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
   Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
   Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
   Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
 
-  Uint16 x=0, y=0, u=0, v=0;
-  Vector3 vert_weights;
-  float z_index;
+  Uint16 u=0, v=0;
 
-  __m128 _x, _y;
-  __m128 _ones = _mm_set1_ps(1);
-  __m128 _zeroes = _mm_set1_ps(0.0f);
+  Uint16 x_range = hx-lx;
+  Uint8 remainder = x_range % 4;
 
-  __m128 _first;
-  __m128 _second;
-  __m128 _third;
 
-  Uint16 y_range = hy-ly;
-  Uint8 remainder = y_range % 4;
-
-  Uint8 *red, *green, *blue;
-  Uint8 *pixels = tri->texture->pixels;
-
-  for (x=lx; x<=hx; x++)
+  for (Uint16 x=lx; x<hx-remainder; x+=4)
   {
-    _x = _mm_set1_ps(x);
-    for (y=ly; y<hy-remainder; y+=4)
+    _x = _mm_set_ps(x+0, x+1, x+2, x+3);
+
+    for (Uint16 y=ly; y<=hy; y++)
     {
-      _y = _mm_set_ps(y+0, y+1, y+2, y+3);
+      int row = SCREEN_WDTH*y;
+      _y = _mm_set1_ps(y);
       
-      // Calculate barycentric coordinates
+      // Barycentric coordinates
       _first = SIMD_calculate_barycentric_first(&_x, &_y, &_v3x, &_v3y, &_v2y_take_v3y, &_v3x_take_v2x, &_denom);
       _second = SIMD_calculate_barycentric_second(&_x, &_y, &_v3x, &_v3y, &_v3y_take_v1y, &_v1x_take_v3x, &_denom);
       SIMD_calculate_barycentric_third(&_ones, &_first, &_second, &_third);
+      __m128 _fir_gtrthan_zero = _mm_cmp_ps(_first,  _zeroes, 0x0D);
+      __m128 _sec_gtrthan_zero = _mm_cmp_ps(_second, _zeroes, 0x0D);
+      __m128 _thi_gtrthan_zero = _mm_cmp_ps(_third,  _zeroes, 0x0D);
+      int in_triangle = _mm_movemask_ps(_fir_gtrthan_zero) & _mm_movemask_ps(_sec_gtrthan_zero) & _mm_movemask_ps(_thi_gtrthan_zero);
 
-      __m128 fir_gtrthan_zero = _mm_cmp_ps(_first,  _zeroes, 0x0D);
-      __m128 sec_gtrthan_zero = _mm_cmp_ps(_second, _zeroes, 0x0D);
-      __m128 thi_gtrthan_zero = _mm_cmp_ps(_third,  _zeroes, 0x0D);
-      Uint8 in_triangle = _mm_movemask_ps(fir_gtrthan_zero) & _mm_movemask_ps(sec_gtrthan_zero) & _mm_movemask_ps(thi_gtrthan_zero);
-
+      // z index and z buffer
       __m128 _z_indices = _mm_add_ps(_mm_mul_ps(_v1_w, _first),  _mm_add_ps(_mm_mul_ps(_v2_w, _second), _mm_mul_ps(_v3_w, _third)));
-      __m128 _z_buf = _mm_set_ps(dpth_buf[SCREEN_WDTH*(y+0) + x], dpth_buf[SCREEN_WDTH*(y+1) + x], dpth_buf[SCREEN_WDTH*(y+2) + x], dpth_buf[SCREEN_WDTH*(y+3) + x]);
+      __m128 _z_buf = _mm_set_ps(dpth_buf[row + (x+0)], dpth_buf[row + (x+1)], dpth_buf[row + (x+2)], dpth_buf[row + (x+3)]);
+      int gtr_thn_zbuf = SIMD_cmp_dpth_buf(&_z_indices, &_z_buf);
 
-      int gtr_thn_zbuf = SIMD_compare_depth_buffer(_z_indices, _z_buf);
 
-      Uint8 masks[4] = { 0b00001000, 0b00000100, 0b00000010, 0b00000001 };
-
-      // Calculate texture coordinates
-
+      // Texture coordinates
       __m128 _texture_u = _mm_add_ps(_mm_mul_ps(_first, _inv_u0), _mm_add_ps(_mm_mul_ps(_second, _inv_u1), _mm_mul_ps(_third, _inv_u2)));
       __m128 _texture_v = _mm_add_ps(_mm_mul_ps(_first, _inv_v0), _mm_add_ps(_mm_mul_ps(_second, _inv_v1), _mm_mul_ps(_third, _inv_v2)));
-
       _texture_u = _mm_div_ps(_texture_u, _z_indices);
       _texture_v = _mm_div_ps(_texture_v, _z_indices);
 
-      for (int i=0; i<4; i++)
+      Uint8 in_tri_and_gtr_thn_zbuf = in_triangle & gtr_thn_zbuf;
+
+      for (Uint8 i=0; i<4; i++)
       {
-        if (masks[i] & in_triangle)
+        if (masks[i] & in_tri_and_gtr_thn_zbuf)
         {
-          if (masks[i] & gtr_thn_zbuf)
-          {
-            dpth_buf[SCREEN_WDTH*(y+i) + x] = _z_indices[i];
+          dpth_buf[row + x+i] = _z_indices[i];
 
-            u = (Uint16)_texture_u[3-i];
-            v = (Uint16)_texture_v[3-i];
+          u = (Uint16)_texture_u[3-i] % tri->texture->w;
+          v = (Uint16)_texture_v[3-i] % tri->texture->h;
 
-            u %= tri->texture->w;
-            v %= tri->texture->h;
-            // printf("%u %u\n", u, v);
-            // exit(0);
+          u *= tri->texture->format->BytesPerPixel;
 
-            u *= tri->texture->format->BytesPerPixel;
+          red   = tri->texture->pixels + v*tri->texture->pitch + u+2;
+          green = tri->texture->pixels + v*tri->texture->pitch + u+1;
+          blue  = tri->texture->pixels + v*tri->texture->pitch + u+0;
 
-            red   = pixels + v*tri->texture->pitch + u+2;
-            green = pixels + v*tri->texture->pitch + u+1;
-            blue  = pixels + v*tri->texture->pitch + u+0;
-
-
-            pixel(pxl_buf, x, y+i, *red, *green, *blue);
-          }
+          pixel(pxl_buf, x+i, y, *red, *green, *blue);
         }
       }
     }
   }
 
-  for (x=lx; x<=hx; x++)
+  float inverse_u_coords[3] = {tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
+  float inverse_v_coords[3] = {tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
+
+  Vector3 vert_weights;
+  float z_index;
+
+  for (Uint16 x=hx-remainder; x<=hx; x++)
   {
-    for (y=hy-remainder; y<=hy; y++)
+    for (Uint16 y=ly; y<=hy; y++)
     {
      vert_weights = calculate_barycentric(x, y, v1, v2, v3);
 
@@ -783,9 +778,9 @@ void SIMD_triangle_2d(SDL_Surface *pxl_buf, float *dpth_buf, Polygon *tri)
 
           u *= tri->texture->format->BytesPerPixel;
 
-          red   = pixels + v*tri->texture->pitch + u+2;
-          green = pixels + v*tri->texture->pitch + u+1;
-          blue  = pixels + v*tri->texture->pitch + u+0;
+          red   = tri->texture->pixels + v*tri->texture->pitch + u+2;
+          green = tri->texture->pixels + v*tri->texture->pitch + u+1;
+          blue  = tri->texture->pixels + v*tri->texture->pitch + u+0;
 
           pixel(pxl_buf, x, y, *red, *green, *blue);
         }
@@ -979,13 +974,30 @@ void GE_clip_queue_3D(Vector3 plane_pos, Vector3 plane_normal, RSR_queue_t *in_q
  */
 void GE_model_enque(Model *model)
 {
+
+  // cblas_sgemm(
+  //   CblasRowMajor,
+  //   CblasNoTrans,
+  //   CblasNoTrans,
+  //   4, // rows of matrix A
+  //   model->vertex_count, // columns of matrix B
+  //   4, // columns of matrix A
+  //   1, // scalar to multiply A by
+  //   GE_cam->translation_matrix, // matrix A
+  //   4, // 1st dimension of A --> ?
+  //   model->blas_verts_worldspace, // matrix B
+  //   model->vertex_count, // 1st dimension of B --> ?
+  //   0,
+  //   model->blas_verts_worldspace_translated, // matrix C (output)
+  //   model->vertex_count // 1st dimension of C --> ?
+  // );
+
+
   // Only queue front faces
   for (int i=0; i<model->poly_count; i++)
     if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], *GE_cam->pos), model->polygons[i].face_normal) < 0)
-    {
-      model->polygons[i].fill = model->fill;
       RSR_enque(GE_transform_queue, &model->polygons[i]);
-    }
+
 }
 //-------------------------------------------------------------------------------
 
@@ -1003,6 +1015,8 @@ void GE_queue_perform_transformation(void)
 
   int size = GE_transform_queue->size;
 
+
+
   for (int i=0; i<size; i++)
   {
     Polygon tri = *RSR_front(GE_transform_queue);
@@ -1012,39 +1026,21 @@ void GE_queue_perform_transformation(void)
     tri.og_vertices[1] = tri.vertices[1];
     tri.og_vertices[2] = tri.vertices[2];
 
-    Vector3 dir0 = vector3_sub(tri.vertices[0], lightsource);
-    Vector3 dir1 = vector3_sub(tri.vertices[1], lightsource);
-    Vector3 dir2 = vector3_sub(tri.vertices[2], lightsource);
-
-    vector3_normalise(&dir0);
-    vector3_normalise(&dir1);
-    vector3_normalise(&dir2);
-
-    tri.vert_shades[0] = (vector3_dot(tri.normals[0], dir0) + 1) / 2;
-    tri.vert_shades[1] = (vector3_dot(tri.normals[1], dir1) + 1) / 2;
-    tri.vert_shades[2] = (vector3_dot(tri.normals[2], dir2) + 1) / 2;
-
-    tri.vert_shades[0] /= (vector3_dist(tri.vertices[0], lightsource));
-    tri.vert_shades[1] /= (vector3_dist(tri.vertices[1], lightsource));
-    tri.vert_shades[2] /= (vector3_dist(tri.vertices[2], lightsource));
-
     GE_world_to_view(&tri);
 
-    if (tri.vertices[0].z > 1 || tri.vertices[1].z > 1 || tri.vertices[2].z > 1)
+    if (tri.vertices[0].z > 0 || tri.vertices[1].z > 0 || tri.vertices[2].z > 0)
       RSR_enque(GE_clip_queue, &tri);
   }
 }
 
-
 void GE_queue_perform_clipping(void)
 {
-  GE_clip_queue_3D((Vector3){0, 0, 1}, GE_cam->near_plane, GE_clip_queue, GE_clip_queue);
+  GE_clip_queue_3D((Vector3){0, 0, 0.01}, GE_cam->near_plane, GE_clip_queue, GE_clip_queue);
   GE_clip_queue_3D((Vector3){0, 0, 0}, GE_cam->left_plane, GE_clip_queue, GE_clip_queue);
   GE_clip_queue_3D((Vector3){0, 0, 0}, GE_cam->right_plane, GE_clip_queue, GE_clip_queue);
   GE_clip_queue_3D((Vector3){0, 0, 0}, GE_cam->top_plane, GE_clip_queue, GE_clip_queue);
   GE_clip_queue_3D((Vector3){0, 0, 0}, GE_cam->bottom_plane, GE_clip_queue, GE_rasterise_queue);
 }
-
 
 /** Rasterise all polygons in GE_rasterise_queue
  *  GE_rasterise_queue will be emptied.

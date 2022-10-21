@@ -222,13 +222,25 @@ void load_polygons(FILE *fh, Model *model)
   for (int i=0; i<model->vertex_count; i++)
     vector3_normalise(&vertex_normals[i]);
 
+
   model->vertex_normals = (Vector3 *)malloc(model->vertex_count * sizeof(Vector3));
   for (int i=0; i<model->vertex_count; i++)
     model->vertex_normals[i] = vertex_normals[i];
 
+
   model->vertices = (Vector3 *)malloc(model->vertex_count * sizeof(Vector3));
+  model->blas_verts_worldspace = (float *)malloc(model->vertex_count*4*sizeof(float));
+  model->blas_verts_worldspace_translated = (float *)malloc(model->vertex_count*4*sizeof(float));
+  model->blas_verts_viewspace = (float *)malloc(model->vertex_count*4*sizeof(float));
   for (int i=0; i<model->vertex_count; i++)
+  {
+    model->blas_verts_worldspace[i*4 + 0] = vertices[i].x;
+    model->blas_verts_worldspace[i*4 + 1] = vertices[i].y;
+    model->blas_verts_worldspace[i*4 + 2] = vertices[i].z;
+    model->blas_verts_worldspace[i*4 + 3] = 1;
+  
     model->vertices[i] = vertices[i];
+  }
 
   for (int i=0; i<model->poly_count; i++)
     for (int j=0; j<3; j++)
@@ -283,8 +295,6 @@ void load_material(FILE *fh, char *filepath, Model *model)
 Model *model_load(char *filepath)
 {
   Model *model = (Model *)calloc(1, sizeof(Model));
-  model->textured = 1;
-  model->visible = 1;
   model->shade_style = SHADE_NONE;
 
   char *last = strrchr(filepath, '/');
