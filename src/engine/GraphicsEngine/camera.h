@@ -3,10 +3,14 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 
-#define SCREEN_WDTH 1000
-#define SCREEN_HGHT 1000
-#define HALF_SCREEN_WDTH (SCREEN_WDTH/2)
-#define HALF_SCREEN_HGHT (SCREEN_HGHT/2)
+#define SCREEN_WDTH 1024
+#define SCREEN_HGHT 1024
+
+#define REN_RES_X ((SCREEN_WDTH) >> 0)
+#define REN_RES_Y ((SCREEN_HGHT) >> 0)
+
+#define HALF_SCREEN_WDTH ((REN_RES_X)/2)
+#define HALF_SCREEN_HGHT ((REN_RES_Y)/2)
 
 extern float VIEWPLANE_WDTH;
 extern float VIEWPLANE_HGHT;

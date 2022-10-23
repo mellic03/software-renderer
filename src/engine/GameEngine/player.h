@@ -6,7 +6,6 @@
 
 
 
-
 Player *player_create(void);
 void input(SDL_Event event, Camera *cam, Player *player);
 

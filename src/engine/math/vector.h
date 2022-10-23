@@ -40,6 +40,8 @@ Vector3 vector3_sub(Vector3 v1, Vector3 v2);
 Vector3 vector3_scale(Vector3 v, float scalar);
 Vector3 vector3_cross(Vector3 v1, Vector3 v2);
 Vector3 vector3_lerp(Vector3 *a, Vector3 *b, float alpha);
+Vector3 vector3_reflect(Vector3 reflectee, Vector3 reflector);
+
 //----------------------------------------------
 
 void matrix_mult(int w1, int h1, int w2, int h2, float m1m2[][w2], float m1[][w1], float m2[][w2]);

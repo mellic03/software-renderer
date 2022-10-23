@@ -24,24 +24,24 @@ void input(SDL_Event event, Camera *cam, Player *player)
 
   if (state[SDL_SCANCODE_W])
   {
-    player->game_object->phys_object->vel.x += cam->dir.x * cam->speed;
-    player->game_object->phys_object->vel.z += cam->dir.z * cam->speed;
+    player->game_object->phys_object->vel.x -= sin(cam->rot.y) * cam->speed;
+    player->game_object->phys_object->vel.z += cos(cam->rot.y) * cam->speed;
   }
   else if (state[SDL_SCANCODE_S])
   {
-    player->game_object->phys_object->vel.x -= cam->dir.x * cam->speed;
-    player->game_object->phys_object->vel.z -= cam->dir.z * cam->speed;
+    player->game_object->phys_object->vel.x += sin(cam->rot.y) * cam->speed;
+    player->game_object->phys_object->vel.z -= cos(cam->rot.y) * cam->speed;
   }
 
   if (state[SDL_SCANCODE_A])
   {
-    player->game_object->phys_object->vel.x -= cam->dir.z * cam->speed;
-    player->game_object->phys_object->vel.z += cam->dir.x * cam->speed;
+    player->game_object->phys_object->vel.x -= cos(cam->rot.y) * cam->speed;
+    player->game_object->phys_object->vel.z -= sin(cam->rot.y) * cam->speed;
   }
   else if (state[SDL_SCANCODE_D])
   {
-    player->game_object->phys_object->vel.x += cam->dir.z * cam->speed;
-    player->game_object->phys_object->vel.z -= cam->dir.x * cam->speed;
+    player->game_object->phys_object->vel.x += cos(cam->rot.y) * cam->speed;
+    player->game_object->phys_object->vel.z += sin(cam->rot.y) * cam->speed;
   }
 
   if (state[SDL_SCANCODE_LEFT])
@@ -50,10 +50,17 @@ void input(SDL_Event event, Camera *cam, Player *player)
     lightsource.z -= 0.1;
 
   if (state[SDL_SCANCODE_UP])
-    // lightsource.x += 0.1;
-    calculate_frustum(cam, cam->vfov-0.005);
+    lightsource.x += 0.1; 
   if (state[SDL_SCANCODE_DOWN])
-    // lightsource.x -= 0.1;
+    lightsource.x -= 0.1;
+  if (state[SDL_SCANCODE_PAGEUP])
+    lightsource.y -= 0.1;
+  if (state[SDL_SCANCODE_PAGEDOWN])
+    lightsource.y += 0.1;
+
+  if (state[SDL_SCANCODE_KP_PLUS])
+    calculate_frustum(cam, cam->vfov-0.005);
+  if (state[SDL_SCANCODE_KP_MINUS])
     calculate_frustum(cam, cam->vfov+0.005);
 
 
@@ -68,18 +75,18 @@ void input(SDL_Event event, Camera *cam, Player *player)
     {
       cam->rot.y -= event.motion.xrel * 0.001;
       cam->rot.x += event.motion.yrel * 0.001;
-      // if (cam->rot.x < -0.2)
-      //   cam->rot.x = -0.199;
-      // else if (cam->rot.x > 0.2)
-      //   cam->rot.x = 0.199;
-      // printf("%f\n", cam->rot.x);
-      if (cam->rot.x > 6.28)
-        cam->rot.x -= 6.28;
-      else if (cam->rot.x < 0)
-        cam->rot.x += 6.28;
-      cam->dir.x = sin(-cam->rot.y);
+    
+      if (cam->rot.x <= -1.5)
+        cam->rot.x = -1.499;
+      else if (cam->rot.x >= 1.5)
+        cam->rot.x = 1.499;
+
+      cam->dir.x = -sin(cam->rot.y)*cos(cam->rot.x);
       cam->dir.y = sin(cam->rot.x);
-      cam->dir.z = cos(-cam->rot.y);
+      cam->dir.z = cos(cam->rot.y)*cos(cam->rot.x);
+      
+      vector3_normalise(&cam->dir);
+
       rotate_point(&player->ray_left, 0, event.motion.xrel * 0.001, 0);
       rotate_point(&player->ray_right, 0, event.motion.xrel * 0.001, 0);
       rotate_point(&player->ray_front, 0, event.motion.xrel * 0.001, 0);

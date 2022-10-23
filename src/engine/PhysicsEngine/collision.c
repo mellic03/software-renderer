@@ -68,7 +68,7 @@ float calculate_impulse(Vector3 vel, Vector3 normal, float mass1, float mass2, f
  * @param obj1 PhysObject with sphere collider  
  * @param obj2 PhysObject with sphere collider  
  */
-int physobject_sphere_sphere_collision_detect(PhysObject *obj1, PhysObject *obj2)
+int PE_sphere_sphere_detect(PhysObject *obj1, PhysObject *obj2)
 {
 
 }
@@ -77,7 +77,7 @@ int physobject_sphere_sphere_collision_detect(PhysObject *obj1, PhysObject *obj2
  * @param obj1 PhysObject with sphere collider  
  * @param obj2 PhysObject with sphere collider  
  */
-void physobject_sphere_sphere_collision_response(PhysObject *obj1, PhysObject *obj2)
+void PE_sphere_sphere_response(PhysObject *obj1, PhysObject *obj2)
 {
 
 }
@@ -86,7 +86,7 @@ void physobject_sphere_sphere_collision_response(PhysObject *obj1, PhysObject *o
  * @param obj1 PhysObject with sphere collider  
  * @param obj2 PhysObject with plane collider  
  */
-int physobject_sphere_plane_collision_detect(PhysObject *obj1, PlaneCollider *plane, float *dist)
+int PE_sphere_plane_detect(PhysObject *obj1, PlaneCollider *plane, float *dist)
 {
   if (obj1->sphere_collider == NULL || plane == NULL)
     return 0;
@@ -98,7 +98,7 @@ int physobject_sphere_plane_collision_detect(PhysObject *obj1, PlaneCollider *pl
  * @param obj1 PhysObject with sphere collider  
  * @param obj2 PhysObject with plane collider  
  */
-void physobject_sphere_plane_collision_response(PhysObject *obj1, PhysObject *obj2, float *dist)
+void PE_sphere_plane_response(PhysObject *obj1, PhysObject *obj2, float *dist)
 {
   float elasticity = obj1->elasticity;
   float impulse_1d = calculate_impulse(obj1->vel, obj2->plane_collider->dir, obj1->mass, obj2->mass, elasticity);
@@ -110,7 +110,7 @@ void physobject_sphere_plane_collision_response(PhysObject *obj1, PhysObject *ob
   obj1->vel.z += obj1->inv_mass * impulse.z;
 }
 
-int physobject_sphere_box_collision_detect(PhysObject *obj1, PhysObject *obj2, float *dist, Vector3 *nearest_normal)
+int PE_sphere_box_detect(PhysObject *obj1, PhysObject *obj2, float *dist, Vector3 *nearest_normal)
 {
   if (obj1->sphere_collider == NULL || obj2->box_collider == NULL)
     return 0;
@@ -119,7 +119,7 @@ int physobject_sphere_box_collision_detect(PhysObject *obj1, PhysObject *obj2, f
 
   for (int i=0; i<6; i++)
   {
-    count += physobject_sphere_plane_collision_detect(obj1, obj2->box_collider->planes[i], dist);
+    count += PE_sphere_plane_detect(obj1, obj2->box_collider->planes[i], dist);
     if (*dist < lowest_dist)
     {
       lowest_dist = *dist;
@@ -130,7 +130,7 @@ int physobject_sphere_box_collision_detect(PhysObject *obj1, PhysObject *obj2, f
   return count == 6;
 }
 
-void physobject_sphere_box_collision_response(PhysObject *obj1, PhysObject *obj2, float *dist, Vector3 *nearest_normal)
+void PE_sphere_box_response(PhysObject *obj1, PhysObject *obj2, float *dist, Vector3 *nearest_normal)
 {
   float elasticity = obj1->elasticity;
   float impulse_1d = calculate_impulse(obj1->vel, *nearest_normal, obj1->mass, obj2->mass, elasticity);
@@ -147,12 +147,12 @@ void physobject_collision(PhysObject *obj1, PhysObject *obj2)
   float dist; 
   Vector3 nearest_normal;
 
-  if (physobject_sphere_sphere_collision_detect(obj1, obj2))
-    physobject_sphere_sphere_collision_response(obj1, obj2);
+  if (PE_sphere_sphere_detect(obj1, obj2))
+    PE_sphere_sphere_response(obj1, obj2);
 
-  if (physobject_sphere_plane_collision_detect(obj1, obj2->plane_collider, &dist))
-    physobject_sphere_plane_collision_response(obj1, obj2, &dist);
+  if (PE_sphere_plane_detect(obj1, obj2->plane_collider, &dist))
+    PE_sphere_plane_response(obj1, obj2, &dist);
     
-  if (physobject_sphere_box_collision_detect(obj1, obj2, &dist, &nearest_normal))
-    physobject_sphere_box_collision_response(obj1, obj2, &dist, &nearest_normal);
+  if (PE_sphere_box_detect(obj1, obj2, &dist, &nearest_normal))
+    PE_sphere_box_response(obj1, obj2, &dist, &nearest_normal);
 }

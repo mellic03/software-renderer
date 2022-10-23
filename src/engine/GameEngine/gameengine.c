@@ -6,7 +6,7 @@
 #include "gameengine.h"
 #include "../GraphicsEngine/graphics.h"
 
-GameObject *head = NULL;
+static GameObject *head = NULL;
 int gameobject_count = 0;
 
 /** Determine if a ray intersects a triangle
@@ -71,19 +71,35 @@ void player_collision(Player *player)
 {
   GameObject *obj = head;
 
+  float nearest_dist = 1000;
+
   while (obj != NULL)
   {
-    if (obj->model != NULL)
+    if (obj->model != NULL && obj->object_tag != 15)
     {
       for (int i=0; i<obj->model->poly_count; i++)
       {
-        player_collide(player, &obj->model->polygons[i], player->ray_up , 2);
+        player_collide(player, &obj->model->polygons[i], player->ray_up   , 2);
         player_collide(player, &obj->model->polygons[i], player->ray_down , 4);
         
-        player_collide(player, &obj->model->polygons[i], player->ray_front, 2);
         player_collide(player, &obj->model->polygons[i], player->ray_left , 2);
         player_collide(player, &obj->model->polygons[i], player->ray_right, 2);
+        player_collide(player, &obj->model->polygons[i], player->ray_front, 2);
         player_collide(player, &obj->model->polygons[i], player->ray_back , 2);
+        
+        // Vector3 intersect_point;
+        // if (ray_intersects_triangle(*player->cam->pos, player->cam->dir, &obj->model->polygons[i], &intersect_point))
+        // {
+        //   float dist = vector3_dist(player->game_object->pos, intersect_point);
+        //   if (dist < nearest_dist)
+        //   {
+        //     nearest_dist = dist;
+        //     Vector3 dir = vector3_sub(*GE_cam->pos, intersect_point);
+        //     vector3_normalise(&dir);
+        //     lightsource = vector3_add(intersect_point, dir);
+        //   }
+        // }
+
       }
     }
     obj = obj->next;
@@ -93,15 +109,23 @@ void player_collision(Player *player)
 void gameobject_tick(void)
 {
   GameObject *obj = head;
-  Vector3 trans;
+  Vector3 diff;
 
   while (obj != NULL)
   {
-    trans = vector3_sub(obj->phys_object->pos, obj->phys_object->pos_last);
-    gameobject_translate(obj, trans.x, trans.y, trans.z);
+    // If physics suddenly breaks this is probably why, uncomment this and delete the line below it
+    diff = vector3_sub(obj->phys_object->pos, obj->phys_object->pos_last);
+    // diff = vector3_sub(obj->phys_object->pos, obj->pos);
+    gameobject_translate(obj, diff.x, diff.y, diff.z);
 
     obj = obj->next;
   }
+}
+
+void gameobject_set_pos(GameObject *obj, float x, float y, float z)
+{
+  gameobject_translate(obj, -obj->pos.x, -obj->pos.y, -obj->pos.z);
+  gameobject_translate(obj, x, y, z);
 }
 
 GameObject *gameobject_create(void)

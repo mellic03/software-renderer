@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include "vector.h"
+#include <xmmintrin.h>
 
 Vector2 vector2_add(Vector2 v1, Vector2 v2)
 {
@@ -127,11 +128,27 @@ Vector3 vector3_lerp(Vector3 *a, Vector3 *b, float alpha)
   return vector3_add(vector3_scale(*a, 1-alpha), vector3_scale(*b, alpha));
 }
 
+void vector3_negate(Vector3 *v0)
+{
+  v0->x = -v0->x;
+  v0->y = -v0->y;
+  v0->z = -v0->z;
+}
+
+/** Reflect a vector about a normal
+ */
+Vector3 vector3_reflect(Vector3 reflectee, Vector3 reflector)
+{
+  // r = d - 2(d . n)n
+  return vector3_sub(reflectee, vector3_scale(reflector, 2*vector3_dot(reflectee, reflector)));
+}
+
+
 void matrix_mult(int h1, int w1, int h2, int w2, float m1m2[][w2], float m1[][w1], float m2[][w2])
 {
   if (w1 != h2)
   {
-    printf("MATRIX SIZE MISMATCH: %d != %d\n", w1, h2);
+    printf("MATRIX SIZE MISMATCH: w1 (%d) != h2 (%d)\n", w1, h2);
     exit(1);
   }
 

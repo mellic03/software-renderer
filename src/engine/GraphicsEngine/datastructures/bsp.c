@@ -76,12 +76,14 @@ void BSP_insert(BSPnode_t *node, Polygon *polygon)
 
 BSPnode_t *BSP_tree_generate(Polygon *polygons, int poly_count)
 {
-  BSPnode_t *root = BSP_node_create(&polygons[1133]);
+  int indx = rand() % poly_count;
 
-  for (int i=0; i<1133; i++)
+  BSPnode_t *root = BSP_node_create(&polygons[indx]);
+
+  for (int i=0; i<indx; i++)
     BSP_insert(root, &polygons[i]);
 
-  for (int i=1134; i<poly_count; i++)
+  for (int i=indx+1; i<poly_count; i++)
     BSP_insert(root, &polygons[i]);
 
   printf("front: %d\n", front_count);

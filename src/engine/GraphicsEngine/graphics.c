@@ -15,13 +15,13 @@
 #include <x86intrin.h>
 #include <cblas.h>
 
-
 #include "graphics.h"
 #include "camera.h"
 #include "../math/vector.h"
 #include "../GameEngine/gameengine.h"
-// pixel buffers are blitted onto pixel_array after thread finishes
-SDL_Surface *pixel_array;
+
+SDL_Surface *front_buffer;
+SDL_Surface *back_buffer;
 
 SDL_Surface *pix_buf_tl;
 SDL_Surface *pix_buf_tr;
@@ -37,8 +37,9 @@ RSR_queue_t *GE_rasterise_tl, *GE_rasterise_tr, *GE_rasterise_bl, *GE_rasterise_
 
 float z_buffer[SCREEN_WDTH * SCREEN_HGHT];
 
+Vector3 global_light = {0.1, 0.1, 0.1};
 Vector3 lightsource = {1, -3, 0};
-Vector3 lightsource2 = {1, -3, 0};
+Vector3 light_colour = {1, 1, 1};
 
 double delta_time = 0.001;
 Camera *GE_cam;
@@ -52,34 +53,42 @@ pthread_t thread_render_1, thread_render_2, thread_render_3, thread_render_4;
 void GE_tile_render(  int xmin, int xmax, int ymin, int ymax,
                       SDL_Surface *pixel_buffer,
                       float *depth_buffer,
-                      RSR_queue_t *queue_in   )
+                      RSR_queue_t *queue_in  )
 {
-  clear_screen(pixel_buffer, 109, 133, 169);
+  // while (1)
+  // {
+    clear_screen(pixel_buffer, 109, 133, 169);
+    int size = queue_in->size;
+    for (int i=0; i<size; i++)
+    {
+      triangle_2d(pixel_buffer, depth_buffer, RSR_front(queue_in), xmin, xmax, ymin, ymax);
+      RSR_dequeue(queue_in);
+    }
 
-  int size = queue_in->size;
-  for (int i=0; i<size; i++)
-  {
-    SIMD_triangle_2d(pixel_buffer, depth_buffer, RSR_front(queue_in));
-    RSR_dequeue(queue_in);
-  }
+    SDL_Rect src;
+    src.x = xmin;
+    src.y = ymin;
+    src.w = xmax-xmin;
+    src.h = ymax-ymin;
 
-  SDL_Rect src;
-  src.x = xmin;
-  src.y = ymin;
-  src.w = xmax-xmin;
-  src.h = ymax-ymin;
+    SDL_Rect dest;
+    dest.x = xmin;
+    dest.y = ymin;
+    dest.w = xmax-xmin;
+    dest.h = ymax-ymin;
 
-  SDL_Rect dest;
-  dest.x = xmin;
-  dest.y = ymin;
-  dest.w = xmax-xmin;
-  dest.h = ymax-ymin;
+    SDL_BlitSurface(pixel_buffer, &src, back_buffer, &dest);
 
-  SDL_BlitSurface(pixel_buffer, &src, pixel_array, &dest);
-
-  for (int x=xmin; x<xmax; x++)
+    int row;
     for (int y=ymin; y<ymax; y++)
-      depth_buffer[SCREEN_WDTH*y + x] = 0;
+    {
+      row = SCREEN_WDTH*y;
+      for (int x=xmin; x<xmax; x++)
+        depth_buffer[row + x] = 0;
+    }
+
+    // pthread_cond_broadcast(cond);
+  // }
 }
 
 
@@ -89,15 +98,15 @@ void *render_1()
 }
 void *render_2()
 {
-  GE_tile_render(HALF_SCREEN_WDTH, SCREEN_WDTH, 0, HALF_SCREEN_HGHT, pix_buf_tr, dep_buf_tr, GE_rasterise_tr);
+  GE_tile_render(HALF_SCREEN_WDTH, REN_RES_X, 0, HALF_SCREEN_HGHT, pix_buf_tr, dep_buf_tr, GE_rasterise_tr);
 }
 void *render_3()
 {
-  GE_tile_render(0, HALF_SCREEN_WDTH, HALF_SCREEN_HGHT, SCREEN_HGHT, pix_buf_bl, dep_buf_bl, GE_rasterise_bl);
+  GE_tile_render(0, HALF_SCREEN_WDTH, HALF_SCREEN_HGHT, REN_RES_Y, pix_buf_bl, dep_buf_bl, GE_rasterise_bl);
 }
 void *render_4()
 {
-  GE_tile_render(HALF_SCREEN_WDTH, SCREEN_WDTH, HALF_SCREEN_HGHT, SCREEN_HGHT, pix_buf_br, dep_buf_br, GE_rasterise_br);
+  GE_tile_render(HALF_SCREEN_WDTH, REN_RES_X, HALF_SCREEN_HGHT, REN_RES_Y, pix_buf_br, dep_buf_br, GE_rasterise_br);
 }
 
 
@@ -105,7 +114,8 @@ void *render_4()
  */
 void GE_init(SDL_Window *win)
 {
-  pixel_array = SDL_GetWindowSurface(win);
+  front_buffer = SDL_GetWindowSurface(win);
+  back_buffer = SDL_DuplicateSurface(front_buffer);
 
   GE_transform_queue = RSR_queue_init();
   GE_clip_queue = RSR_queue_init();
@@ -116,15 +126,26 @@ void GE_init(SDL_Window *win)
   GE_rasterise_bl = RSR_queue_init();
   GE_rasterise_br = RSR_queue_init();
 
-  pix_buf_tl = SDL_DuplicateSurface(pixel_array);
-  pix_buf_tr = SDL_DuplicateSurface(pixel_array);
-  pix_buf_bl = SDL_DuplicateSurface(pixel_array);
-  pix_buf_br = SDL_DuplicateSurface(pixel_array);
+  pix_buf_tl = SDL_DuplicateSurface(front_buffer);
+  pix_buf_tr = SDL_DuplicateSurface(front_buffer);
+  pix_buf_bl = SDL_DuplicateSurface(front_buffer);
+  pix_buf_br = SDL_DuplicateSurface(front_buffer);
 
   dep_buf_tl = (float *)calloc(SCREEN_WDTH*SCREEN_HGHT, sizeof(float));
   dep_buf_tr = (float *)calloc(SCREEN_WDTH*SCREEN_HGHT, sizeof(float));
   dep_buf_bl = (float *)calloc(SCREEN_WDTH*SCREEN_HGHT, sizeof(float));
   dep_buf_br = (float *)calloc(SCREEN_WDTH*SCREEN_HGHT, sizeof(float));
+
+  // pthread_create(&thread_render_1, NULL, render_1, NULL);
+  // pthread_create(&thread_render_2, NULL, render_2, NULL);
+  // pthread_create(&thread_render_3, NULL, render_3, NULL);
+  // pthread_create(&thread_render_4, NULL, render_4, NULL);
+
+  // pthread_detach(thread_render_1);
+  // pthread_detach(thread_render_2);
+  // pthread_detach(thread_render_3);
+  // pthread_detach(thread_render_4);
+
 }
 
 
@@ -396,112 +417,54 @@ void line_2d(Vector3 stroke, Vector2 p1, Vector2 p2, SDL_Surface *pixel_arr)
   float m = (p1.y-p2.y) / (p1.x-p2.x); // slope
   float c = p1.y - m*p1.x; // constant
 
-  // If vertical
+  float xmin = MIN(p1.x, p2.x);
+  float xmax = MAX(p1.x, p2.x);
+  float ymin = MIN(p1.y, p2.y);
+  float ymax = MAX(p1.y, p2.y);
+
+  // If "vertical"
   if (m < -100 || m > 100)
   {
-    if (p1.y < p2.y)
-      for (int y=p1.y; y<p2.y; y++)
-        pixel(pixel_arr, (int)p1.x, y, stroke.x, stroke.y, stroke.z);
-
-    else if (p1.y > p2.y)
-      for (int y=p2.y; y<p1.y; y++)
-        pixel(pixel_arr, (int)p1.x, y, stroke.x, stroke.y, stroke.z);
+    for (int y=ymin; y<=ymax; y++)
+      pixel(pixel_arr, (int)p1.x, y, stroke.x, stroke.y, stroke.z);
   }
 
   // if gradient is not between -1 and 1
   else if (!in_range(m, -1, 1))
   {
-    if (p1.y < p2.y)
-      for (int y=p1.y; y<p2.y; y++)
-        pixel(pixel_arr, (int)((y-c)/m), y, stroke.x, stroke.y, stroke.z);
-
-    else if (p1.y > p2.y)
-      for (int y=p2.y; y<p1.y; y++)
-        pixel(pixel_arr, (int)((y-c)/m), y, stroke.x, stroke.y, stroke.z);
+    for (int y=ymin; y<=ymax; y++)
+      pixel(pixel_arr, (int)((y-c)/m), y, stroke.x, stroke.y, stroke.z);
   }
 
   // if gradient is between -1 and 1
   else
   {
-    if (p1.x < p2.x)
-      for (int x=p1.x; x<=p2.x; x++)
-        pixel(pixel_arr, x, (int)(m*x+c), stroke.x, stroke.y, stroke.z);
-
-    else if (p1.x > p2.x)
-      for (int x=p2.x; x<=p1.x; x++)
-        pixel(pixel_arr, x, (int)(m*x+c), stroke.x, stroke.y, stroke.z);
+    for (int x=xmin; x<=xmax; x++)
+      pixel(pixel_arr, x, (int)(m*x+c), stroke.x, stroke.y, stroke.z);
   }
 }
 
-Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3)
+Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3, float denom)
 {
   Vector3 weights;
-  weights.x = ((v2.y-v3.y)*(x-v3.x) + (v3.x-v2.x)*(y-v3.y)) / ((v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y));
-  weights.y = ((v3.y-v1.y)*(x-v3.x) + (v1.x-v3.x)*(y-v3.y)) / ((v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y));
+  weights.x = ((v2.y-v3.y)*(x-v3.x) + (v3.x-v2.x)*(y-v3.y)) / denom;
+  weights.y = ((v3.y-v1.y)*(x-v3.x) + (v1.x-v3.x)*(y-v3.y)) / denom;
   weights.z = 1 - weights.x - weights.y;
   return weights;
 }
 
-void triangle_2d(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri)
+int orient2d(Vector2 a, Vector2 b, Vector2 c)
 {
-  Vector2 v1 = tri->proj_verts[0];
-  Vector2 v2 = tri->proj_verts[1];
-  Vector2 v3 = tri->proj_verts[2];
-
-  // line_2d((Vector3){0, 0, 0}, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1}, pixel_buffer);
-  // line_2d((Vector3){0, 0, 0}, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1}, pixel_buffer);
-  // line_2d((Vector3){0, 0, 0}, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1}, pixel_buffer);
-
-  float inverse_u_coords[3] = {tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
-  float inverse_v_coords[3] = {tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
-
-  Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
-  Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
-  Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
-  Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
-
-  Uint16 u=0, v=0;
-  float z_index;
-
-  Vector3 vert_weights;
-  Uint8 *red, *green, *blue;
-  Uint8 *pixels = tri->texture->pixels;
-
-  for (Uint16 y=ly; y<=hy; y++)
-  {
-    for (Uint16 x=lx; x<=hx; x++)
-    {
-      vert_weights = calculate_barycentric(x, y, v1, v2, v3);
-
-      if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
-      {
-        z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
-
-        if (z_index > depth_buffer[SCREEN_WDTH*y + x])
-        {
-          depth_buffer[SCREEN_WDTH*y + x] = z_index;
-
-          u = (Uint16)((vert_weights.x*inverse_u_coords[0] + vert_weights.y*inverse_u_coords[1] + vert_weights.z*inverse_u_coords[2]) / z_index) % tri->texture->w;
-          v = (Uint16)((vert_weights.x*inverse_v_coords[0] + vert_weights.y*inverse_v_coords[1] + vert_weights.z*inverse_v_coords[2]) / z_index) % tri->texture->h;
-
-          u *= tri->texture->format->BytesPerPixel;
-
-          red   = pixels + v*tri->texture->pitch + u+2;
-          green = pixels + v*tri->texture->pitch + u+1;
-          blue  = pixels + v*tri->texture->pitch + u+0;
-
-          pixel(pixel_buffer, x, y, *red, *green, *blue);
-        }
-      }
-    }
-  }
+  return (b.x-a.x)*(c.y-a.y) - (b.y-a.y)*(c.x-a.x);
 }
 
-void triangle_2d_shaded(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri)
+void triangle_2d(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri, int thread_xmin, int thread_xmax, int thread_ymin, int thread_ymax)
 {
   Vector2 v1 = tri->proj_verts[0];
   Vector2 v2 = tri->proj_verts[1];
   Vector2 v3 = tri->proj_verts[2];
+
+  float denom = (v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y);
 
   // line_2d((Vector3){0, 0, 0}, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1}, pixel_buffer);
   // line_2d((Vector3){0, 0, 0}, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1}, pixel_buffer);
@@ -510,10 +473,15 @@ void triangle_2d_shaded(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon 
   float inverse_u_coords[3] = {tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
   float inverse_v_coords[3] = {tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
 
-  Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
-  Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
-  Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
-  Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
+  int lx = MIN(v1.x, MIN(v2.x, v3.x));
+  int hx = MAX(v1.x, MAX(v2.x, v3.x));
+  int ly = MIN(v1.y, MIN(v2.y, v3.y));
+  int hy = MAX(v1.y, MAX(v2.y, v3.y));
+
+  lx = MAX(thread_xmin, lx), lx = MIN(lx, thread_xmax-1);
+  hx = MAX(thread_xmin, hx), hx = MIN(hx, thread_xmax-1);
+  ly = MAX(thread_ymin, ly), ly = MIN(ly, thread_ymax-1);
+  hy = MAX(thread_ymin, hy), hy = MIN(hy, thread_ymax-1);
 
   Uint16 u=0, v=0;
   float z_index;
@@ -522,11 +490,16 @@ void triangle_2d_shaded(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon 
   Uint8 *red, *green, *blue;
   Uint8 *pixels = tri->texture->pixels;
 
-  for (Uint16 x=lx; x<=hx; x++)
+  Vector3 lightsource2 = vector3_sub(lightsource, *GE_cam->pos);
+  rotate_point(&lightsource2, GE_cam->rot.x, GE_cam->rot.y, 0);
+
+  int frame_count = 0;
+
+  for (int y=ly; y<=hy; y++)
   {
-    for (Uint16 y=ly; y<=hy; y++)
+    for (int x=lx; x<=hx; x++)
     {
-      vert_weights = calculate_barycentric(x, y, v1, v2, v3);
+      vert_weights = calculate_barycentric(x, y, v1, v2, v3, denom);
 
       if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
       {
@@ -545,38 +518,45 @@ void triangle_2d_shaded(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon 
           green = pixels + v*tri->texture->pitch + u+1;
           blue  = pixels + v*tri->texture->pitch + u+0;
 
-          float z = 1/z_index;
-          Vector3 deprojected = {
-            ((z*VIEWPLANE_WDTH) * (x - HALF_SCREEN_WDTH - 0.5)) / (0.5 * SCREEN_WDTH),
-            ((z*VIEWPLANE_WDTH) * (y - HALF_SCREEN_HGHT - 0.5)) / (0.5 * SCREEN_HGHT),
-            z
-          };
 
-          Vector3 dir = vector3_sub(lightsource2, deprojected);
-          vector3_normalise(&dir);
-          Vector3 norm = tri->normals[1];
-          norm = vector3_lerp(&norm, &tri->normals[0], vert_weights.x);
-          norm = vector3_lerp(&norm, &tri->normals[2], vert_weights.z);
-          vector3_normalise(&norm);
-          
-          float shade = vector3_dot(norm, dir);
-          shade /= 2;
-          shade += 1;
+          Vector3 diffuse = (Vector3){0, 0, 0};
+          Vector3 specular; float specular_strength = 0.5;
+          Vector3 lighting;
 
-          shade *= 1/vector3_dist(deprojected, lightsource2);
-          // shade *= (1.9 * exp(-0.01 * Sq(vector3_dist(deprojected, lightsource2))))/1.9;
+          Vector3 norm = tri->face_normal;
+          Vector3 deprojected = GE_screen_to_view(&(Vector2){x, y, z_index});
+          Vector3 light_dir = vector3_sub(deprojected, lightsource2);
 
-          float r = (float)*red * shade;
-          float g = (float)*green * shade;
-          float b = (float)*blue * shade;
+          float diff = vector3_dot(light_dir, norm);
+          diff += 1; diff /= 2;
+          diff = 1/vector3_dist(deprojected, lightsource2);
+          diffuse = (Vector3){diff, diff, diff};
+
+
+          Vector3 view_dir = vector3_sub((Vector3){0, 0, 0}, deprojected);
+          vector3_normalise(&view_dir);
+          Vector3 reflect_dir = vector3_reflect(light_dir, norm);
+          vector3_normalise(&reflect_dir);
+          float spec = pow(MAX(vector3_dot(view_dir, reflect_dir), 0.0f), 32);
+          specular = vector3_scale(light_colour, specular_strength * spec);
+
+          lighting = vector3_add(diffuse, specular);
+          lighting = vector3_add(lighting, global_light);
+
+
+          float r = (float)*red * lighting.x;
+          float g = (float)*green * lighting.y;
+          float b = (float)*blue * lighting.z;
 
           // pixel(pixel_buffer, x, y, *red, *green, *blue);
           pixel(pixel_buffer, x, y, (Uint8)r, (Uint8)g, (Uint8)b);
+
         }
       }
     }
   }
 }
+
 
 /*
   // calculate normal, tangent and bitangent
@@ -638,7 +618,7 @@ int SIMD_cmp_dpth_buf(__m128 *_z_index, __m128 *_dpth_buf)
   return _mm_movemask_ps(_mm_cmp_ps(*_z_index, *_dpth_buf, 0x0E));
 }
 
-void SIMD_triangle_2d(SDL_Surface *pxl_buf, float *dpth_buf, Polygon *tri)
+void SIMD_triangle_2d(SDL_Surface *pxl_buf, float *dpth_buf, Polygon *tri, int thread_xmin, int thread_xmax, int thread_ymin, int thread_ymax)
 {
   Vector2 v1 = GE_view_to_screen(&tri->vertices[0]);
   Vector2 v2 = GE_view_to_screen(&tri->vertices[1]);
@@ -686,25 +666,37 @@ void SIMD_triangle_2d(SDL_Surface *pxl_buf, float *dpth_buf, Polygon *tri)
   Uint8 *red, *green, *blue;
   //--------------------------------------------------
 
-  Uint8 masks[4] = { 0b00001000, 0b00000100, 0b00000010, 0b00000001 };
+  Uint8 masks[4] = { 0b00000001, 0b00000010, 0b00000100, 0b00001000 };
+
+  int lx = MIN(v1.x, MIN(v2.x, v3.x));
+  int hx = MAX(v1.x, MAX(v2.x, v3.x));
+  int ly = MIN(v1.y, MIN(v2.y, v3.y));
+  int hy = MAX(v1.y, MAX(v2.y, v3.y));
+
+  lx = MAX(thread_xmin, lx), lx = MIN(lx, thread_xmax);
+  hx = MAX(thread_xmin, hx), hx = MIN(hx, thread_xmax);
+  ly = MAX(thread_ymin, ly), ly = MIN(ly, thread_ymax);
+  hy = MAX(thread_ymin, hy), hy = MIN(hy, thread_ymax);
 
 
-  Uint16 lx = MIN(v1.x, MIN(v2.x, v3.x));
-  Uint16 hx = MAX(v1.x, MAX(v2.x, v3.x));
-  Uint16 ly = MIN(v1.y, MIN(v2.y, v3.y));
-  Uint16 hy = MAX(v1.y, MAX(v2.y, v3.y));
+  // line_2d((Vector3){0, 255, 0}, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1}, pxl_buf);
+  // line_2d((Vector3){0, 255, 0}, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1}, pxl_buf);
+  // line_2d((Vector3){0, 255, 0}, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1}, pxl_buf);
+
+  // line_2d((Vector3){0, 0, 0}, (Vector2){lx, ly, 1}, (Vector2){hx, ly, 1}, pxl_buf);
+  // line_2d((Vector3){0, 0, 0}, (Vector2){hx, ly, 1}, (Vector2){hx, hy, 1}, pxl_buf);
+  // line_2d((Vector3){0, 0, 0}, (Vector2){hx, hy, 1}, (Vector2){lx, hy, 1}, pxl_buf);
+  // line_2d((Vector3){0, 0, 0}, (Vector2){lx, hy, 1}, (Vector2){lx, ly, 1}, pxl_buf);
 
   Uint16 u=0, v=0;
 
-  Uint16 x_range = hx-lx;
-  Uint8 remainder = x_range % 4;
+  Uint8 remainder = (hx-lx) % 4;
 
-
-  for (Uint16 x=lx; x<hx-remainder; x+=4)
+  for (int x=lx; x<=hx-remainder; x+=4)
   {
-    _x = _mm_set_ps(x+0, x+1, x+2, x+3);
+    _x = _mm_set_ps(x+3, x+2, x+1, x+0);
 
-    for (Uint16 y=ly; y<=hy; y++)
+    for (int y=ly; y<=hy; y++)
     {
       int row = SCREEN_WDTH*y;
       _y = _mm_set1_ps(y);
@@ -720,7 +712,7 @@ void SIMD_triangle_2d(SDL_Surface *pxl_buf, float *dpth_buf, Polygon *tri)
 
       // z index and z buffer
       __m128 _z_indices = _mm_add_ps(_mm_mul_ps(_v1_w, _first),  _mm_add_ps(_mm_mul_ps(_v2_w, _second), _mm_mul_ps(_v3_w, _third)));
-      __m128 _z_buf = _mm_set_ps(dpth_buf[row + (x+0)], dpth_buf[row + (x+1)], dpth_buf[row + (x+2)], dpth_buf[row + (x+3)]);
+      __m128 _z_buf = _mm_set_ps(dpth_buf[row + (x+3)], dpth_buf[row + (x+2)], dpth_buf[row + (x+1)], dpth_buf[row + (x+0)]);
       int gtr_thn_zbuf = SIMD_cmp_dpth_buf(&_z_indices, &_z_buf);
 
 
@@ -738,8 +730,8 @@ void SIMD_triangle_2d(SDL_Surface *pxl_buf, float *dpth_buf, Polygon *tri)
         {
           dpth_buf[row + x+i] = _z_indices[i];
 
-          u = (Uint16)_texture_u[3-i] % tri->texture->w;
-          v = (Uint16)_texture_v[3-i] % tri->texture->h;
+          u = (Uint16)_texture_u[i] % tri->texture->w;
+          v = (Uint16)_texture_v[i] % tri->texture->h;
 
           u *= tri->texture->format->BytesPerPixel;
 
@@ -755,15 +747,16 @@ void SIMD_triangle_2d(SDL_Surface *pxl_buf, float *dpth_buf, Polygon *tri)
 
   float inverse_u_coords[3] = {tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
   float inverse_v_coords[3] = {tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
+  float denom = (v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y);
 
   Vector3 vert_weights;
   float z_index;
 
-  for (Uint16 x=hx-remainder; x<=hx; x++)
+  for (int x=hx-remainder; x<=hx; x++)
   {
-    for (Uint16 y=ly; y<=hy; y++)
+    for (int y=ly; y<=hy; y++)
     {
-     vert_weights = calculate_barycentric(x, y, v1, v2, v3);
+     vert_weights = calculate_barycentric(x, y, v1, v2, v3, denom);
 
       if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
       {
@@ -974,7 +967,6 @@ void GE_clip_queue_3D(Vector3 plane_pos, Vector3 plane_normal, RSR_queue_t *in_q
  */
 void GE_model_enque(Model *model)
 {
-
   // cblas_sgemm(
   //   CblasRowMajor,
   //   CblasNoTrans,
@@ -991,7 +983,6 @@ void GE_model_enque(Model *model)
   //   model->blas_verts_worldspace_translated, // matrix C (output)
   //   model->vertex_count // 1st dimension of C --> ?
   // );
-
 
   // Only queue front faces
   for (int i=0; i<model->poly_count; i++)
@@ -1010,21 +1001,16 @@ void GE_model_enque(Model *model)
  */
 void GE_queue_perform_transformation(void)
 {
-  lightsource2 = vector3_sub(lightsource, *GE_cam->pos);
-  rotate_point(&lightsource2, GE_cam->rot.x, GE_cam->rot.y, 0);
-
   int size = GE_transform_queue->size;
-
-
 
   for (int i=0; i<size; i++)
   {
     Polygon tri = *RSR_front(GE_transform_queue);
     RSR_dequeue(GE_transform_queue);
 
-    tri.og_vertices[0] = tri.vertices[0];
-    tri.og_vertices[1] = tri.vertices[1];
-    tri.og_vertices[2] = tri.vertices[2];
+    // tri.og_vertices[0] = tri.vertices[0];
+    // tri.og_vertices[1] = tri.vertices[1];
+    // tri.og_vertices[2] = tri.vertices[2];
 
     GE_world_to_view(&tri);
 
@@ -1035,11 +1021,12 @@ void GE_queue_perform_transformation(void)
 
 void GE_queue_perform_clipping(void)
 {
-  GE_clip_queue_3D((Vector3){0, 0, 0.01}, GE_cam->near_plane, GE_clip_queue, GE_clip_queue);
-  GE_clip_queue_3D((Vector3){0, 0, 0}, GE_cam->left_plane, GE_clip_queue, GE_clip_queue);
-  GE_clip_queue_3D((Vector3){0, 0, 0}, GE_cam->right_plane, GE_clip_queue, GE_clip_queue);
-  GE_clip_queue_3D((Vector3){0, 0, 0}, GE_cam->top_plane, GE_clip_queue, GE_clip_queue);
-  GE_clip_queue_3D((Vector3){0, 0, 0}, GE_cam->bottom_plane, GE_clip_queue, GE_rasterise_queue);
+  GE_clip_queue_3D((Vector3){0, 0, 1}, GE_cam->near_plane, GE_clip_queue, GE_rasterise_queue);
+  // GE_clip_queue_3D((Vector3){0, 0, 1}, GE_cam->near_plane, GE_clip_queue, GE_clip_queue);
+  // GE_clip_queue_3D((Vector3){0, 0, 0}, GE_cam->left_plane, GE_clip_queue, GE_clip_queue);
+  // GE_clip_queue_3D((Vector3){0, 0, 0}, GE_cam->right_plane, GE_clip_queue, GE_clip_queue);
+  // GE_clip_queue_3D((Vector3){0, 0, 0}, GE_cam->top_plane, GE_clip_queue, GE_clip_queue);
+  // GE_clip_queue_3D((Vector3){0, 0, 0}, GE_cam->bottom_plane, GE_clip_queue, GE_rasterise_queue);
 }
 
 /** Rasterise all polygons in GE_rasterise_queue
@@ -1047,6 +1034,8 @@ void GE_queue_perform_clipping(void)
  */
 void GE_queue_perform_rasterisation(void)
 {
+  // clear_screen(front_buffer, 100, 100, 100);
+
   int size = GE_rasterise_queue->size;
 
   for (int i=0; i<size; i++)
@@ -1059,6 +1048,8 @@ void GE_queue_perform_rasterisation(void)
       tri.proj_verts[j] = GE_view_to_screen(&tri.vertices[j]);
       tri.og_proj_verts[j] = GE_view_to_screen(&tri.og_vertices[j]);
     }
+
+    // SIMD_triangle_2d(front_buffer, z_buffer, &tri, 0, SCREEN_WDTH, 0, SCREEN_HGHT);
 
     // If left
     if (tri.proj_verts[0].x < HALF_SCREEN_WDTH && tri.proj_verts[1].x < HALF_SCREEN_WDTH && tri.proj_verts[2].x < HALF_SCREEN_WDTH)
@@ -1126,6 +1117,7 @@ void GE_queue_perform_rasterisation(void)
     }
   }
 
+
   pthread_create(&thread_render_1, NULL, render_1, NULL);
   pthread_create(&thread_render_2, NULL, render_2, NULL);
   pthread_create(&thread_render_3, NULL, render_3, NULL);
@@ -1134,9 +1126,24 @@ void GE_queue_perform_rasterisation(void)
   pthread_join(thread_render_1, NULL);
   pthread_join(thread_render_2, NULL);
   pthread_join(thread_render_3, NULL);
-  pthread_join(thread_render_4, NULL); 
+  pthread_join(thread_render_4, NULL);
 
+  SDL_Rect src;
+  src.x = 0;
+  src.y = 0;
+  src.w = REN_RES_X;
+  src.h = REN_RES_Y;
+
+  SDL_Rect dest;
+  dest.x = 0;
+  dest.y = 0;
+  dest.w = SCREEN_WDTH;
+  dest.h = SCREEN_HGHT;
+
+  SDL_BlitScaled(back_buffer, &src, front_buffer, &dest);
 }
+
+
 
 /** Convert a polygon's vertices from world-space to view-space
  */
@@ -1146,6 +1153,7 @@ void GE_world_to_view(Polygon *polygon)
   {
     polygon->vertices[i] = vector3_sub(polygon->vertices[i], *GE_cam->pos);
     rotate_point(&polygon->vertices[i], GE_cam->rot.x, GE_cam->rot.y, 0);
+    rotate_point(&polygon->normals[i], GE_cam->rot.x, GE_cam->rot.y, 0);
 
     // polygon->og_vertices[i] = vector3_sub(polygon->og_vertices[i], *GE_cam->pos);
     // rotate_point(&polygon->og_vertices[i], GE_cam->rot.x, GE_cam->rot.y, 0);
@@ -1159,16 +1167,11 @@ Vector2 GE_view_to_screen(Vector3 *pt)
 {
   float nearplane_z = 0.5;
   
-  float precomp = (nearplane_z * SCREEN_WDTH) / (pt->z * VIEWPLANE_WDTH);
-
-  float xprime = (pt->x * nearplane_z) / pt->z;
-  float yprime = (pt->y * nearplane_z) / pt->z;
-
-  float canvas_x = (xprime * SCREEN_WDTH) / VIEWPLANE_WDTH;
-  float canvas_y = (yprime * SCREEN_HGHT) / VIEWPLANE_HGHT;
+  float canvas_x = (pt->x * nearplane_z * REN_RES_X) / (pt->z*VIEWPLANE_WDTH);
+  float canvas_y = (pt->y * nearplane_z * REN_RES_Y) / (pt->z*VIEWPLANE_HGHT);
  
-  canvas_x += (HALF_SCREEN_HGHT) - 0.5;
-  canvas_y += (HALF_SCREEN_HGHT) - 0.5;
+  canvas_x += (HALF_SCREEN_WDTH);
+  canvas_y += (HALF_SCREEN_HGHT);
 
   // float canvas_x = (pt->x * HALF_SCREEN_WDTH) / pt->z;
   // float canvas_y = (pt->y * HALF_SCREEN_HGHT) / pt->z;
@@ -1176,4 +1179,25 @@ Vector2 GE_view_to_screen(Vector3 *pt)
   // canvas_y += HALF_SCREEN_HGHT - 0.5;
 
   return (Vector2){canvas_x, canvas_y, 1/pt->z};
+}
+
+/** Convert a screen-space Vector2 to a view-space Vector3
+ */
+Vector3 GE_screen_to_view(Vector2 *pt)
+{
+  float z = 1/pt->w;
+  Vector3 deprojected = {
+    ((z*VIEWPLANE_WDTH) * (pt->x - HALF_SCREEN_WDTH)) / (0.5 * REN_RES_X),
+    ((z*VIEWPLANE_HGHT) * (pt->y - HALF_SCREEN_HGHT)) / (0.5 * REN_RES_Y),
+    z
+  };
+  return deprojected;
+}
+
+Vector3 GE_view_to_world(Vector3 v0)
+{
+  rotate_point(&v0, 0, GE_cam->rot.y, 0);
+  rotate_point(&v0, GE_cam->rot.x, 0, 0);
+  v0 = vector3_add(v0, *GE_cam->pos);
+
 }

@@ -77,7 +77,6 @@ int main(int argc, char** argv)
   // Load assets
   //------------------------------------------------------------
 
-
   GameObject *enemy = gameobject_create();
   gameobject_assign_model(enemy, model_load("src/assets/enemy"));
   gameobject_translate(enemy, 5, -3, 0);
@@ -85,7 +84,6 @@ int main(int argc, char** argv)
 
   GameObject *map = gameobject_create();
   gameobject_assign_model(map, model_load("src/assets/benchmark"));
-  gameobject_translate(map, 0, 2, 0);
 
 
   // GameObject *sphere = gameobject_create();
@@ -120,9 +118,6 @@ int main(int argc, char** argv)
   while (1)
   {
     gettimeofday(&sometime1, NULL);
-    // clear_screen(pixel_array, 109, 133, 169);
-
-    // clear_screen(0, 0, 0);
 
     input(event, GE_cam, player);
 
