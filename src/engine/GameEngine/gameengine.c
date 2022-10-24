@@ -96,7 +96,7 @@ void player_collision(Player *player)
         //     nearest_dist = dist;
         //     Vector3 dir = vector3_sub(*GE_cam->pos, intersect_point);
         //     vector3_normalise(&dir);
-        //     lightsource = vector3_add(intersect_point, dir);
+        //     lightsource.pos = vector3_add(intersect_point, dir);
         //   }
         // }
 

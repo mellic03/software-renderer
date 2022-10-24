@@ -22,15 +22,14 @@
 //----------------------------------------
 extern SDL_Surface *front_buffer;
 extern double delta_time;
-extern Vector3 lightsource;
 extern Camera *GE_cam;
 
 extern RSR_queue_t *GE_transform_queue;
 extern RSR_queue_t *GE_clip_queue;
 extern RSR_queue_t *GE_rasterise_queue;
 extern Polygon *front_faces;
-
 //----------------------------------------
+
 void GE_init(SDL_Window *win);
 
 void triangle_2d(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri, int thread_xmin, int thread_xmax, int thread_ymin, int thread_ymax);
@@ -58,8 +57,6 @@ void scale_xyz(Model *model, float x, float y, float z);
 void clear_screen(SDL_Surface *pixel_arr, Uint8 r, Uint8 g, Uint8 b);
 void draw_screen(SDL_Window *window);
 
-
-
 static Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3, float denom);
 static Polygon *clip_against_planes(Camera *cam, int in_size, Polygon *polygons_in, int *out_size);
 static Vector2 GE_view_to_screen(Vector3 *pt);
@@ -69,6 +66,30 @@ static Vector3 line_plane_intersect(Vector3 plane_pos, Vector3 plane_normal, Vec
 void GE_world_to_view(Polygon *polygon);
 Vector3 GE_screen_to_view(Vector2 *pt);
 Vector3 GE_view_to_world(Vector3 v0);
+
+
+
+// LIGHTING
+//----------------------------------------
+#define LIGHT_PIXEL_STEP 4 
+#define AMBIENT_LIGHT ((Vector3){0.2, 0.2, 0.2})
+
+typedef enum {DIRECTIONAL, POINT, SPOT} LightType;
+
+typedef struct {
+  LightType light_type;
+  Vector3 pos, dir, colour;
+  float intensity, cutoff_angle;
+} LightSource;
+
+
+void GE_lightsource_init(LightSource *lightsoure, LightType light_type);
+
+LightSource GE_lightsource_world_to_view(LightSource *lightsource_world);
+
+//----------------------------------------
+
+
 
 
 #endif /* GRAPHICS_H */

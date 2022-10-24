@@ -128,11 +128,9 @@ Vector3 vector3_lerp(Vector3 *a, Vector3 *b, float alpha)
   return vector3_add(vector3_scale(*a, 1-alpha), vector3_scale(*b, alpha));
 }
 
-void vector3_negate(Vector3 *v0)
+Vector3 vector3_negate(Vector3 v0)
 {
-  v0->x = -v0->x;
-  v0->y = -v0->y;
-  v0->z = -v0->z;
+  return (Vector3){v0.x * -1, v0.y * -1, v0.z * -1};
 }
 
 /** Reflect a vector about a normal

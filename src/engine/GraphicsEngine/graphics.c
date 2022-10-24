@@ -20,28 +20,20 @@
 #include "../math/vector.h"
 #include "../GameEngine/gameengine.h"
 
+
+LightSource lightsource;
+
 SDL_Surface *front_buffer;
 SDL_Surface *back_buffer;
-
-SDL_Surface *pix_buf_tl;
-SDL_Surface *pix_buf_tr;
-SDL_Surface *pix_buf_bl;
-SDL_Surface *pix_buf_br;
-
-float *dep_buf_tl;
-float *dep_buf_tr;
-float *dep_buf_bl;
-float *dep_buf_br;
-
-RSR_queue_t *GE_rasterise_tl, *GE_rasterise_tr, *GE_rasterise_bl, *GE_rasterise_br; 
-
 float z_buffer[SCREEN_WDTH * SCREEN_HGHT];
 
-Vector3 global_light = {0.1, 0.1, 0.1};
-Vector3 lightsource = {1, -3, 0};
-Vector3 light_colour = {1, 1, 1};
+SDL_Surface *pix_buf_tl; float *dep_buf_tl;
+SDL_Surface *pix_buf_tr; float *dep_buf_tr;
+SDL_Surface *pix_buf_bl; float *dep_buf_bl;
+SDL_Surface *pix_buf_br; float *dep_buf_br;
 
 double delta_time = 0.001;
+
 Camera *GE_cam;
 
 RSR_queue_t *GE_transform_queue;  // Queue of polygons waiting to be rotated
@@ -49,6 +41,7 @@ RSR_queue_t *GE_clip_queue;       // Queue of polygons waiting to be clipped
 RSR_queue_t *GE_rasterise_queue;  // Queue of polygons waiting to be rasterised
 
 pthread_t thread_render_1, thread_render_2, thread_render_3, thread_render_4;
+RSR_queue_t *GE_rasterise_tl, *GE_rasterise_tr, *GE_rasterise_bl, *GE_rasterise_br; 
 
 void GE_tile_render(  int xmin, int xmax, int ymin, int ymax,
                       SDL_Surface *pixel_buffer,
@@ -136,16 +129,10 @@ void GE_init(SDL_Window *win)
   dep_buf_bl = (float *)calloc(SCREEN_WDTH*SCREEN_HGHT, sizeof(float));
   dep_buf_br = (float *)calloc(SCREEN_WDTH*SCREEN_HGHT, sizeof(float));
 
-  // pthread_create(&thread_render_1, NULL, render_1, NULL);
-  // pthread_create(&thread_render_2, NULL, render_2, NULL);
-  // pthread_create(&thread_render_3, NULL, render_3, NULL);
-  // pthread_create(&thread_render_4, NULL, render_4, NULL);
-
-  // pthread_detach(thread_render_1);
-  // pthread_detach(thread_render_2);
-  // pthread_detach(thread_render_3);
-  // pthread_detach(thread_render_4);
-
+  GE_lightsource_init(&lightsource, POINT);
+  lightsource.colour = (Vector3){1, 1, 1};
+  lightsource.pos = (Vector3){0, -3, 0};
+  lightsource.dir = (Vector3){0, 0, 1};
 }
 
 
@@ -382,7 +369,7 @@ void scale_xyz(Model *model, float x, float y, float z)
 
 // DRAWING
 //-------------------------------------------------------------------------------
-void clear_screen(SDL_Surface *pixel_arr, Uint8 r, Uint8 g, Uint8 b)
+void clear_screen(SDL_Surface *pixel_buffer, Uint8 r, Uint8 g, Uint8 b)
 {
   // for (int i=0; i<SCREEN_WDTH; i++)
   //   for (int j=0; j<SCREEN_HGHT; j++)
@@ -390,7 +377,7 @@ void clear_screen(SDL_Surface *pixel_arr, Uint8 r, Uint8 g, Uint8 b)
 
   Uint32 red = r << 16;
   Uint16 green = g << 8;
-  SDL_FillRect(pixel_arr, NULL, red + green + b);
+  SDL_FillRect(pixel_buffer, NULL, red + green + b);
 
   // for (int i=0; i<SCREEN_WDTH; i++)
   //   for (int j=0; j<SCREEN_HGHT; j++)
@@ -458,6 +445,71 @@ int orient2d(Vector2 a, Vector2 b, Vector2 c)
   return (b.x-a.x)*(c.y-a.y) - (b.y-a.y)*(c.x-a.x);
 }
 
+inline Vector3 shade_phong_spotlight(Polygon *tri, Vector3 frag_pos, LightSource lightsource)
+{
+  Vector3 diffuse = tri->material->diffuse;
+  Vector3 specular = tri->material->specular;
+  Vector3 output_lighting;
+
+  Vector3 light_dir = vector3_sub(frag_pos, lightsource.pos);
+  vector3_normalise(&light_dir);
+
+  if (vector3_dot(light_dir, lightsource.dir) < 0.9)
+    return AMBIENT_LIGHT;
+
+  Vector3 norm = tri->normals[0];
+
+  float diff = vector3_dot(light_dir, tri->face_normal) + 1;
+  diff /= 2 * vector3_dist(frag_pos, lightsource.pos);
+  diffuse = vector3_scale(diffuse, diff);
+
+  Vector3 view_dir = vector3_negate(frag_pos);
+  vector3_normalise(&view_dir);
+
+  Vector3 reflect_dir = vector3_reflect(light_dir, tri->face_normal);
+  vector3_normalise(&reflect_dir);
+
+  float spec = pow(MAX(vector3_dot(view_dir, reflect_dir), 0.0f), tri->material->specular_exponent);
+  specular = vector3_scale(specular, spec);
+  specular = (Vector3){lightsource.colour.x * specular.x, lightsource.colour.y * specular.y, lightsource.colour.z * specular.z};
+
+  output_lighting = vector3_add(diffuse, specular);
+  output_lighting = vector3_add(output_lighting, AMBIENT_LIGHT);
+  
+  return output_lighting;
+}
+
+inline Vector3 shade_phong(Polygon *tri, Vector3 frag_pos, LightSource lightsource)
+{
+  Vector3 diffuse = tri->material->diffuse;
+  Vector3 specular = tri->material->specular;
+  Vector3 output_lighting;
+
+  Vector3 light_dir = vector3_sub(frag_pos, lightsource.pos);
+  vector3_normalise(&light_dir);
+
+  Vector3 norm = tri->normals[0];
+
+  float diff = vector3_dot(light_dir, tri->face_normal) + 1;
+  diff /= 2 * vector3_dist(frag_pos, lightsource.pos);
+  diffuse = vector3_scale(diffuse, diff);
+
+  Vector3 view_dir = vector3_negate(frag_pos);
+  vector3_normalise(&view_dir);
+
+  Vector3 reflect_dir = vector3_reflect(light_dir, tri->face_normal);
+  vector3_normalise(&reflect_dir);
+
+  float spec = pow(MAX(vector3_dot(view_dir, reflect_dir), 0.0f), tri->material->specular_exponent);
+  specular = vector3_scale(specular, spec);
+  specular = (Vector3){lightsource.colour.x * specular.x, lightsource.colour.y * specular.y, lightsource.colour.z * specular.z};
+
+  output_lighting = vector3_add(diffuse, specular);
+  output_lighting = vector3_add(output_lighting, AMBIENT_LIGHT);
+  
+  return output_lighting;
+}
+
 void triangle_2d(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri, int thread_xmin, int thread_xmax, int thread_ymin, int thread_ymax)
 {
   Vector2 v1 = tri->proj_verts[0];
@@ -490,13 +542,14 @@ void triangle_2d(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri, i
   Uint8 *red, *green, *blue;
   Uint8 *pixels = tri->texture->pixels;
 
-  Vector3 lightsource2 = vector3_sub(lightsource, *GE_cam->pos);
-  rotate_point(&lightsource2, GE_cam->rot.x, GE_cam->rot.y, 0);
+  LightSource lightsource2 = GE_lightsource_world_to_view(&lightsource);
 
-  int frame_count = 0;
+  Vector3 deprojected;
+  Vector3 lighting;
 
   for (int y=ly; y<=hy; y++)
   {
+    int count = LIGHT_PIXEL_STEP;
     for (int x=lx; x<=hx; x++)
     {
       vert_weights = calculate_barycentric(x, y, v1, v2, v3, denom);
@@ -518,43 +571,27 @@ void triangle_2d(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri, i
           green = pixels + v*tri->texture->pitch + u+1;
           blue  = pixels + v*tri->texture->pitch + u+0;
 
-
-          Vector3 diffuse = (Vector3){0, 0, 0};
-          Vector3 specular; float specular_strength = 0.5;
-          Vector3 lighting;
-
-          Vector3 norm = tri->face_normal;
-          Vector3 deprojected = GE_screen_to_view(&(Vector2){x, y, z_index});
-          Vector3 light_dir = vector3_sub(deprojected, lightsource2);
-
-          float diff = vector3_dot(light_dir, norm);
-          diff += 1; diff /= 2;
-          diff = 1/vector3_dist(deprojected, lightsource2);
-          diffuse = (Vector3){diff, diff, diff};
-
-
-          Vector3 view_dir = vector3_sub((Vector3){0, 0, 0}, deprojected);
-          vector3_normalise(&view_dir);
-          Vector3 reflect_dir = vector3_reflect(light_dir, norm);
-          vector3_normalise(&reflect_dir);
-          float spec = pow(MAX(vector3_dot(view_dir, reflect_dir), 0.0f), 32);
-          specular = vector3_scale(light_colour, specular_strength * spec);
-
-          lighting = vector3_add(diffuse, specular);
-          lighting = vector3_add(lighting, global_light);
-
+          if (count == LIGHT_PIXEL_STEP)
+          {
+            count = 0;
+            deprojected = GE_screen_to_view(&(Vector2){x, y, z_index});
+            lighting = shade_phong_spotlight(tri, deprojected, lightsource2);
+          }
 
           float r = (float)*red * lighting.x;
           float g = (float)*green * lighting.y;
           float b = (float)*blue * lighting.z;
 
-          // pixel(pixel_buffer, x, y, *red, *green, *blue);
           pixel(pixel_buffer, x, y, (Uint8)r, (Uint8)g, (Uint8)b);
 
+          count += 1;
         }
       }
     }
+
+
   }
+
 }
 
 
@@ -967,34 +1004,12 @@ void GE_clip_queue_3D(Vector3 plane_pos, Vector3 plane_normal, RSR_queue_t *in_q
  */
 void GE_model_enque(Model *model)
 {
-  // cblas_sgemm(
-  //   CblasRowMajor,
-  //   CblasNoTrans,
-  //   CblasNoTrans,
-  //   4, // rows of matrix A
-  //   model->vertex_count, // columns of matrix B
-  //   4, // columns of matrix A
-  //   1, // scalar to multiply A by
-  //   GE_cam->translation_matrix, // matrix A
-  //   4, // 1st dimension of A --> ?
-  //   model->blas_verts_worldspace, // matrix B
-  //   model->vertex_count, // 1st dimension of B --> ?
-  //   0,
-  //   model->blas_verts_worldspace_translated, // matrix C (output)
-  //   model->vertex_count // 1st dimension of C --> ?
-  // );
-
   // Only queue front faces
   for (int i=0; i<model->poly_count; i++)
     if (vector3_dot(vector3_sub(model->polygons[i].vertices[0], *GE_cam->pos), model->polygons[i].face_normal) < 0)
       RSR_enque(GE_transform_queue, &model->polygons[i]);
-
 }
 //-------------------------------------------------------------------------------
-
-//             copy data
-// input  -->  transformation  -->  clipping     -->  rasterisation
-// model  -->  front_faces     -->  front_faces  -->  free(front_faces)
 
 /** Translate all polygons in GE_transform_queue by -GE_cam.pos, rotate them by -GE_cam.rot and move them to GE_clip_queue.
  *  GE_transform_queue will be emptied.
@@ -1007,11 +1022,6 @@ void GE_queue_perform_transformation(void)
   {
     Polygon tri = *RSR_front(GE_transform_queue);
     RSR_dequeue(GE_transform_queue);
-
-    // tri.og_vertices[0] = tri.vertices[0];
-    // tri.og_vertices[1] = tri.vertices[1];
-    // tri.og_vertices[2] = tri.vertices[2];
-
     GE_world_to_view(&tri);
 
     if (tri.vertices[0].z > 0 || tri.vertices[1].z > 0 || tri.vertices[2].z > 0)
@@ -1034,7 +1044,7 @@ void GE_queue_perform_clipping(void)
  */
 void GE_queue_perform_rasterisation(void)
 {
-  // clear_screen(front_buffer, 100, 100, 100);
+  // clear_screen(back_buffer, 100, 100, 100);
 
   int size = GE_rasterise_queue->size;
 
@@ -1049,7 +1059,7 @@ void GE_queue_perform_rasterisation(void)
       tri.og_proj_verts[j] = GE_view_to_screen(&tri.og_vertices[j]);
     }
 
-    // SIMD_triangle_2d(front_buffer, z_buffer, &tri, 0, SCREEN_WDTH, 0, SCREEN_HGHT);
+    // triangle_2d(back_buffer, z_buffer, &tri, 0, SCREEN_WDTH, 0, SCREEN_HGHT);
 
     // If left
     if (tri.proj_verts[0].x < HALF_SCREEN_WDTH && tri.proj_verts[1].x < HALF_SCREEN_WDTH && tri.proj_verts[2].x < HALF_SCREEN_WDTH)
@@ -1144,7 +1154,6 @@ void GE_queue_perform_rasterisation(void)
 }
 
 
-
 /** Convert a polygon's vertices from world-space to view-space
  */
 void GE_world_to_view(Polygon *polygon)
@@ -1158,6 +1167,7 @@ void GE_world_to_view(Polygon *polygon)
     // polygon->og_vertices[i] = vector3_sub(polygon->og_vertices[i], *GE_cam->pos);
     // rotate_point(&polygon->og_vertices[i], GE_cam->rot.x, GE_cam->rot.y, 0);
   }
+  rotate_point(&polygon->face_normal, GE_cam->rot.x, GE_cam->rot.y, 0);
 }
 
 /** Convert a view-space Vector3 to a screen-space Vector2
@@ -1199,5 +1209,5 @@ Vector3 GE_view_to_world(Vector3 v0)
   rotate_point(&v0, 0, GE_cam->rot.y, 0);
   rotate_point(&v0, GE_cam->rot.x, 0, 0);
   v0 = vector3_add(v0, *GE_cam->pos);
-
+  return v0;
 }

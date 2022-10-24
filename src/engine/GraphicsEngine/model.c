@@ -6,6 +6,12 @@
 #endif
 #include "model.h"
 
+
+void GE_material_init(Material *material)
+{
+  material = (Material *)calloc(1, sizeof(Material));
+}
+
 void model_free(Model *model)
 {
   free(model->polygons);
@@ -13,7 +19,7 @@ void model_free(Model *model)
   free(model->vertices);
   free(model->vertex_normals);
   for (int i=0; i<model->mat_count*2; i++)
-    SDL_FreeSurface(model->materials[i]);
-  free(model->materials);
+    SDL_FreeSurface(model->textures[i]);
+  free(model->textures);
   free(model);
 }

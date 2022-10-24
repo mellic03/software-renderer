@@ -41,6 +41,7 @@ Vector3 vector3_scale(Vector3 v, float scalar);
 Vector3 vector3_cross(Vector3 v1, Vector3 v2);
 Vector3 vector3_lerp(Vector3 *a, Vector3 *b, float alpha);
 Vector3 vector3_reflect(Vector3 reflectee, Vector3 reflector);
+Vector3 vector3_negate(Vector3 v0);
 
 //----------------------------------------------
 

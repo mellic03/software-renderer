@@ -13,6 +13,18 @@
 
 typedef enum {SHADE_NONE, SIMD_SHADE_NONE, SHADE_FLAT, SHADE_GOURAUD, SHADE_PHONG} ShaderType;
 
+
+
+typedef struct {
+
+  Vector3 ambient, diffuse;
+  Vector3 specular;
+  float specular_exponent;
+
+} Material;
+
+
+
 typedef struct {
 
   Vector3 og_vertices[3];
@@ -26,11 +38,14 @@ typedef struct {
   Vector2 uvs[3];
   
   SDL_Surface *texture, *normal_map;
+  Material *material;
   
   int vertex_indices[3]; // Used only in load_polygons for generating vertex normals
   int mat_index; // index of material to use
 
 } Polygon;
+
+
 
 typedef struct {
   
@@ -45,20 +60,20 @@ typedef struct {
   Vector3 *vertices;
   Vector3 *vertex_normals;
 
-  float *blas_verts_worldspace;
-  float *blas_verts_worldspace_translated;
-  float *blas_verts_viewspace;
-
   int poly_count;
   Polygon *polygons; // Array of polygons
 
   int mat_count;
-  SDL_Surface **materials;
+  SDL_Surface **textures;
   SDL_Surface **normal_maps;
+  Material *materials;
 
 } Model;
 
 void model_free(Model *model);
 Model *model_load(char *filepath);
+
+void GE_material_init(Material *material);
+
 
 #endif /* MODEL_H */

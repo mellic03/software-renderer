@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "model.h"
 #include "graphics.h"
@@ -134,24 +135,6 @@ void load_polygons(FILE *fh, Model *model)
   }
   rewind(fh);
 
-  // SDL_Surface *test = SDL_LoadBMP("./heightmap.bmp");
-
-  // for (int i=0; i<65; i++)
-  // {
-  //   for (int j=0; j<65; j++)
-  //   {
-  //     int indx = (int)(vertices[i*65 + j].x*1.2);
-  //     int indz = (int)(vertices[i*65 + j].z/2.5);
-      
-  //     printf("%d %d\n", indx, indz);
-
-  //     Uint8 *red = (Uint8 *)test->pixels + indz*test->pitch + indx;
-  //     float r = (float)*red;
-  //     vertices[i*65 + j].y = -r/20;
-  //   }
-  // }
-
-
   char **mat_names = (char **)malloc(model->mat_count * sizeof(char *));
   for (int i=0; i<model->mat_count; i++)
     mat_names[i] = (char *)malloc(64 * sizeof(char));
@@ -193,6 +176,7 @@ void load_polygons(FILE *fh, Model *model)
       sscanf(buffer, "%s %s", buffer2[0], buffer2[1]);
       printf("%s--->%s\n", buffer2[0], buffer2[1]);
 
+
       int already_read = 0;
 
       for (int i=0; i<=mat_index; i++)
@@ -229,18 +213,8 @@ void load_polygons(FILE *fh, Model *model)
 
 
   model->vertices = (Vector3 *)malloc(model->vertex_count * sizeof(Vector3));
-  model->blas_verts_worldspace = (float *)malloc(model->vertex_count*4*sizeof(float));
-  model->blas_verts_worldspace_translated = (float *)malloc(model->vertex_count*4*sizeof(float));
-  model->blas_verts_viewspace = (float *)malloc(model->vertex_count*4*sizeof(float));
   for (int i=0; i<model->vertex_count; i++)
-  {
-    model->blas_verts_worldspace[i*4 + 0] = vertices[i].x;
-    model->blas_verts_worldspace[i*4 + 1] = vertices[i].y;
-    model->blas_verts_worldspace[i*4 + 2] = vertices[i].z;
-    model->blas_verts_worldspace[i*4 + 3] = 1;
-  
     model->vertices[i] = vertices[i];
-  }
 
   for (int i=0; i<model->poly_count; i++)
     for (int j=0; j<3; j++)
@@ -255,16 +229,49 @@ void load_polygons(FILE *fh, Model *model)
 void load_material(FILE *fh, char *filepath, Model *model)
 {
   char space[] = " ";
+  char *token;
+
   char buffer[64];
   int mat_index = model->mat_count-1;
 
   char *filepath_copy = (char *)malloc(128 * sizeof(char));
 
+  bool reading_material = false;
+
   while (fgets(buffer, 64, fh) != NULL)
   {
-    if (buffer[0] == 'm' && buffer[1] == 'a') // filepath to texture
+
+    if (buffer[0] == 'N' && buffer[1] == 's') // Specular exponent
     {
-      char *token = strtok(buffer, space);
+      token = strtok(buffer, space);
+      token = strtok(NULL, space);
+      model->materials[mat_index].specular_exponent = atof(token);
+    }
+
+    else if (buffer[0] == 'K' && buffer[1] == 'a') // Ambient colour
+    {
+      token = strtok(buffer, space);
+      token = strtok(NULL, space); model->materials[mat_index].ambient.x = atof(token);
+      token = strtok(NULL, space); model->materials[mat_index].ambient.y = atof(token);
+      token = strtok(NULL, space); model->materials[mat_index].ambient.z = atof(token);
+    }
+
+    else if (buffer[0] == 'K' && buffer[1] == 's') // Specular colour
+    {
+      token = strtok(buffer, space);
+      token = strtok(NULL, space); model->materials[mat_index].specular.x = atof(token);
+      token = strtok(NULL, space); model->materials[mat_index].specular.y = atof(token);
+      token = strtok(NULL, space); model->materials[mat_index].specular.z = atof(token);
+    }
+
+    else if (buffer[0] == 'm' && buffer[1] == 'a') // Texture filepath
+    {
+
+      // If texture is used, then the diffuse is the texture
+      model->materials[mat_index].diffuse = (Vector3){1, 1, 1};
+
+
+      token = strtok(buffer, space);
       token = strtok(NULL, space);
       for (size_t i=0; i<strlen(token); i++)
         if (token[i] == '\n')
@@ -275,17 +282,10 @@ void load_material(FILE *fh, char *filepath, Model *model)
       strcat(filepath_copy, "/");
       strcat(filepath_copy, token);
       printf("FILE: %s\n", filepath_copy);
-      model->materials[mat_index] = SDL_LoadBMP(filepath_copy);
-
-      // load normal map
-      // strcpy(filepath_copy, filepath);
-      // strcat(filepath_copy, "/");
-      // strcat(filepath_copy, token);
-      // strcat(filepath_copy, "n");
-      // printf("FILE: %s\n", filepath_copy);
-      // model->normal_maps[mat_index] = SDL_LoadBMP(filepath_copy);
+      model->textures[mat_index] = SDL_LoadBMP(filepath_copy);
 
       mat_index -= 1;
+      reading_material = false;
     }
   }
 
@@ -317,9 +317,12 @@ Model *model_load(char *filepath)
 
   count_polygons(fh, model);
 
-  model->polygons = (Polygon *)malloc(model->poly_count * sizeof(Polygon)); // Array of polygons
-  model->materials = (SDL_Surface **)malloc(model->mat_count*2 * sizeof(SDL_Surface *)); // Array of sdl surfaces
-  model->normal_maps = (SDL_Surface **)malloc(model->mat_count*2 * sizeof(SDL_Surface *)); // Array of sdl surfaces
+  model->polygons = (Polygon *)malloc(model->poly_count * sizeof(Polygon));
+  model->textures = (SDL_Surface **)malloc(model->mat_count*2 * sizeof(SDL_Surface *));
+  model->normal_maps = (SDL_Surface **)malloc(model->mat_count*2 * sizeof(SDL_Surface *));
+  model->materials = (Material *)malloc(model->mat_count*2 * sizeof(Material));
+  for (int i=0; i<model->mat_count*2; i++)
+    GE_material_init(&model->materials[i]);
 
   load_polygons(fh, model);
   fclose(fh);
@@ -333,8 +336,9 @@ Model *model_load(char *filepath)
 
   for (int i=0; i<model->poly_count; i++)
   {
-    model->polygons[i].texture = model->materials[model->polygons[i].mat_index];
+    model->polygons[i].texture = model->textures[model->polygons[i].mat_index];
     model->polygons[i].normal_map = model->normal_maps[model->polygons[i].mat_index];
+    model->polygons[i].material = &model->materials[model->polygons[i].mat_index];
     for (int j=0; j<3; j++)
     {
       model->polygons[i].uvs[j].y = 1 - model->polygons[i].uvs[j].y;
