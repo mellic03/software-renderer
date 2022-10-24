@@ -58,12 +58,6 @@ Camera *create_camera(void)
 
   cam->speed = 1;
 
-  for (int i=0; i<16; i++) cam->translation_matrix[i] = 0;
-  cam->translation_matrix[0] = 1;
-  cam->translation_matrix[5] = 1;
-  cam->translation_matrix[10] = 1;
-  cam->translation_matrix[15] = 1;
-
   calculate_frustum(cam, 2.05);
 
   return cam;

@@ -13,15 +13,6 @@ void input(SDL_Event event, Camera *cam, Player *player)
   player->game_object->phys_object->vel.x *= 0.9;
   player->game_object->phys_object->vel.z *= 0.9;
 
-  // 1, 0, 0, x,
-  // 0, 1, 0, y,
-  // 0, 0, 1, z,
-  // 0, 0, 0, 1
-
-  cam->translation_matrix[3] = -player->game_object->pos.x;
-  cam->translation_matrix[7] = -player->game_object->pos.y;
-  cam->translation_matrix[11] = -player->game_object->pos.z;
-
   if (state[SDL_SCANCODE_W])
   {
     player->game_object->phys_object->vel.x -= sin(cam->rot.y) * cam->speed;
@@ -43,6 +34,30 @@ void input(SDL_Event event, Camera *cam, Player *player)
     player->game_object->phys_object->vel.x += cos(cam->rot.y) * cam->speed;
     player->game_object->phys_object->vel.z += sin(cam->rot.y) * cam->speed;
   }
+
+  if (state[SDL_SCANCODE_LEFT])
+  {
+    rotate_point(&lightsource_red.dir, 0, 0.05, 0);
+    rotate_point(&lightsource_blue.dir, 0, 0.05, 0);
+    rotate_point(&lightsource_green.dir, 0, 0.05, 0);
+
+  }
+    // lightsource.pos.z += 0.1;
+  if (state[SDL_SCANCODE_RIGHT])
+  {
+    rotate_point(&lightsource_red.dir, 0, -0.05, 0);
+    rotate_point(&lightsource_blue.dir, 0, -0.05, 0);
+    rotate_point(&lightsource_green.dir, 0, -0.05, 0);
+  }
+
+  // if (state[SDL_SCANCODE_UP])
+  //   lightsource.pos.x += 0.1; 
+  // if (state[SDL_SCANCODE_DOWN])
+  //   lightsource.pos.x -= 0.1;
+  // if (state[SDL_SCANCODE_PAGEUP])
+  //   lightsource.pos.y -= 0.1;
+  // if (state[SDL_SCANCODE_PAGEDOWN])
+  //   lightsource.pos.y += 0.1;
 
   if (state[SDL_SCANCODE_KP_PLUS])
     calculate_frustum(cam, cam->vfov-0.005);

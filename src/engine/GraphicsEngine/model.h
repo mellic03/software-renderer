@@ -8,6 +8,8 @@
   #include <SDL.h>
 #endif
 
+#include <stdbool.h>
+
 #include "../math/vector.h"
 #include "../math/fixedpoint/v3fp.h"
 
@@ -20,6 +22,7 @@ typedef struct {
   Vector3 ambient, diffuse;
   Vector3 specular;
   float specular_exponent;
+  Vector3 emissive;
 
 } Material;
 

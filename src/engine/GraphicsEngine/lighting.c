@@ -3,10 +3,12 @@
 
 void GE_lightsource_init(LightSource *lightsource, LightType light_type)
 {
-  lightsource = (LightSource *)calloc(1, sizeof(LightSource));
   lightsource->light_type = light_type;
-  lightsource->cutoff_angle = 0.5;
+  lightsource->inner_cutoff = 0.6;
+  lightsource->outer_cutoff = 0.4;
   lightsource->dir = (Vector3){0, 0, 1};
+  lightsource->colour = (Vector3){1, 1, 1};
+  lightsource->pos = (Vector3){0, 0, 0};
 }
 
 

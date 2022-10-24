@@ -72,17 +72,20 @@ Vector3 GE_view_to_world(Vector3 v0);
 // LIGHTING
 //----------------------------------------
 #define LIGHT_PIXEL_STEP 4 
-#define AMBIENT_LIGHT ((Vector3){0.2, 0.2, 0.2})
+#define AMBIENT_LIGHT ((Vector3){0.002, 0.002, 0.002})
 
 typedef enum {DIRECTIONAL, POINT, SPOT} LightType;
 
 typedef struct {
   LightType light_type;
   Vector3 pos, dir, colour;
-  float intensity, cutoff_angle;
+  float intensity;
+  float inner_cutoff, outer_cutoff;
 } LightSource;
 
-
+extern LightSource lightsource_red;
+extern LightSource lightsource_blue;
+extern LightSource lightsource_green;
 void GE_lightsource_init(LightSource *lightsoure, LightType light_type);
 
 LightSource GE_lightsource_world_to_view(LightSource *lightsource_world);

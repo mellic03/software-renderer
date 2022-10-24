@@ -264,6 +264,14 @@ void load_material(FILE *fh, char *filepath, Model *model)
       token = strtok(NULL, space); model->materials[mat_index].specular.z = atof(token);
     }
 
+    else if (buffer[0] == 'K' && buffer[1] == 'e') // Emissive colour
+    {
+      token = strtok(buffer, space);
+      token = strtok(NULL, space); model->materials[mat_index].emissive.x = atof(token);
+      token = strtok(NULL, space); model->materials[mat_index].emissive.y = atof(token);
+      token = strtok(NULL, space); model->materials[mat_index].emissive.z = atof(token);
+    }
+
     else if (buffer[0] == 'm' && buffer[1] == 'a') // Texture filepath
     {
 

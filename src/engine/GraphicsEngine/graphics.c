@@ -21,7 +21,9 @@
 #include "../GameEngine/gameengine.h"
 
 
-LightSource lightsource;
+LightSource lightsource_red;
+LightSource lightsource_blue;
+LightSource lightsource_green;
 
 SDL_Surface *front_buffer;
 SDL_Surface *back_buffer;
@@ -48,40 +50,35 @@ void GE_tile_render(  int xmin, int xmax, int ymin, int ymax,
                       float *depth_buffer,
                       RSR_queue_t *queue_in  )
 {
-  // while (1)
-  // {
-    clear_screen(pixel_buffer, 109, 133, 169);
-    int size = queue_in->size;
-    for (int i=0; i<size; i++)
-    {
-      triangle_2d(pixel_buffer, depth_buffer, RSR_front(queue_in), xmin, xmax, ymin, ymax);
-      RSR_dequeue(queue_in);
-    }
+  clear_screen(pixel_buffer, 109, 133, 169);
+  int size = queue_in->size;
+  for (int i=0; i<size; i++)
+  {
+    triangle_2d(pixel_buffer, depth_buffer, RSR_front(queue_in), xmin, xmax, ymin, ymax);
+    RSR_dequeue(queue_in);
+  }
 
-    SDL_Rect src;
-    src.x = xmin;
-    src.y = ymin;
-    src.w = xmax-xmin;
-    src.h = ymax-ymin;
+  SDL_Rect src;
+  src.x = xmin;
+  src.y = ymin;
+  src.w = xmax-xmin;
+  src.h = ymax-ymin;
 
-    SDL_Rect dest;
-    dest.x = xmin;
-    dest.y = ymin;
-    dest.w = xmax-xmin;
-    dest.h = ymax-ymin;
+  SDL_Rect dest;
+  dest.x = xmin;
+  dest.y = ymin;
+  dest.w = xmax-xmin;
+  dest.h = ymax-ymin;
 
-    SDL_BlitSurface(pixel_buffer, &src, back_buffer, &dest);
+  SDL_BlitSurface(pixel_buffer, &src, back_buffer, &dest);
 
-    int row;
-    for (int y=ymin; y<ymax; y++)
-    {
-      row = SCREEN_WDTH*y;
-      for (int x=xmin; x<xmax; x++)
-        depth_buffer[row + x] = 0;
-    }
-
-    // pthread_cond_broadcast(cond);
-  // }
+  int row;
+  for (int y=ymin; y<ymax; y++)
+  {
+    row = SCREEN_WDTH*y;
+    for (int x=xmin; x<xmax; x++)
+      depth_buffer[row + x] = 0;
+  }
 }
 
 
@@ -129,10 +126,29 @@ void GE_init(SDL_Window *win)
   dep_buf_bl = (float *)calloc(SCREEN_WDTH*SCREEN_HGHT, sizeof(float));
   dep_buf_br = (float *)calloc(SCREEN_WDTH*SCREEN_HGHT, sizeof(float));
 
-  GE_lightsource_init(&lightsource, POINT);
-  lightsource.colour = (Vector3){1, 1, 1};
-  lightsource.pos = (Vector3){0, -3, 0};
-  lightsource.dir = (Vector3){0, 0, 1};
+  GE_lightsource_init(&lightsource_red, POINT);
+  lightsource_red.colour = (Vector3){1, 0, 0};
+  lightsource_red.pos = (Vector3){0, -3, 4};
+  lightsource_red.inner_cutoff = 0.95;
+  lightsource_red.outer_cutoff = 0.8;
+  lightsource_red.dir = (Vector3){0, 0, 1};
+
+
+  GE_lightsource_init(&lightsource_blue, POINT);
+  lightsource_blue.colour = (Vector3){0, 0, 1};
+  lightsource_blue.pos = (Vector3){0, -3, -4};
+  lightsource_blue.inner_cutoff = 0.95;
+  lightsource_blue.outer_cutoff = 0.8;
+  lightsource_blue.dir = (Vector3){0, 0, 1};
+
+
+  GE_lightsource_init(&lightsource_green, POINT);
+  lightsource_green.colour = (Vector3){0, 1, 0};
+  lightsource_green.pos = (Vector3){0, -3, 0};
+  lightsource_green.inner_cutoff = 0.95;
+  lightsource_green.outer_cutoff = 0.8;
+  lightsource_green.dir = (Vector3){0, 0, 1};
+
 }
 
 
@@ -454,14 +470,23 @@ inline Vector3 shade_phong_spotlight(Polygon *tri, Vector3 frag_pos, LightSource
   Vector3 light_dir = vector3_sub(frag_pos, lightsource.pos);
   vector3_normalise(&light_dir);
 
-  if (vector3_dot(light_dir, lightsource.dir) < 0.9)
+  float dot0 = vector3_dot(light_dir, lightsource.dir);
+
+  if (dot0 < lightsource.outer_cutoff)
     return AMBIENT_LIGHT;
 
-  Vector3 norm = tri->normals[0];
+  float theta = vector3_dot(light_dir, lightsource.dir);
+  float epsilon = lightsource.inner_cutoff - lightsource.outer_cutoff;
+  float intensity = (theta - lightsource.outer_cutoff)/epsilon;
+  intensity = MAX(intensity, 0);
+  intensity = MIN(intensity, 1);
 
-  float diff = vector3_dot(light_dir, tri->face_normal) + 1;
-  diff /= 2 * vector3_dist(frag_pos, lightsource.pos);
+  float diff = vector3_dot(vector3_negate(light_dir), tri->face_normal) + 1;
+  diff /= 0.5 * vector3_dist(frag_pos, lightsource.pos);
+  diff = MAX(diff, 0);
+  diff = MIN(diff, 1);
   diffuse = vector3_scale(diffuse, diff);
+  diffuse = (Vector3){lightsource.colour.x * diffuse.x, lightsource.colour.y * diffuse.y, lightsource.colour.z * diffuse.z};
 
   Vector3 view_dir = vector3_negate(frag_pos);
   vector3_normalise(&view_dir);
@@ -473,6 +498,8 @@ inline Vector3 shade_phong_spotlight(Polygon *tri, Vector3 frag_pos, LightSource
   specular = vector3_scale(specular, spec);
   specular = (Vector3){lightsource.colour.x * specular.x, lightsource.colour.y * specular.y, lightsource.colour.z * specular.z};
 
+  diffuse = vector3_scale(diffuse, intensity);
+  specular = vector3_scale(specular, intensity);
   output_lighting = vector3_add(diffuse, specular);
   output_lighting = vector3_add(output_lighting, AMBIENT_LIGHT);
   
@@ -490,8 +517,8 @@ inline Vector3 shade_phong(Polygon *tri, Vector3 frag_pos, LightSource lightsour
 
   Vector3 norm = tri->normals[0];
 
-  float diff = vector3_dot(light_dir, tri->face_normal) + 1;
-  diff /= 2 * vector3_dist(frag_pos, lightsource.pos);
+  float diff = vector3_dot(vector3_negate(light_dir), tri->face_normal) + 1;
+  diff /= Sq(vector3_dist(frag_pos, lightsource.pos));
   diffuse = vector3_scale(diffuse, diff);
 
   Vector3 view_dir = vector3_negate(frag_pos);
@@ -508,7 +535,7 @@ inline Vector3 shade_phong(Polygon *tri, Vector3 frag_pos, LightSource lightsour
   output_lighting = vector3_add(output_lighting, AMBIENT_LIGHT);
   
   return output_lighting;
-}
+} 
 
 void triangle_2d(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri, int thread_xmin, int thread_xmax, int thread_ymin, int thread_ymax)
 {
@@ -542,10 +569,12 @@ void triangle_2d(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri, i
   Uint8 *red, *green, *blue;
   Uint8 *pixels = tri->texture->pixels;
 
-  LightSource lightsource2 = GE_lightsource_world_to_view(&lightsource);
+  LightSource lightsourcer = GE_lightsource_world_to_view(&lightsource_red);
+  LightSource lightsourceg = GE_lightsource_world_to_view(&lightsource_green);
+  LightSource lightsourceb = GE_lightsource_world_to_view(&lightsource_blue);
 
   Vector3 deprojected;
-  Vector3 lighting;
+  Vector3 lighting = (Vector3){1, 1, 1};
 
   for (int y=ly; y<=hy; y++)
   {
@@ -574,8 +603,11 @@ void triangle_2d(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri, i
           if (count == LIGHT_PIXEL_STEP)
           {
             count = 0;
+            lighting = (Vector3){0, 0, 0};
             deprojected = GE_screen_to_view(&(Vector2){x, y, z_index});
-            lighting = shade_phong_spotlight(tri, deprojected, lightsource2);
+            lighting = vector3_add(lighting, shade_phong_spotlight(tri, deprojected, lightsourcer));
+            lighting = vector3_add(lighting, shade_phong_spotlight(tri, deprojected, lightsourceg));
+            lighting = vector3_add(lighting, shade_phong_spotlight(tri, deprojected, lightsourceb));
           }
 
           float r = (float)*red * lighting.x;
@@ -588,10 +620,7 @@ void triangle_2d(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri, i
         }
       }
     }
-
-
   }
-
 }
 
 
@@ -1016,6 +1045,9 @@ void GE_model_enque(Model *model)
  */
 void GE_queue_perform_transformation(void)
 {
+  // lightsource.pos = *GE_cam->pos;
+  // lightsource.dir = GE_cam->dir;
+
   int size = GE_transform_queue->size;
 
   for (int i=0; i<size; i++)
