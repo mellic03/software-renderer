@@ -37,17 +37,16 @@ void input(SDL_Event event, Camera *cam, Player *player)
 
   if (state[SDL_SCANCODE_LEFT])
   {
-    rotate_point(&lightsource_red.dir, 0, 0.05, 0);
-    rotate_point(&lightsource_blue.dir, 0, 0.05, 0);
-    rotate_point(&lightsource_green.dir, 0, 0.05, 0);
+    vector3_roty(&lightsource_red.dir, 0.05);
+    vector3_roty(&lightsource_blue.dir, 0.05);
+    vector3_roty(&lightsource_green.dir, 0.05);
 
   }
-    // lightsource.pos.z += 0.1;
   if (state[SDL_SCANCODE_RIGHT])
   {
-    rotate_point(&lightsource_red.dir, 0, -0.05, 0);
-    rotate_point(&lightsource_blue.dir, 0, -0.05, 0);
-    rotate_point(&lightsource_green.dir, 0, -0.05, 0);
+    vector3_roty(&lightsource_red.dir, -0.05);
+    vector3_roty(&lightsource_blue.dir, -0.05);
+    vector3_roty(&lightsource_green.dir, -0.05);
   }
 
   // if (state[SDL_SCANCODE_UP])
@@ -88,10 +87,10 @@ void input(SDL_Event event, Camera *cam, Player *player)
       
       vector3_normalise(&cam->dir);
 
-      rotate_point(&player->ray_left, 0, event.motion.xrel * 0.001, 0);
-      rotate_point(&player->ray_right, 0, event.motion.xrel * 0.001, 0);
-      rotate_point(&player->ray_front, 0, event.motion.xrel * 0.001, 0);
-      rotate_point(&player->ray_back, 0, event.motion.xrel * 0.001, 0);
+      vector3_roty(&player->ray_left, event.motion.xrel * 0.001);
+      vector3_roty(&player->ray_right, event.motion.xrel * 0.001);
+      vector3_roty(&player->ray_front, event.motion.xrel * 0.001);
+      vector3_roty(&player->ray_back, event.motion.xrel * 0.001);
     }
 
     if (event.type == SDL_KEYDOWN)

@@ -300,7 +300,7 @@ void load_material(FILE *fh, char *filepath, Model *model)
   free(filepath_copy);
 }
 
-Model *model_load(char *filepath)
+Model *GE_model_load(char *filepath)
 {
   Model *model = (Model *)calloc(1, sizeof(Model));
   model->shade_style = SHADE_NONE;

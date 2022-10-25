@@ -73,10 +73,20 @@ typedef struct {
 
 } Model;
 
-void model_free(Model *model);
-Model *model_load(char *filepath);
-
 void GE_material_init(Material *material);
+
+void GE_model_free(Model *model);
+Model *GE_model_load(char *filepath);
+
+
+void GE_model_rotx(Model *model, float r);
+void GE_model_roty(Model *model, float r);
+void GE_model_rotz(Model *model, float r);
+void GE_model_translate(Model *model, float x, float y, float z);
+void GE_model_scale(Model *model, float alpha);
+void GE_model_scale_xyz(Model *model, float x, float y, float z);
+
+
 
 
 #endif /* MODEL_H */

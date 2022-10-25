@@ -87,6 +87,7 @@
     "fp32.h": "c",
     "stdint.h": "c",
     "__bit_reference": "c",
-    "v3fp.h": "c"
+    "v3fp.h": "c",
+    "lighting.h": "c"
   }
 }

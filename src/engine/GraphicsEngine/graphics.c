@@ -16,6 +16,7 @@
 #include <cblas.h>
 
 #include "graphics.h"
+#include "lighting.h"
 #include "camera.h"
 #include "../math/vector.h"
 #include "../GameEngine/gameengine.h"
@@ -151,237 +152,6 @@ void GE_init(SDL_Window *win)
 
 }
 
-
-// TRANSFORMATIONS
-//-------------------------------------------------------------------------------
-void translate_model(Model *model, float x, float y, float z)
-{
-  model->pos = vector3_add(model->pos, (Vector3){x, y, z});
-
-  for (int i=0; i<model->poly_count; i++)
-    for (int j=0; j<3; j++)
-    {
-      model->polygons[i].vertices[j].x += x;
-      model->polygons[i].vertices[j].y += y;
-      model->polygons[i].vertices[j].z += z;
-      model->polygons[i].og_vertices[j].x += x;
-      model->polygons[i].og_vertices[j].y += y;
-      model->polygons[i].og_vertices[j].z += z;
-    }
-}
-
-void rotate_point(Vector3 *pt, float x, float y, float z)
-{
-  float rot_x[3][3] = {
-    { 1, 0,       0      },
-    { 0, cos(x), -sin(x) },
-    { 0, sin(x),  cos(x) }
-  };
-
-  float rot_y[3][3] = {
-    { cos(y),  0, sin(y) },
-    { 0,       1, 0      },
-    { -sin(y), 0, cos(y) }
-  };
-
-  float rot_z[3][3] = {
-    { cos(z), -sin(z), 0 },
-    { sin(z), cos(z),  0 },
-    { 0,      0,       1 }
-  };
-
-  float output[3][1];
-  float output2[3][1];
-  float output3[3][1];
-
-  float pt_as_arr[3][1] = {{pt->x}, {pt->y}, {pt->z}};
-  matrix_mult(3, 3, 3, 1, output, rot_y, pt_as_arr);
-  matrix_mult(3, 3, 3, 1, output2, rot_x, output);
-  matrix_mult(3, 3, 3, 1, output3, rot_z, output2);
-
-  pt->x = output3[0][0];
-  pt->y = output3[1][0];
-  pt->z = output3[2][0];
-}
-
-void rotate_x(Model *model, float r)
-{
-  Vector3 model_pos = model->pos;
-  translate_model(model, -model_pos.x, -model_pos.y, -model_pos.z);
-
-  float rot_x[3][3] = {
-    { 1, 0,       0      },
-    { 0, cos(r), -sin(r) },
-    { 0, sin(r),  cos(r) }
-  };
-
-  float result[3][1];
-
-  for (int i=0; i<model->poly_count; i++)
-  {
-    // rotate vertices
-    for (int j=0; j<3; j++)
-    {
-      float coord1[3][1] = {{model->polygons[i].vertices[j].x}, {model->polygons[i].vertices[j].y}, {model->polygons[i].vertices[j].z}};
-      matrix_mult(3, 3, 3, 1, result, rot_x, coord1);
-      model->polygons[i].vertices[j].x = result[0][0];
-      model->polygons[i].vertices[j].y = result[1][0];
-      model->polygons[i].vertices[j].z = result[2][0];
-
-      float coord2[3][1] = {{model->polygons[i].og_vertices[j].x}, {model->polygons[i].og_vertices[j].y}, {model->polygons[i].og_vertices[j].z}};
-      matrix_mult(3, 3, 3, 1, result, rot_x, coord2);
-      model->polygons[i].og_vertices[j].x = result[0][0];
-      model->polygons[i].og_vertices[j].y = result[1][0];
-      model->polygons[i].og_vertices[j].z = result[2][0];
-    }
-
-    // rotate face normals
-    float coord3[3][1] = {{model->polygons[i].face_normal.x}, {model->polygons[i].face_normal.y}, {model->polygons[i].face_normal.z}};
-    matrix_mult(3, 3, 3, 1, result, rot_x, coord3);
-    model->polygons[i].face_normal.x = result[0][0];
-    model->polygons[i].face_normal.y = result[1][0];
-    model->polygons[i].face_normal.z = result[2][0];
-  }
-
-  // rotate vertex normals
-  for (int i=0; i<model->vertex_count; i++)
-  {
-    float coord4[3][1] = {{model->vertex_normals[i].x}, {model->vertex_normals[i].y}, {model->vertex_normals[i].z}};
-    matrix_mult(3, 3, 3, 1, result, rot_x, coord4);
-    model->vertex_normals[i].x = result[0][0];
-    model->vertex_normals[i].y = result[1][0];
-    model->vertex_normals[i].z = result[2][0];
-  } 
-  translate_model(model, model_pos.x, model_pos.y, model_pos.z);
-}
-
-void rotate_y(Model *model, float r)
-{
-  Vector3 model_pos = model->pos;
-  translate_model(model, -model_pos.x, -model_pos.y, -model_pos.z);
-
-  float rot_y[3][3] = {
-    { cos(r),  0, sin(r) },
-    { 0,       1, 0      },
-    { -sin(r), 0, cos(r) }
-  };
-
-  float result[3][1];
-
-  for (int i=0; i<model->poly_count; i++)
-  {
-    // rotate vertices
-    for (int j=0; j<3; j++)
-    {
-      float coord1[3][1] = {{model->polygons[i].vertices[j].x}, {model->polygons[i].vertices[j].y}, {model->polygons[i].vertices[j].z}};
-      matrix_mult(3, 3, 3, 1, result, rot_y, coord1);
-      model->polygons[i].vertices[j].x = result[0][0];
-      model->polygons[i].vertices[j].y = result[1][0];
-      model->polygons[i].vertices[j].z = result[2][0];
-
-      float coord2[3][1] = {{model->polygons[i].og_vertices[j].x}, {model->polygons[i].og_vertices[j].y}, {model->polygons[i].og_vertices[j].z}};
-      matrix_mult(3, 3, 3, 1, result, rot_y, coord2);
-      model->polygons[i].og_vertices[j].x = result[0][0];
-      model->polygons[i].og_vertices[j].y = result[1][0];
-      model->polygons[i].og_vertices[j].z = result[2][0];
-    }
-
-    // rotate normals
-    float coord3[3][1] = {{model->polygons[i].face_normal.x}, {model->polygons[i].face_normal.y}, {model->polygons[i].face_normal.z}};
-    matrix_mult(3, 3, 3, 1, result, rot_y, coord3);
-    model->polygons[i].face_normal.x = result[0][0];
-    model->polygons[i].face_normal.y = result[1][0];
-    model->polygons[i].face_normal.z = result[2][0];
-  }
-
-  // rotate vertex normals
-  for (int i=0; i<model->vertex_count; i++)
-  {
-    float coord4[3][1] = {{model->vertex_normals[i].x}, {model->vertex_normals[i].y}, {model->vertex_normals[i].z}};
-    matrix_mult(3, 3, 3, 1, result, rot_y, coord4);
-    model->vertex_normals[i].x = result[0][0];
-    model->vertex_normals[i].y = result[1][0];
-    model->vertex_normals[i].z = result[2][0];
-  } 
-
-
-  translate_model(model, model_pos.x, model_pos.y, model_pos.z);
-}
-
-void rotate_z(Model *model, float r)
-{
-  Vector3 model_pos = model->pos;
-  translate_model(model, -model_pos.x, -model_pos.y, -model_pos.z);
-
-  float rot_z[3][3] = {
-    { cos(r), -sin(r), 0 },
-    { sin(r), cos(r),  0 },
-    { 0,      0,       1 }
-  };
-
-  float result[3][1];
-
-  for (int i=0; i<model->poly_count; i++)
-  {
-    // rotate vertices
-    for (int j=0; j<3; j++)
-    {
-      float coord1[3][1] = {{model->polygons[i].vertices[j].x}, {model->polygons[i].vertices[j].y}, {model->polygons[i].vertices[j].z}};
-      matrix_mult(3, 3, 3, 1, result, rot_z, coord1);
-      model->polygons[i].vertices[j].x = result[0][0];
-      model->polygons[i].vertices[j].y = result[1][0];
-      model->polygons[i].vertices[j].z = result[2][0];
-
-      float coord2[3][1] = {{model->polygons[i].og_vertices[j].x}, {model->polygons[i].og_vertices[j].y}, {model->polygons[i].og_vertices[j].z}};
-      matrix_mult(3, 3, 3, 1, result, rot_z, coord2);
-      model->polygons[i].og_vertices[j].x = result[0][0];
-      model->polygons[i].og_vertices[j].y = result[1][0];
-      model->polygons[i].og_vertices[j].z = result[2][0];
-    }
-
-    // rotate normals
-    float coord3[3][1] = {{model->polygons[i].face_normal.x}, {model->polygons[i].face_normal.y}, {model->polygons[i].face_normal.z}};
-    matrix_mult(3, 3, 3, 1, result, rot_z, coord3);
-    model->polygons[i].face_normal.x = result[0][0];
-    model->polygons[i].face_normal.y = result[1][0];
-    model->polygons[i].face_normal.z = result[2][0];
-  }
-
-  // rotate vertex normals
-  for (int i=0; i<model->vertex_count; i++)
-  {
-    float coord4[3][1] = {{model->vertex_normals[i].x}, {model->vertex_normals[i].y}, {model->vertex_normals[i].z}};
-    matrix_mult(3, 3, 3, 1, result, rot_z, coord4);
-    model->vertex_normals[i].x = result[0][0];
-    model->vertex_normals[i].y = result[1][0];
-    model->vertex_normals[i].z = result[2][0];
-  } 
-
-
-  translate_model(model, model_pos.x, model_pos.y, model_pos.z);
-}
-
-void scale(Model *model, float alpha)
-{
-  for (int i=0; i<model->poly_count; i++)
-    for (int j=0; j<3; j++)
-      model->polygons[i].vertices[j] = vector3_scale(model->polygons[i].vertices[j], alpha);
-}
-
-void scale_xyz(Model *model, float x, float y, float z)
-{
-  for (int i=0; i<model->poly_count; i++)
-    for (int j=0; j<3; j++)
-    {
-      model->polygons[i].vertices[j].x *= x;
-      model->polygons[i].vertices[j].y *= y;
-      model->polygons[i].vertices[j].z *= z;
-      model->polygons[i].og_vertices[j].x *= x;
-      model->polygons[i].og_vertices[j].y *= y;
-      model->polygons[i].og_vertices[j].z *= z;
-    }
-}
-//-------------------------------------------------------------------------------
 
 // DRAWING
 //-------------------------------------------------------------------------------
@@ -889,59 +659,34 @@ int GE_clip_against_plane(Vector3 *plane_pos, Vector3 *plane_normal, Polygon *tr
   float d1 = GE_point_plane_dist(&tri_in->vertices[1], plane_pos, plane_normal);
   float d2 = GE_point_plane_dist(&tri_in->vertices[2], plane_pos, plane_normal);
 
-  if (d0 >= 0)
+  float dots[3] = { d0, d1, d2 };
+
+  for (int i=0; i<3; i++)
   {
-    inside_verts[inside_count] = &tri_in->vertices[0];
-    inside_uvs[inside_count] = &tri_in->uvs[0];
-    inside_normals[inside_count++] = &tri_in->normals[0];
-    inside_index = 0;
-  }
-  else
-  {
-    outside_verts[outside_count] = &tri_in->vertices[0];
-    outside_uvs[outside_count] = &tri_in->uvs[0];
-    outside_normals[outside_count++] = &tri_in->normals[0];
-    outside_index = 0;
+    if (dots[i] >= 0)
+    {
+      inside_verts[inside_count] = &tri_in->vertices[i];
+      inside_uvs[inside_count] = &tri_in->uvs[i];
+      // inside_normals[inside_count] = &tri_in->normals[i];
+      inside_index = i; inside_count += 1;
+    }
+
+    else
+    {
+      outside_verts[outside_count] = &tri_in->vertices[i];
+      outside_uvs[outside_count] = &tri_in->uvs[i];
+      // outside_normals[outside_count] = &tri_in->normals[i];
+      outside_index = i; outside_count += 1;
+    }
   }
 
-  if (d1 >= 0)
-  {
-    inside_verts[inside_count] = &tri_in->vertices[1];
-    inside_uvs[inside_count] = &tri_in->uvs[1];
-    inside_normals[inside_count++] = &tri_in->normals[1];
-    inside_index = 1;
-  }
-  else
-  {
-    outside_verts[outside_count] = &tri_in->vertices[1];
-    outside_uvs[outside_count] = &tri_in->uvs[1];
-    outside_normals[outside_count++] = &tri_in->normals[1];
-    outside_index = 1;
-  }
+  int insd = inside_index;
+  int outsd1 = (inside_index+1)%3;
+  int outsd2 = (inside_index+2)%3;
 
-  if (d2 >= 0)
-  {
-    inside_verts[inside_count] = &tri_in->vertices[2];
-    inside_uvs[inside_count] = &tri_in->uvs[2];
-    inside_normals[inside_count++] = &tri_in->normals[2];
-    inside_index = 2;
-  }
-  else
-  {
-    outside_verts[outside_count] = &tri_in->vertices[2];
-    outside_uvs[outside_count] = &tri_in->uvs[2];
-    outside_normals[outside_count++] = &tri_in->normals[2];
-    outside_index = 2;
-  }
-
-
-  int insd_0 = inside_index;
-  int insd_1 = (inside_index+1)%3;
-  int insd_2 = (inside_index+2)%3;
-
-  int outsd_0 = outside_index;
-  int outsd_1 = (outside_index+1)%3;
-  int outsd_2 = (outside_index+2)%3;
+  int outsd = outside_index;
+  int insd1 = (outside_index+1)%3;
+  int insd2 = (outside_index+2)%3;
 
   switch (inside_count)
   {
@@ -954,48 +699,38 @@ int GE_clip_against_plane(Vector3 *plane_pos, Vector3 *plane_normal, Polygon *tr
     case (1): // 1 point inside, 2 outside
       *tri_out1 = *tri_in;
 
-      tri_out1->vertices[insd_0] = *inside_verts[0];
-      tri_out1->vertices[insd_1] = line_plane_intersect(*plane_pos, *plane_normal, *inside_verts[0], *outside_verts[0], &t);
-      tri_out1->uvs[insd_1].x = inside_uvs[0]->x + t*(outside_uvs[0]->x - inside_uvs[0]->x);
-      tri_out1->uvs[insd_1].y = inside_uvs[0]->y + t*(outside_uvs[0]->y - inside_uvs[0]->y);
-
+      tri_out1->vertices[insd] = *inside_verts[0];
+      tri_out1->vertices[outsd1] = line_plane_intersect(*plane_pos, *plane_normal, *inside_verts[0], *outside_verts[0], &t);
+      tri_out1->uvs[outsd1].x = inside_uvs[0]->x + t*(outside_uvs[0]->x - inside_uvs[0]->x);
+      tri_out1->uvs[outsd1].y = inside_uvs[0]->y + t*(outside_uvs[0]->y - inside_uvs[0]->y);
     
-      tri_out1->normals[insd_0] = *inside_normals[0];
-
-      tri_out1->normals[insd_1] = vector3_lerp(outside_normals[0], inside_normals[0], t);
-      vector3_normalise(&tri_out1->normals[insd_1]);
-
-      tri_out1->vertices[insd_2] = line_plane_intersect(*plane_pos, *plane_normal, *inside_verts[0], *outside_verts[1], &t);
-      tri_out1->uvs[insd_2].x = inside_uvs[0]->x + t*(outside_uvs[1]->x - inside_uvs[0]->x);
-      tri_out1->uvs[insd_2].y = inside_uvs[0]->y + t*(outside_uvs[1]->y - inside_uvs[0]->y);
-
-      tri_out1->normals[insd_2] = vector3_lerp(outside_normals[1], inside_normals[0], t);
-      vector3_normalise(&tri_out2->normals[insd_2]);
-
+      tri_out1->vertices[outsd2] = line_plane_intersect(*plane_pos, *plane_normal, *inside_verts[0], *outside_verts[1], &t);
+      tri_out1->uvs[outsd2].x = inside_uvs[0]->x + t*(outside_uvs[1]->x - inside_uvs[0]->x);
+      tri_out1->uvs[outsd2].y = inside_uvs[0]->y + t*(outside_uvs[1]->y - inside_uvs[0]->y);
       return 1;
 
     case (2): // 2 points inside, 1 outside
 
       *tri_out1 = *tri_in;
-      tri_out1->vertices[outsd_0] = *inside_verts[0];
-      tri_out1->vertices[outsd_1] = *inside_verts[1];
-      tri_out1->vertices[outsd_2] = line_plane_intersect(*plane_pos, *plane_normal, *inside_verts[0], *outside_verts[0], &t);
+      tri_out1->vertices[outsd] = *inside_verts[0];
+      tri_out1->vertices[insd1] = *inside_verts[1];
+      tri_out1->vertices[insd2] = line_plane_intersect(*plane_pos, *plane_normal, *inside_verts[0], *outside_verts[0], &t);
 
-      tri_out1->uvs[outsd_0] = *inside_uvs[0];
-      tri_out1->uvs[outsd_1] = *inside_uvs[1];
-      tri_out1->uvs[outsd_2].x = inside_uvs[0]->x + (t)*(outside_uvs[0]->x - inside_uvs[0]->x);
-      tri_out1->uvs[outsd_2].y = inside_uvs[0]->y + (t)*(outside_uvs[0]->y - inside_uvs[0]->y);
+      tri_out1->uvs[outsd] = *inside_uvs[0];
+      tri_out1->uvs[insd1] = *inside_uvs[1];
+      tri_out1->uvs[insd2].x = inside_uvs[0]->x + (t)*(outside_uvs[0]->x - inside_uvs[0]->x);
+      tri_out1->uvs[insd2].y = inside_uvs[0]->y + (t)*(outside_uvs[0]->y - inside_uvs[0]->y);
 
 
       *tri_out2 = *tri_in;
-      tri_out2->vertices[outsd_0] = *inside_verts[1];
-      tri_out2->vertices[outsd_1] = tri_out1->vertices[outsd_2];
-      tri_out2->vertices[outsd_2] = line_plane_intersect(*plane_pos, *plane_normal, *inside_verts[1], *outside_verts[0], &t);
+      tri_out2->vertices[outsd] = *inside_verts[1];
+      tri_out2->vertices[insd1] = tri_out1->vertices[insd2];
+      tri_out2->vertices[insd2] = line_plane_intersect(*plane_pos, *plane_normal, *inside_verts[1], *outside_verts[0], &t);
 
-      tri_out2->uvs[outsd_0] = *inside_uvs[1];
-      tri_out2->uvs[outsd_1] = tri_out1->uvs[outsd_2];
-      tri_out2->uvs[outsd_2].x = inside_uvs[1]->x + (t)*(outside_uvs[0]->x - inside_uvs[1]->x);
-      tri_out2->uvs[outsd_2].y = inside_uvs[1]->y + (t)*(outside_uvs[0]->y - inside_uvs[1]->y);
+      tri_out2->uvs[outsd] = *inside_uvs[1];
+      tri_out2->uvs[insd1] = tri_out1->uvs[insd2];
+      tri_out2->uvs[insd2].x = inside_uvs[1]->x + (t)*(outside_uvs[0]->x - inside_uvs[1]->x);
+      tri_out2->uvs[insd2].y = inside_uvs[1]->y + (t)*(outside_uvs[0]->y - inside_uvs[1]->y);
       return 2;
   }
 }
@@ -1043,7 +778,7 @@ void GE_model_enque(Model *model)
 /** Translate all polygons in GE_transform_queue by -GE_cam.pos, rotate them by -GE_cam.rot and move them to GE_clip_queue.
  *  GE_transform_queue will be emptied.
  */
-void GE_queue_perform_transformation(void)
+void GE_transform_all(void)
 {
   // lightsource.pos = *GE_cam->pos;
   // lightsource.dir = GE_cam->dir;
@@ -1061,7 +796,7 @@ void GE_queue_perform_transformation(void)
   }
 }
 
-void GE_queue_perform_clipping(void)
+void GE_clip_all(void)
 {
   GE_clip_queue_3D((Vector3){0, 0, 1}, GE_cam->near_plane, GE_clip_queue, GE_rasterise_queue);
   // GE_clip_queue_3D((Vector3){0, 0, 1}, GE_cam->near_plane, GE_clip_queue, GE_clip_queue);
@@ -1074,7 +809,7 @@ void GE_queue_perform_clipping(void)
 /** Rasterise all polygons in GE_rasterise_queue
  *  GE_rasterise_queue will be emptied.
  */
-void GE_queue_perform_rasterisation(void)
+void GE_rasterise_all(void)
 {
   // clear_screen(back_buffer, 100, 100, 100);
 
@@ -1193,13 +928,18 @@ void GE_world_to_view(Polygon *polygon)
   for (int i=0; i<3; i++)
   {
     polygon->vertices[i] = vector3_sub(polygon->vertices[i], *GE_cam->pos);
-    rotate_point(&polygon->vertices[i], GE_cam->rot.x, GE_cam->rot.y, 0);
-    rotate_point(&polygon->normals[i], GE_cam->rot.x, GE_cam->rot.y, 0);
+
+    vector3_roty(&polygon->vertices[i], GE_cam->rot.y);
+    vector3_rotx(&polygon->vertices[i], GE_cam->rot.x);
+
+    vector3_roty(&polygon->normals[i], GE_cam->rot.y);
+    vector3_rotx(&polygon->normals[i], GE_cam->rot.x);
 
     // polygon->og_vertices[i] = vector3_sub(polygon->og_vertices[i], *GE_cam->pos);
-    // rotate_point(&polygon->og_vertices[i], GE_cam->rot.x, GE_cam->rot.y, 0);
+    // vector3_rotate(&polygon->og_vertices[i], GE_cam->rot.x, GE_cam->rot.y, 0);
   }
-  rotate_point(&polygon->face_normal, GE_cam->rot.x, GE_cam->rot.y, 0);
+  vector3_roty(&polygon->face_normal, GE_cam->rot.y);
+  vector3_rotx(&polygon->face_normal, GE_cam->rot.x);
 }
 
 /** Convert a view-space Vector3 to a screen-space Vector2
@@ -1238,8 +978,8 @@ Vector3 GE_screen_to_view(Vector2 *pt)
 
 Vector3 GE_view_to_world(Vector3 v0)
 {
-  rotate_point(&v0, 0, GE_cam->rot.y, 0);
-  rotate_point(&v0, GE_cam->rot.x, 0, 0);
+  vector3_roty(&v0, GE_cam->rot.y);
+  vector3_rotx(&v0, GE_cam->rot.x);
   v0 = vector3_add(v0, *GE_cam->pos);
   return v0;
 }

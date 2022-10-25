@@ -16,7 +16,7 @@ Player *player_create(void)
   new->ray_back  = (Vector3){0, 0, -1};
 
   // new->raycast_test = gameobject_create();
-  // gameobject_assign_model(new->raycast_test, model_load("src/assets/sphere"));
+  // gameobject_assign_model(new->raycast_test, GE_model_load("src/assets/sphere"));
   // new->raycast_test->object_tag = 15;
 
   return new;

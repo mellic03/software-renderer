@@ -172,12 +172,12 @@ void gameobject_translate(GameObject *object, float x, float y, float z)
   object->phys_object->pos.z = object->pos.z;
 
   if (object->model != NULL)
-    translate_model(object->model, x, y, z);
+    GE_model_translate(object->model, x, y, z);
 }
 
 void gameobject_scale(GameObject *obj, float x, float y, float z)
 {
-  scale_xyz(obj->model, x, y, z);
+  GE_model_scale_xyz(obj->model, x, y, z);
 
   if (obj->phys_object->box_collider != NULL)
     physobject_box_collider_scale(obj->phys_object, x, y, z);
@@ -190,7 +190,7 @@ void gameobject_rotate_x(GameObject *object, float r)
   // float pz = object->pos.z;
 
   // gameobject_translate(object, -px, -py, -pz);
-  rotate_x(object->model, r);
+  GE_model_rotx(object->model, r);
   // gameobject_translate(object, px, py, pz);
 
 }
@@ -202,22 +202,22 @@ void gameobject_rotate_y(GameObject *object, float r)
   // float pz = object->pos.z;
 
   // gameobject_translate(object, -px, -py, -pz);
-  rotate_y(object->model, r);
+  GE_model_roty(object->model, r);
   // gameobject_translate(object, px, py, pz);
 }
 
 void gameobject_rotate_z(GameObject *object, float r)
 {
-  rotate_z(object->model, r);
+  GE_model_rotz(object->model, r);
 
   if (object->phys_object->plane_collider != NULL)
-    rotate_point(&object->phys_object->plane_collider->dir, 0, 0, r);
+    vector3_rotz(&object->phys_object->plane_collider->dir, r);
 }
 
 void gameobject_free(GameObject *object)
 {
   physobject_free(object->phys_object);
-  model_free(object->model);
+  GE_model_free(object->model);
   free(object);
 }
 

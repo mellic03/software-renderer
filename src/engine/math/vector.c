@@ -121,6 +121,31 @@ float vector3_angle(Vector3 v1, Vector3 v2)
   return acosf(cos_angle);
 }
 
+inline void vector3_rotx(Vector3 *v0, float a)
+{
+  float y = v0->y*cos(a) - v0->z*sin(a);
+  float z = v0->y*sin(a) + v0->z*cos(a);
+  v0->y = y;
+  v0->z = z;
+}
+
+inline void vector3_roty(Vector3 *v0, float a)
+{
+  float x =  v0->x*cos(a) + v0->z*sin(a);
+  float z = -v0->x*sin(a) + v0->z*cos(a);
+  v0->x = x;
+  v0->z = z;
+}
+
+inline void vector3_rotz(Vector3 *v0, float a)
+{
+  float x = v0->x*cos(a) - v0->y*sin(a);
+  float y = v0->x*sin(a) + v0->y*cos(a);
+  v0->x = x;
+  v0->y = y;
+}
+
+
 /** Move a towards b by alpha
  */
 Vector3 vector3_lerp(Vector3 *a, Vector3 *b, float alpha)
