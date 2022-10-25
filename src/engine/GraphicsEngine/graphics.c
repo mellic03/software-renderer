@@ -52,7 +52,7 @@ void GE_tile_render(  int xmin, int xmax, int ymin, int ymax,
   int size = queue_in->size;
   for (int i=0; i<size; i++)
   {
-    SIMD_triangle_2d(pixel_buffer, depth_buffer, RSR_front(queue_in), xmin, xmax, ymin, ymax);
+    triangle_2d(pixel_buffer, depth_buffer, RSR_front(queue_in), xmin, xmax, ymin, ymax);
     RSR_dequeue(queue_in);
   }
 
@@ -244,7 +244,6 @@ void triangle_2d(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri, i
 
   Vector3 deprojected;
   Vector3 lighting = (Vector3){1, 1, 1};
-
   for (int y=ly; y<=hy; y++)
   {
     int count = LIGHT_PIXEL_STEP;
