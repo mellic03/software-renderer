@@ -1,7 +1,7 @@
 #ifndef ENGINE_H
 #define ENGINE_H
 
-#include "math/vector.h"
+#include "math/enginemath.h"
 
 #include "GraphicsEngine/graphics.h"
 #include "GraphicsEngine/camera.h"

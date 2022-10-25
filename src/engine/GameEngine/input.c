@@ -35,28 +35,6 @@ void input(SDL_Event event, Camera *cam, Player *player)
     player->game_object->phys_object->vel.z += sin(cam->rot.y) * cam->speed;
   }
 
-  if (state[SDL_SCANCODE_LEFT])
-  {
-    vector3_roty(&lightsource_red.dir, 0.05);
-    vector3_roty(&lightsource_blue.dir, 0.05);
-    vector3_roty(&lightsource_green.dir, 0.05);
-
-  }
-  if (state[SDL_SCANCODE_RIGHT])
-  {
-    vector3_roty(&lightsource_red.dir, -0.05);
-    vector3_roty(&lightsource_blue.dir, -0.05);
-    vector3_roty(&lightsource_green.dir, -0.05);
-  }
-
-  // if (state[SDL_SCANCODE_UP])
-  //   lightsource.pos.x += 0.1; 
-  // if (state[SDL_SCANCODE_DOWN])
-  //   lightsource.pos.x -= 0.1;
-  // if (state[SDL_SCANCODE_PAGEUP])
-  //   lightsource.pos.y -= 0.1;
-  // if (state[SDL_SCANCODE_PAGEDOWN])
-  //   lightsource.pos.y += 0.1;
 
   if (state[SDL_SCANCODE_KP_PLUS])
     calculate_frustum(cam, cam->vfov-0.005);

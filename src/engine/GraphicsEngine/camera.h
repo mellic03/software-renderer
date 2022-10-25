@@ -1,4 +1,4 @@
-#include "../math/vector.h"
+#include "../math/enginemath.h"
 
 #ifndef CAMERA_H
 #define CAMERA_H

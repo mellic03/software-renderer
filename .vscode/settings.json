@@ -88,6 +88,7 @@
     "stdint.h": "c",
     "__bit_reference": "c",
     "v3fp.h": "c",
-    "lighting.h": "c"
+    "lighting.h": "c",
+    "enginemath.h": "c"
   }
 }

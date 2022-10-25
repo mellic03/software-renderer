@@ -10,14 +10,13 @@
 
 #include "camera.h"
 #include "lighting.h"
-#include "../math/vector.h"
+#include "../math/enginemath.h"
 #include "model.h"
 #include "datastructures/datastructures.h"
 
 #define RENDER_DISTANCE 50
 
-#define MIN(a, b) (a<b ? a : b)
-#define MAX(a, b) (a>b ? a : b)
+
 
 // GLOBALS
 //----------------------------------------
@@ -29,11 +28,6 @@ extern RSR_queue_t *GE_transform_queue;
 extern RSR_queue_t *GE_clip_queue;
 extern RSR_queue_t *GE_rasterise_queue;
 extern Polygon *front_faces;
-
-
-extern LightSource lightsource_red;
-extern LightSource lightsource_blue;
-extern LightSource lightsource_green;
 
 //----------------------------------------
 

@@ -2,10 +2,12 @@
 gcc \
 ./sockets/client.c \
 \
+./src/engine/math/util.c \
 ./src/engine/math/vector.c \
 \
 ./src/engine/GraphicsEngine/graphics.c \
 ./src/engine/GraphicsEngine/lighting.c \
+./src/engine/GraphicsEngine/shaders.c \
 ./src/engine/GraphicsEngine/model.c \
 ./src/engine/GraphicsEngine/objloader.c \
 ./src/engine/GraphicsEngine/camera.c \

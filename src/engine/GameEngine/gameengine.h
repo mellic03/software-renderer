@@ -3,7 +3,7 @@
 
 #include "../PhysicsEngine/physics.h"
 #include "../GraphicsEngine/graphics.h"
-#include "../math/vector.h"
+#include "../math/enginemath.h"
 
 extern int toggle;
 

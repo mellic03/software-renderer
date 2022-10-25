@@ -1,7 +1,7 @@
 #ifndef PLAYER_H
 #define PLAYER_H
 
-#include "../math/vector.h"
+#include "../math/enginemath.h"
 #include "gameengine.h"
 
 

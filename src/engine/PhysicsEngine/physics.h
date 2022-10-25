@@ -1,7 +1,7 @@
 #ifndef PHYSICS_H
 #define PHYSICS_H
 
-#include "../math/vector.h"
+#include "../math/enginemath.h"
 #define G 55 // Gravitational constant
 #define DEFAULT_ELASTICITY 1
 

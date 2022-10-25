@@ -10,8 +10,7 @@
 
 #include <stdbool.h>
 
-#include "../math/vector.h"
-#include "../math/fixedpoint/v3fp.h"
+#include "../math/enginemath.h"
 
 typedef enum {SHADE_NONE, SIMD_SHADE_NONE, SHADE_FLAT, SHADE_GOURAUD, SHADE_PHONG} ShaderType;
 

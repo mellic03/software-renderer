@@ -1,12 +1,14 @@
 #ifndef LIGHTING_H
 #define LIGHTING_H
 
-#include "../math/vector.h"
+#include "../math/enginemath.h"
 #include "model.h"
 
 #define LIGHT_PIXEL_STEP 4 
 #define AMBIENT_LIGHT ((Vector3){0.002, 0.002, 0.002})
 
+struct lightsource;
+typedef struct lightsource LightSource;
 
 // LIGHTSOURCE
 //----------------------------------------------------
@@ -15,41 +17,33 @@
   and performing the relevant light calculations, adding to the total light
   per vertex/fragment until the end of the list is reached.
 */
-
-typedef enum {DIRECTIONAL, POINT, SPOT} LightType;
+typedef Vector3 (*Shader)(Polygon *, Vector3, LightSource);
+typedef enum {GE_DIRLIGHT, GE_POINTLIGHT, GE_SPOTLIGHT} LightType;
 
 typedef struct lightsource {
+  
   LightType light_type;
-  Vector3 pos, dir, colour;
+  Vector3 pos, pos_viewspace;
+  Vector3 dir, dir_viewspace;
+  Vector3 colour;
   float intensity;
   float inner_cutoff, outer_cutoff;
+
+  Shader frag_shader;
+  Shader vert_shader;
+
   struct lightsource *next;
+
 } LightSource;
 
-void GE_lightsource_init(LightSource *lightsoure, LightType light_type);
-LightSource GE_lightsource_world_to_view(LightSource *lightsource_world);
+LightSource *GE_lightsource_init(LightType light_type);
+LightSource *GE_lightsource_create(LightType light_type);
+Vector3 GE_lightsource_perform_fragment(Polygon *tri, Vector3 frag_pos);
+
+void GE_lightsource_world_to_view(LightSource *lightsource);
+void GE_lightsource_world_to_view_all(void);
 //----------------------------------------------------
 
-
-// SHADER
-//----------------------------------------------------
-/*
-  VertexShaders contain a pointer to a function "perform()".
-  perform() returns a vector3 which holds the computed light
-  values for each vertex of the Polygon passed to it.
-
-  FragmentShaders work similarly but also require the view-space
-  position of the fragment.
-*/
-
-typedef struct {
-  Vector3 (*perform)(Polygon *tri, LightSource lightsource);
-} VertexShader;
-
-typedef struct {
-  Vector3 (*perform)(Polygon *tri, Vector3 frag_pos, LightSource lightsource);
-} FragmentShader;
-//----------------------------------------------------
 
 
 #endif /* LIGHTING_H */

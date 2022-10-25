@@ -2,7 +2,8 @@
 #include <stdio.h>
 #include <math.h>
 #include "physics.h"
-#include "../math/vector.h"
+#include "../math/enginemath.h"
+
 
 #include "../GameEngine/gameengine.h"
 

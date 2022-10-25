@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "vector.h"
+#include "../engine.h"
+#include "enginemath.h"
 #include <xmmintrin.h>
 
 Vector2 vector2_add(Vector2 v1, Vector2 v2)
@@ -166,6 +167,12 @@ Vector3 vector3_reflect(Vector3 reflectee, Vector3 reflector)
   return vector3_sub(reflectee, vector3_scale(reflector, 2*vector3_dot(reflectee, reflector)));
 }
 
+void vector3_clamp(Vector3 *v0, float min, float max)
+{
+  v0->x = MIN(MAX(v0->x, min), max);
+  v0->y = MIN(MAX(v0->y, min), max);
+  v0->z = MIN(MAX(v0->z, min), max);
+}
 
 void matrix_mult(int h1, int w1, int h2, int w2, float m1m2[][w2], float m1[][w1], float m2[][w2])
 {

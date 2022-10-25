@@ -85,10 +85,6 @@ int main(int argc, char** argv)
   GameObject *map = gameobject_create();
   gameobject_assign_model(map, GE_model_load("src/assets/benchmark"));
 
-  GameObject *sphere = gameobject_create();
-  gameobject_assign_model(sphere, GE_model_load("src/assets/sphere"));
-  gameobject_translate(sphere, 0, -3, -4);
-
   player = player_create();
   player->game_object = gameobject_create();
   player->cam->pos = &player->game_object->phys_object->pos;
