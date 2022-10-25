@@ -33,9 +33,9 @@ extern Polygon *front_faces;
 
 void GE_init(SDL_Window *win);
 
-void triangle_2d(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri, int thread_xmin, int thread_xmax, int thread_ymin, int thread_ymax);
+void GE_rasterise(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri, int thread_xmin, int thread_xmax, int thread_ymin, int thread_ymax);
 void triangle_2d_shaded(SDL_Surface *buffer, float *depth_buffer, Polygon *tri);
-void SIMD_triangle_2d(SDL_Surface *pxl_buf, float *dpth_buf, Polygon *tri, int thread_xmin, int thread_xmax, int thread_ymin, int thread_ymax);
+void GE_SIMD_rasterise(SDL_Surface *pxl_buf, float *dpth_buf, Polygon *tri, int thread_xmin, int thread_xmax, int thread_ymin, int thread_ymax);
 
 
 void pixel(SDL_Surface *pixel_arr, int x, int y, Uint8 r, Uint8 g, Uint8 b);

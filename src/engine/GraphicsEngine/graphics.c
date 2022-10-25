@@ -52,7 +52,7 @@ void GE_tile_render(  int xmin, int xmax, int ymin, int ymax,
   int size = queue_in->size;
   for (int i=0; i<size; i++)
   {
-    triangle_2d(pixel_buffer, depth_buffer, RSR_front(queue_in), xmin, xmax, ymin, ymax);
+    GE_rasterise(pixel_buffer, depth_buffer, RSR_front(queue_in), xmin, xmax, ymin, ymax);
     RSR_dequeue(queue_in);
   }
 
@@ -204,13 +204,18 @@ Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3, 
   return weights;
 }
 
-int orient2d(Vector2 a, Vector2 b, Vector2 c)
-{
-  return (b.x-a.x)*(c.y-a.y) - (b.y-a.y)*(c.x-a.x);
-}
-
-
-void triangle_2d(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri, int thread_xmin, int thread_xmax, int thread_ymin, int thread_ymax)
+/** Rasterise a Polygon
+ * \param pxl_buf pixel buffer to draw to
+ * \param dep_buf depth buffer to compare depth values to
+ * \param tri polygon to rasterise
+ * \param xmin lower x bound
+ * \param xmax upper x bound
+ * \param ymin lower y bound
+ * \param ymax upper y bound
+ * x/y bounds exist for multithreading, if rasterising singlethreaded,
+ * they should be set to the screen dimensions.
+ */
+void GE_rasterise(SDL_Surface *pxl_buf, float *dep_buf, Polygon *tri, int xmin, int xmax, int ymin, int ymax)
 {
   Vector2 v1 = tri->proj_verts[0];
   Vector2 v2 = tri->proj_verts[1];
@@ -230,10 +235,10 @@ void triangle_2d(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri, i
   int ly = MIN(v1.y, MIN(v2.y, v3.y));
   int hy = MAX(v1.y, MAX(v2.y, v3.y));
 
-  lx = MAX(thread_xmin, lx), lx = MIN(lx, thread_xmax-1);
-  hx = MAX(thread_xmin, hx), hx = MIN(hx, thread_xmax-1);
-  ly = MAX(thread_ymin, ly), ly = MIN(ly, thread_ymax-1);
-  hy = MAX(thread_ymin, hy), hy = MIN(hy, thread_ymax-1);
+  lx = MAX(xmin, lx), lx = MIN(lx, xmax-1);
+  hx = MAX(xmin, hx), hx = MIN(hx, xmax-1);
+  ly = MAX(ymin, ly), ly = MIN(ly, ymax-1);
+  hy = MAX(ymin, hy), hy = MIN(hy, ymax-1);
 
   Uint16 u=0, v=0;
   float z_index;
@@ -255,9 +260,9 @@ void triangle_2d(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri, i
       {
         z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
 
-        if (z_index > depth_buffer[SCREEN_WDTH*y + x])
+        if (z_index > dep_buf[SCREEN_WDTH*y + x])
         {
-          depth_buffer[SCREEN_WDTH*y + x] = z_index;
+          dep_buf[SCREEN_WDTH*y + x] = z_index;
 
           u = (Uint16)((vert_weights.x*inverse_u_coords[0] + vert_weights.y*inverse_u_coords[1] + vert_weights.z*inverse_u_coords[2]) / z_index) % tri->texture->w;
           v = (Uint16)((vert_weights.x*inverse_v_coords[0] + vert_weights.y*inverse_v_coords[1] + vert_weights.z*inverse_v_coords[2]) / z_index) % tri->texture->h;
@@ -280,7 +285,7 @@ void triangle_2d(SDL_Surface *pixel_buffer, float *depth_buffer, Polygon *tri, i
           float g = (float)*green * lighting.y;
           float b = (float)*blue * lighting.z;
 
-          pixel(pixel_buffer, x, y, (Uint8)r, (Uint8)g, (Uint8)b);
+          pixel(pxl_buf, x, y, (Uint8)r, (Uint8)g, (Uint8)b);
 
           count += 1;
         }
@@ -350,7 +355,7 @@ int SIMD_cmp_dpth_buf(__m128 *_z_index, __m128 *_dpth_buf)
   return _mm_movemask_ps(_mm_cmp_ps(*_z_index, *_dpth_buf, 0x0E));
 }
 
-void SIMD_triangle_2d(SDL_Surface *pxl_buf, float *dpth_buf, Polygon *tri, int thread_xmin, int thread_xmax, int thread_ymin, int thread_ymax)
+void GE_SIMD_rasterise(SDL_Surface *pxl_buf, float *dpth_buf, Polygon *tri, int thread_xmin, int thread_xmax, int thread_ymin, int thread_ymax)
 {
   Vector2 v1 = GE_view_to_screen(&tri->vertices[0]);
   Vector2 v2 = GE_view_to_screen(&tri->vertices[1]);
