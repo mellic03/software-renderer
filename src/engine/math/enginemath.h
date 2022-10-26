@@ -22,6 +22,7 @@ typedef struct Vector2 {
 float vector2_dot(Vector2 v0, Vector2 v1);
 float vector2_angle(Vector2 v0, Vector2 v1);
 float vector2_dist(Vector2 v0, Vector2 v1);
+float vector2_cross(Vector2 v0, Vector2 v1);
 void vector2_normalise(Vector2 *v0);
 
 Vector2 vector2_add(Vector2 v0, Vector2 v1);

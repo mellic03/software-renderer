@@ -4,14 +4,12 @@
 #include "../math/enginemath.h"
 #include "model.h"
 
-#define LIGHT_PIXEL_STEP 5 
+#define LIGHT_PIXEL_STEP 4 
 #define AMBIENT_LIGHT ((Vector3){0.002, 0.002, 0.002})
 
 struct lightsource;
 typedef struct lightsource LightSource;
 
-// LIGHTSOURCE
-//----------------------------------------------------
 /*
   The lighting system works by running through a linked-list of LightSources
   and performing the relevant light calculations, adding to the total light
@@ -42,7 +40,6 @@ Vector3 GE_lightsource_perform_fragment(Polygon *tri, Vector3 frag_pos);
 
 void GE_lightsource_world_to_view(LightSource *lightsource);
 void GE_lightsource_world_to_view_all(void);
-//----------------------------------------------------
 
 
 

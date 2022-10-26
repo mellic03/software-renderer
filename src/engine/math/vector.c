@@ -27,6 +27,10 @@ float vector2_angle(Vector2 v1, Vector2 v2)
   return acosf(cos_angle);
 } 
 
+float vector2_cross(Vector2 v0, Vector2 v1)
+{
+  return v0.x*v1.y - v0.y*v1.x;
+}
 
 /** Scale v1 by a scalar
  */

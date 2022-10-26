@@ -57,7 +57,7 @@ static int clip_polygon(Vector3 plane_normal, Polygon *tri_in, Polygon *tri_out1
 static int points_inside_plane(Vector3 plane_normal, Polygon *tri, int *index_of_inside, int *index_of_outside);
 static Vector3 line_plane_intersect(Vector3 plane_pos, Vector3 plane_normal, Vector3 p1, Vector3 p2, float *t);
 void GE_world_to_view(Polygon *polygon);
-Vector3 GE_screen_to_view(Vector2 *pt);
+Vector3 GE_screen_to_view(Vector2 pt);
 Vector3 GE_view_to_world(Vector3 v0);
 
 

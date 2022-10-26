@@ -139,13 +139,11 @@ void clear_screen(SDL_Surface *pixel_buffer, Uint8 r, Uint8 g, Uint8 b)
   //   for (int j=0; j<SCREEN_HGHT; j++)
   //     pixel(i, j, r, g, b);
 
-  Uint32 red = r << 16;
-  Uint16 green = g << 8;
-  SDL_FillRect(pixel_buffer, NULL, red + green + b);
+  SDL_FillRect(pixel_buffer, NULL, (Uint32)(r<<16) + (Uint16)(g<<8) + b);
 
-  // for (int i=0; i<SCREEN_WDTH; i++)
-  //   for (int j=0; j<SCREEN_HGHT; j++)
-  //     z_buffer[SCREEN_WDTH*j + i] = 0;
+  for (int i=0; i<SCREEN_WDTH; i++)
+    for (int j=0; j<SCREEN_HGHT; j++)
+      z_buffer[SCREEN_WDTH*j + i] = 0;
 }
 
 inline void pixel(SDL_Surface *pixel_buffer, int x, int y, Uint8 r, Uint8 g, Uint8 b)
@@ -195,6 +193,13 @@ void line_2d(Vector3 stroke, Vector2 p1, Vector2 p2, SDL_Surface *pixel_arr)
   }
 }
 
+/** Return true if a polygon defined by three vectors has a clockwise winding order
+ */
+bool GE_poly_clockwise(Vector2 a, Vector2 b, Vector2 c)
+{
+  return vector2_cross(vector2_sub(b, a), vector2_sub(c, a)) >= 0;
+}
+
 Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3, float denom)
 {
   Vector3 weights;
@@ -223,12 +228,8 @@ void GE_rasterise(SDL_Surface *pxl_buf, float *dep_buf, Polygon *tri, int xmin, 
 
   float denom = (v2.y-v3.y)*(v1.x-v3.x) + (v3.x-v2.x)*(v1.y-v3.y);
 
-  // line_2d((Vector3){0, 0, 0}, (Vector2){v1.x, v1.y, 1}, (Vector2){v2.x, v2.y, 1}, pixel_buffer);
-  // line_2d((Vector3){0, 0, 0}, (Vector2){v2.x, v2.y, 1}, (Vector2){v3.x, v3.y, 1}, pixel_buffer);
-  // line_2d((Vector3){0, 0, 0}, (Vector2){v3.x, v3.y, 1}, (Vector2){v1.x, v1.y, 1}, pixel_buffer);
-
-  float inverse_u_coords[3] = {tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
-  float inverse_v_coords[3] = {tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
+  float inv_u[3] = {tri->uvs[0].x * v1.w, tri->uvs[1].x * v2.w, tri->uvs[2].x * v3.w};
+  float inv_v[3] = {tri->uvs[0].y * v1.w, tri->uvs[1].y * v2.w, tri->uvs[2].y * v3.w};
 
   int lx = MIN(v1.x, MIN(v2.x, v3.x));
   int hx = MAX(v1.x, MAX(v2.x, v3.x));
@@ -247,12 +248,14 @@ void GE_rasterise(SDL_Surface *pxl_buf, float *dep_buf, Polygon *tri, int xmin, 
   Uint8 *red, *green, *blue;
   Uint8 *pixels = tri->texture->pixels;
 
+  int count;
+  Vector3 lighting = {1, 1, 1};
   Vector3 deprojected;
-  Vector3 lighting = (Vector3){1, 1, 1};
-  for (int y=ly; y<=hy; y++)
+
+  for (int x=lx; x<=hx; x++)
   {
-    int count = LIGHT_PIXEL_STEP;
-    for (int x=lx; x<=hx; x++)
+    count = LIGHT_PIXEL_STEP;
+    for (int y=ly; y<=hy; y++)
     {
       vert_weights = calculate_barycentric(x, y, v1, v2, v3, denom);
 
@@ -264,8 +267,8 @@ void GE_rasterise(SDL_Surface *pxl_buf, float *dep_buf, Polygon *tri, int xmin, 
         {
           dep_buf[SCREEN_WDTH*y + x] = z_index;
 
-          u = (Uint16)((vert_weights.x*inverse_u_coords[0] + vert_weights.y*inverse_u_coords[1] + vert_weights.z*inverse_u_coords[2]) / z_index) % tri->texture->w;
-          v = (Uint16)((vert_weights.x*inverse_v_coords[0] + vert_weights.y*inverse_v_coords[1] + vert_weights.z*inverse_v_coords[2]) / z_index) % tri->texture->h;
+          u = (Uint16)((vert_weights.x*inv_u[0] + vert_weights.y*inv_u[1] + vert_weights.z*inv_u[2]) / z_index) % tri->texture->w;
+          v = (Uint16)((vert_weights.x*inv_v[0] + vert_weights.y*inv_v[1] + vert_weights.z*inv_v[2]) / z_index) % tri->texture->h;
 
           u *= tri->texture->format->BytesPerPixel;
 
@@ -273,11 +276,11 @@ void GE_rasterise(SDL_Surface *pxl_buf, float *dep_buf, Polygon *tri, int xmin, 
           green = pixels + v*tri->texture->pitch + u+1;
           blue  = pixels + v*tri->texture->pitch + u+0;
 
-          if (count == LIGHT_PIXEL_STEP)
+
+          if (count >= LIGHT_PIXEL_STEP)
           {
             count = 0;
-            lighting = (Vector3){0, 0, 0};
-            deprojected = GE_screen_to_view(&(Vector2){x, y, z_index});
+            deprojected = GE_screen_to_view((Vector2){x, y, z_index});
             lighting = GE_lightsource_perform_fragment(tri, deprojected);
           }
 
@@ -286,10 +289,9 @@ void GE_rasterise(SDL_Surface *pxl_buf, float *dep_buf, Polygon *tri, int xmin, 
           float b = (float)*blue * lighting.z;
 
           pixel(pxl_buf, x, y, (Uint8)r, (Uint8)g, (Uint8)b);
-
-          count += 1;
         }
       }
+      count += 1;
     }
   }
 }
@@ -711,7 +713,7 @@ void GE_clip_all(void)
  */
 void GE_rasterise_all(void)
 {
-  // clear_screen(back_buffer, 100, 100, 100);
+  clear_screen(back_buffer, 100, 100, 100);
 
   int size = GE_rasterise_queue->size;
 
@@ -726,84 +728,84 @@ void GE_rasterise_all(void)
       tri.og_proj_verts[j] = GE_view_to_screen(&tri.og_vertices[j]);
     }
 
-    // triangle_2d(back_buffer, z_buffer, &tri, 0, SCREEN_WDTH, 0, SCREEN_HGHT);
+    GE_rasterise(back_buffer, z_buffer, &tri, 0, SCREEN_WDTH, 0, SCREEN_HGHT);
 
     // If left
-    if (tri.proj_verts[0].x < HALF_SCREEN_WDTH && tri.proj_verts[1].x < HALF_SCREEN_WDTH && tri.proj_verts[2].x < HALF_SCREEN_WDTH)
-    {
-      // If top
-      if (tri.proj_verts[0].y < HALF_SCREEN_HGHT && tri.proj_verts[1].y < HALF_SCREEN_HGHT && tri.proj_verts[2].y < HALF_SCREEN_HGHT)
-        RSR_enque(GE_rasterise_tl, &tri);
+    // if (tri.proj_verts[0].x < HALF_SCREEN_WDTH && tri.proj_verts[1].x < HALF_SCREEN_WDTH && tri.proj_verts[2].x < HALF_SCREEN_WDTH)
+    // {
+    //   // If top
+    //   if (tri.proj_verts[0].y < HALF_SCREEN_HGHT && tri.proj_verts[1].y < HALF_SCREEN_HGHT && tri.proj_verts[2].y < HALF_SCREEN_HGHT)
+    //     RSR_enque(GE_rasterise_tl, &tri);
 
-      // If bottom
-      else if (tri.proj_verts[0].y >= HALF_SCREEN_HGHT && tri.proj_verts[1].y >= HALF_SCREEN_HGHT && tri.proj_verts[2].y >= HALF_SCREEN_HGHT)
-        RSR_enque(GE_rasterise_bl, &tri);
+    //   // If bottom
+    //   else if (tri.proj_verts[0].y >= HALF_SCREEN_HGHT && tri.proj_verts[1].y >= HALF_SCREEN_HGHT && tri.proj_verts[2].y >= HALF_SCREEN_HGHT)
+    //     RSR_enque(GE_rasterise_bl, &tri);
     
-      // If top and bottom
-      else
-      {
-        RSR_enque(GE_rasterise_tl, &tri);
-        RSR_enque(GE_rasterise_bl, &tri);
-      }
-    }
+    //   // If top and bottom
+    //   else
+    //   {
+    //     RSR_enque(GE_rasterise_tl, &tri);
+    //     RSR_enque(GE_rasterise_bl, &tri);
+    //   }
+    // }
     
-    // If right
-    else if (tri.proj_verts[0].x >= HALF_SCREEN_WDTH && tri.proj_verts[1].x >= HALF_SCREEN_WDTH && tri.proj_verts[2].x >= HALF_SCREEN_WDTH)
-    {
-      // If top
-      if (tri.proj_verts[0].y < HALF_SCREEN_HGHT && tri.proj_verts[1].y < HALF_SCREEN_HGHT && tri.proj_verts[2].y < HALF_SCREEN_HGHT)
-        RSR_enque(GE_rasterise_tr, &tri);
+    // // If right
+    // else if (tri.proj_verts[0].x >= HALF_SCREEN_WDTH && tri.proj_verts[1].x >= HALF_SCREEN_WDTH && tri.proj_verts[2].x >= HALF_SCREEN_WDTH)
+    // {
+    //   // If top
+    //   if (tri.proj_verts[0].y < HALF_SCREEN_HGHT && tri.proj_verts[1].y < HALF_SCREEN_HGHT && tri.proj_verts[2].y < HALF_SCREEN_HGHT)
+    //     RSR_enque(GE_rasterise_tr, &tri);
       
-      // If bottom
-      else if (tri.proj_verts[0].y >= HALF_SCREEN_HGHT && tri.proj_verts[1].y >= HALF_SCREEN_HGHT && tri.proj_verts[2].y >= HALF_SCREEN_HGHT)
-        RSR_enque(GE_rasterise_br, &tri);
+    //   // If bottom
+    //   else if (tri.proj_verts[0].y >= HALF_SCREEN_HGHT && tri.proj_verts[1].y >= HALF_SCREEN_HGHT && tri.proj_verts[2].y >= HALF_SCREEN_HGHT)
+    //     RSR_enque(GE_rasterise_br, &tri);
 
-      // If top and bottom
-      else
-      {
-        RSR_enque(GE_rasterise_tr, &tri);
-        RSR_enque(GE_rasterise_br, &tri);
-      }
-    }    
+    //   // If top and bottom
+    //   else
+    //   {
+    //     RSR_enque(GE_rasterise_tr, &tri);
+    //     RSR_enque(GE_rasterise_br, &tri);
+    //   }
+    // }    
 
-    // If left and right
-    else
-    {
-      // If top
-      if (tri.proj_verts[0].y < HALF_SCREEN_HGHT && tri.proj_verts[1].y < HALF_SCREEN_HGHT && tri.proj_verts[2].y < HALF_SCREEN_HGHT)
-      {
-        RSR_enque(GE_rasterise_tl, &tri);
-        RSR_enque(GE_rasterise_tr, &tri);
-      }
+    // // If left and right
+    // else
+    // {
+    //   // If top
+    //   if (tri.proj_verts[0].y < HALF_SCREEN_HGHT && tri.proj_verts[1].y < HALF_SCREEN_HGHT && tri.proj_verts[2].y < HALF_SCREEN_HGHT)
+    //   {
+    //     RSR_enque(GE_rasterise_tl, &tri);
+    //     RSR_enque(GE_rasterise_tr, &tri);
+    //   }
 
-      // If bottom
-      else if (tri.proj_verts[0].y >= HALF_SCREEN_HGHT && tri.proj_verts[1].y >= HALF_SCREEN_HGHT && tri.proj_verts[2].y >= HALF_SCREEN_HGHT)
-      {
-        RSR_enque(GE_rasterise_bl, &tri);
-        RSR_enque(GE_rasterise_br, &tri);
-      }
+    //   // If bottom
+    //   else if (tri.proj_verts[0].y >= HALF_SCREEN_HGHT && tri.proj_verts[1].y >= HALF_SCREEN_HGHT && tri.proj_verts[2].y >= HALF_SCREEN_HGHT)
+    //   {
+    //     RSR_enque(GE_rasterise_bl, &tri);
+    //     RSR_enque(GE_rasterise_br, &tri);
+    //   }
 
-      // If all four quadrants
-      else
-      {
-        RSR_enque(GE_rasterise_tl, &tri);
-        RSR_enque(GE_rasterise_tr, &tri);
-        RSR_enque(GE_rasterise_bl, &tri);
-        RSR_enque(GE_rasterise_br, &tri);
-      }
-    }
+    //   // If all four quadrants
+    //   else
+    //   {
+    //     RSR_enque(GE_rasterise_tl, &tri);
+    //     RSR_enque(GE_rasterise_tr, &tri);
+    //     RSR_enque(GE_rasterise_bl, &tri);
+    //     RSR_enque(GE_rasterise_br, &tri);
+    //   }
+    // }
   }
 
 
-  pthread_create(&thread_render_1, NULL, render_1, NULL);
-  pthread_create(&thread_render_2, NULL, render_2, NULL);
-  pthread_create(&thread_render_3, NULL, render_3, NULL);
-  pthread_create(&thread_render_4, NULL, render_4, NULL);
+  // pthread_create(&thread_render_1, NULL, render_1, NULL);
+  // pthread_create(&thread_render_2, NULL, render_2, NULL);
+  // pthread_create(&thread_render_3, NULL, render_3, NULL);
+  // pthread_create(&thread_render_4, NULL, render_4, NULL);
 
-  pthread_join(thread_render_1, NULL);
-  pthread_join(thread_render_2, NULL);
-  pthread_join(thread_render_3, NULL);
-  pthread_join(thread_render_4, NULL);
+  // pthread_join(thread_render_1, NULL);
+  // pthread_join(thread_render_2, NULL);
+  // pthread_join(thread_render_3, NULL);
+  // pthread_join(thread_render_4, NULL);
 
   SDL_Rect src;
   src.x = 0;
@@ -865,12 +867,12 @@ Vector2 GE_view_to_screen(Vector3 *pt)
 
 /** Convert a screen-space Vector2 to a view-space Vector3
  */
-Vector3 GE_screen_to_view(Vector2 *pt)
+Vector3 GE_screen_to_view(Vector2 pt)
 {
-  float z = 1/pt->w;
+  float z = 1/pt.w;
   Vector3 deprojected = {
-    ((z*VIEWPLANE_WDTH) * (pt->x - HALF_SCREEN_WDTH)) / (0.5 * REN_RES_X),
-    ((z*VIEWPLANE_HGHT) * (pt->y - HALF_SCREEN_HGHT)) / (0.5 * REN_RES_Y),
+    ((z*VIEWPLANE_WDTH) * (pt.x - HALF_SCREEN_WDTH)) / (0.5 * REN_RES_X),
+    ((z*VIEWPLANE_HGHT) * (pt.y - HALF_SCREEN_HGHT)) / (0.5 * REN_RES_Y),
     z
   };
   return deprojected;
