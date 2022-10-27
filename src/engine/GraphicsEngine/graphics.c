@@ -13,7 +13,6 @@
 
 #include <pthread.h>
 #include <x86intrin.h>
-#include <cblas.h>
 
 #include "graphics.h"
 #include "lighting.h"

@@ -1,3 +1,4 @@
+#include <math.h>
 #include "graphics.h"
 #include "model.h"
 #include "lighting.h"
