@@ -83,7 +83,7 @@ int main(int argc, char** argv)
   gameobject_rotate_y(enemy, 1.57);
 
   GameObject *map = gameobject_create();
-  gameobject_assign_model(map, GE_model_load("src/assets/map1"));
+  gameobject_assign_model(map, GE_model_load("src/assets/benchmark"));
 
   player = player_create();
   player->game_object = gameobject_create();

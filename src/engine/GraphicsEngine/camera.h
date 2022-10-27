@@ -6,8 +6,8 @@
 #define SCREEN_WDTH 1024
 #define SCREEN_HGHT 1024
 
-#define REN_RES_X ((SCREEN_WDTH) >> 0)
-#define REN_RES_Y ((SCREEN_HGHT) >> 0)
+#define REN_RES_X ((const int)(SCREEN_WDTH*0.5))
+#define REN_RES_Y ((const int)(SCREEN_HGHT*0.5))
 
 #define HALF_SCREEN_WDTH (REN_RES_X>>1)
 #define HALF_SCREEN_HGHT (REN_RES_Y>>1)
