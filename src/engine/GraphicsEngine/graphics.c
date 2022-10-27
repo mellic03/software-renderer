@@ -748,7 +748,7 @@ void GE_clip_all(void)
  */
 void GE_rasterise_all(void)
 {
-  clear_screen(back_buffer, 255, 0, 0);
+  clear_screen(back_buffer, 255, 0, 255);
 
   int size = GE_rasterise_queue->size;
 
