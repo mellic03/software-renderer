@@ -1,0 +1,8 @@
+ 
+d\ =\ \left(y_{2}-y_{3}\right)\left(x_{1}-x_{3}\right)+\left(x_{3}-x_{2}\right)\left(y_{1}-y_{3}\right)
+
+f\left(x,\ y\right)=\frac{\left(y_{2}-y_{3}\right)\left(x-x_{3}\right)\ +\ \left(x_{3}-x_{2}\right)\left(y-y_{3}\right)}{d}
+
+g\left(x,\ y\right)=\frac{\ \left(y_{3}-y_{1}\right)\left(x-x_{3}\right)\ +\ \left(x_{1}-x_{3}\right)\left(y-y_{3}\right)}{d}
+
+q\left(x,\ y\right)=1-f\left(x,\ y\right)-g\left(x,\ y\right)

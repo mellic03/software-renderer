@@ -4,7 +4,7 @@
 #include "../math/enginemath.h"
 #include "model.h"
 
-#define LIGHT_PIXEL_STEP 4 
+#define LIGHT_PIXEL_STEP 2 
 #define AMBIENT_LIGHT ((Vector3){0.002, 0.002, 0.002})
 
 struct lightsource;
@@ -14,6 +14,9 @@ typedef struct lightsource LightSource;
   The lighting system works by running through a linked-list of LightSources
   and performing the relevant light calculations, adding to the total light
   per vertex/fragment until the end of the list is reached.
+
+  Each LightSource contains a pointer to both a vertex and fragment shader
+  in the form of a function.
 */
 typedef Vector3 (*Shader)(Polygon *, Vector3, LightSource);
 typedef enum {GE_DIRLIGHT, GE_POINTLIGHT, GE_SPOTLIGHT} LightType;

@@ -124,10 +124,10 @@ void GE_init(SDL_Window *win)
   dep_buf_bl = (float *)calloc(SCREEN_WDTH*SCREEN_HGHT, sizeof(float));
   dep_buf_br = (float *)calloc(SCREEN_WDTH*SCREEN_HGHT, sizeof(float));
 
-  LightSource *light = GE_lightsource_create(GE_SPOTLIGHT);
-  light->frag_shader = &shade_phong_pointlight;
-  light->pos = (Vector3){0, -3, 0};
-  light->dir = (Vector3){1, 0, 0};
+  // LightSource *light = GE_lightsource_create(GE_SPOTLIGHT);
+  // light->frag_shader = &shade_phong_pointlight;
+  // light->pos = (Vector3){0, -3, 0};
+  // light->dir = (Vector3){1, 0, 0};
 }
 
 
@@ -139,7 +139,7 @@ void clear_screen(SDL_Surface *pixel_buffer, Uint8 r, Uint8 g, Uint8 b)
   //   for (int j=0; j<SCREEN_HGHT; j++)
   //     pixel(i, j, r, g, b);
 
-  // SDL_FillRect(pixel_buffer, NULL, (Uint32)(r<<16) + (Uint16)(g<<8) + b);
+  SDL_FillRect(pixel_buffer, NULL, (Uint32)(r<<16) + (Uint16)(g<<8) + b);
 
   for (int i=0; i<SCREEN_WDTH; i++)
     for (int j=0; j<SCREEN_HGHT; j++)
@@ -287,9 +287,6 @@ void GE_rasterise(SDL_Surface *pxl_buf, float *dep_buf, Polygon *tri, int xmin, 
 
     for (int x=lx; x<=hx; x++)
     {
-      f += f_xstep;
-      g += g_xstep;
-      q += q_xstep;
       if (f >= 0 && g >= 0 && q >= 0)
       {
         z_index = f*v1.w + g*v2.w + q*v3.w;
@@ -321,6 +318,10 @@ void GE_rasterise(SDL_Surface *pxl_buf, float *dep_buf, Polygon *tri, int xmin, 
           pixel(pxl_buf, x, y, (Uint8)r, (Uint8)g, (Uint8)b);
         }
       }
+
+      f += f_xstep;
+      g += g_xstep;
+      q += q_xstep;
       count++;
     }
 
@@ -759,7 +760,7 @@ void GE_rasterise_all(void)
     for (int j=0; j<3; j++)
       tri.proj_verts[j] = GE_view_to_screen(&tri.vertices[j]);
 
-    GE_rasterise(back_buffer, z_buffer, &tri, 0, SCREEN_WDTH, 0, SCREEN_HGHT);
+    GE_rasterise(back_buffer, z_buffer, &tri, 0, REN_RES_X, 0, REN_RES_Y);
 
     // If left
     // if (tri.proj_verts[0].x < HALF_SCREEN_WDTH && tri.proj_verts[1].x < HALF_SCREEN_WDTH && tri.proj_verts[2].x < HALF_SCREEN_WDTH)
