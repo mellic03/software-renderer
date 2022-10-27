@@ -34,9 +34,6 @@ void GE_model_translate(Model *model, float x, float y, float z)
       model->polygons[i].vertices[j].x += x;
       model->polygons[i].vertices[j].y += y;
       model->polygons[i].vertices[j].z += z;
-      model->polygons[i].og_vertices[j].x += x;
-      model->polygons[i].og_vertices[j].y += y;
-      model->polygons[i].og_vertices[j].z += z;
     }
 }
 
@@ -55,9 +52,6 @@ void GE_model_scale_xyz(Model *model, float x, float y, float z)
       model->polygons[i].vertices[j].x *= x;
       model->polygons[i].vertices[j].y *= y;
       model->polygons[i].vertices[j].z *= z;
-      model->polygons[i].og_vertices[j].x *= x;
-      model->polygons[i].og_vertices[j].y *= y;
-      model->polygons[i].og_vertices[j].z *= z;
     }
 }
 

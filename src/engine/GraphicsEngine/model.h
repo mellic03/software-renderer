@@ -29,15 +29,15 @@ typedef struct {
 
 typedef struct {
 
-  Vector3 og_vertices[3];
   Vector3 vertices[3];
 
   Vector2 proj_verts[3];
-  Vector2 og_proj_verts[3];
 
   Vector3 normals[3];
   Vector3 face_normal;
   Vector2 uvs[3];
+
+  float bar0, bar1, bar2;
   
   SDL_Surface *texture, *normal_map;
   Material *material;
@@ -61,9 +61,11 @@ typedef struct {
 
   Vector3 *vertices;
   Vector3 *vertex_normals;
+  Vector3 *vertex_normals_worldspace;
+  Vector3 *vertex_normals_viewspace;
 
   int poly_count;
-  Polygon *polygons; // Array of polygons
+  Polygon *polygons;
 
   int mat_count;
   SDL_Surface **textures;

@@ -55,13 +55,15 @@ Vector3 shade_phong_pointlight(Polygon *tri, Vector3 frag_pos, LightSource light
   Vector3 specular = tri->material->specular;
   Vector3 output_lighting;
 
-  Vector3 light_dir = vector3_sub(frag_pos, lightsource.pos);
+  Vector3 light_dir = vector3_sub(frag_pos, lightsource.pos_viewspace);
   vector3_normalise(&light_dir);
 
   Vector3 norm = tri->normals[0];
+  norm = vector3_lerp(&norm, &tri->normals[1], tri->bar1);
+  norm = vector3_lerp(&norm, &tri->normals[2], tri->bar2);
 
   float diff = vector3_dot(vector3_negate(light_dir), tri->face_normal) + 1;
-  diff /= Sq(vector3_dist(frag_pos, lightsource.pos));
+  diff /= vector3_dist(frag_pos, lightsource.pos_viewspace);
   diffuse = vector3_scale(diffuse, diff);
 
   Vector3 view_dir = vector3_negate(frag_pos);

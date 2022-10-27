@@ -125,7 +125,7 @@ void GE_init(SDL_Window *win)
   dep_buf_br = (float *)calloc(SCREEN_WDTH*SCREEN_HGHT, sizeof(float));
 
   LightSource *light = GE_lightsource_create(GE_SPOTLIGHT);
-  light->frag_shader = &shade_phong_spotlight;
+  light->frag_shader = &shade_phong_pointlight;
   light->pos = (Vector3){0, -3, 0};
   light->dir = (Vector3){1, 0, 0};
 }
@@ -139,7 +139,7 @@ void clear_screen(SDL_Surface *pixel_buffer, Uint8 r, Uint8 g, Uint8 b)
   //   for (int j=0; j<SCREEN_HGHT; j++)
   //     pixel(i, j, r, g, b);
 
-  SDL_FillRect(pixel_buffer, NULL, (Uint32)(r<<16) + (Uint16)(g<<8) + b);
+  // SDL_FillRect(pixel_buffer, NULL, (Uint32)(r<<16) + (Uint16)(g<<8) + b);
 
   for (int i=0; i<SCREEN_WDTH; i++)
     for (int j=0; j<SCREEN_HGHT; j++)
@@ -209,6 +209,21 @@ Vector3 calculate_barycentric(int x, int y, Vector2 v1, Vector2 v2, Vector2 v3, 
   return weights;
 }
 
+float f_xy(int x, int y, Vector2 v2, Vector2 v3, float denom)
+{
+  return ((v2.y-v3.y)*(x-v3.x) + (v3.x-v2.x)*(y-v3.y)) / denom;
+}
+
+float g_xy(int x, int y, Vector2 v1, Vector2 v3, float denom)
+{
+  return ((v3.y-v1.y)*(x-v3.x) + (v1.x-v3.x)*(y-v3.y)) / denom;
+}
+
+float q_xy(float f_xy, float g_xy)
+{
+  return 1 - f_xy - g_xy;
+}
+
 /** Rasterise a Polygon
  * \param pxl_buf pixel buffer to draw to
  * \param dep_buf depth buffer to compare depth values to
@@ -236,46 +251,61 @@ void GE_rasterise(SDL_Surface *pxl_buf, float *dep_buf, Polygon *tri, int xmin, 
   int ly = MIN(v1.y, MIN(v2.y, v3.y));
   int hy = MAX(v1.y, MAX(v2.y, v3.y));
 
-  lx = MAX(xmin, lx), lx = MIN(lx, xmax-1);
-  hx = MAX(xmin, hx), hx = MIN(hx, xmax-1);
-  ly = MAX(ymin, ly), ly = MIN(ly, ymax-1);
-  hy = MAX(ymin, hy), hy = MIN(hy, ymax-1);
+  lx = MAX(xmin, lx); lx = MIN(lx, xmax-1);
+  hx = MAX(xmin, hx); hx = MIN(hx, xmax-1);
+  ly = MAX(ymin, ly); ly = MIN(ly, ymax-1);
+  hy = MAX(ymin, hy); hy = MIN(hy, ymax-1);
 
   Uint16 u=0, v=0;
-  float z_index;
+  float z_index; 
 
-  Vector3 vert_weights;
   Uint8 *red, *green, *blue;
   Uint8 *pixels = tri->texture->pixels;
 
-  int count;
   Vector3 lighting = {1, 1, 1};
   Vector3 deprojected;
 
-  for (int x=lx; x<=hx; x++)
+  const float A1 = f_xy(lx+1, ly, v2, v3, denom); float A2 = f_xy(lx, ly, v2, v3, denom);
+  const float B1 = f_xy(lx, ly+1, v2, v3, denom);
+  
+  const float D1 = g_xy(lx+1, ly, v1, v3, denom); float D2 = g_xy(lx, ly, v1, v3, denom);
+  const float E1 = g_xy(lx, ly+1, v1, v3, denom);
+
+  const float f_xstep = A1-A2,  g_xstep = D1-D2,  q_xstep = q_xy(A1, D1) - q_xy(A2, D2);
+  const float f_ystep = B1-A2,  g_ystep = E1-D2,  q_ystep = q_xy(B1, E1) - q_xy(A2, D2);
+  
+  float og_q = q_xy(A2, D2);
+
+  float f, g, q;
+  
+  int count;
+
+  for (int y=ly; y<=hy; y++)
   {
     count = LIGHT_PIXEL_STEP;
-    for (int y=ly; y<=hy; y++)
-    {
-      vert_weights = calculate_barycentric(x, y, v1, v2, v3, denom);
+    f = A2, g = D2, q = og_q;
 
-      if (vert_weights.x >= 0 && vert_weights.y >= 0 && vert_weights.z >= 0)
+    for (int x=lx; x<=hx; x++)
+    {
+      f += f_xstep;
+      g += g_xstep;
+      q += q_xstep;
+      if (f >= 0 && g >= 0 && q >= 0)
       {
-        z_index = v1.w*vert_weights.x + v2.w*vert_weights.y + v3.w*vert_weights.z;
+        z_index = f*v1.w + g*v2.w + q*v3.w;
 
         if (z_index > dep_buf[SCREEN_WDTH*y + x])
         {
           dep_buf[SCREEN_WDTH*y + x] = z_index;
 
-          u = (Uint16)((vert_weights.x*inv_u[0] + vert_weights.y*inv_u[1] + vert_weights.z*inv_u[2]) / z_index) % tri->texture->w;
-          v = (Uint16)((vert_weights.x*inv_v[0] + vert_weights.y*inv_v[1] + vert_weights.z*inv_v[2]) / z_index) % tri->texture->h;
+          u = (Uint16)((f*inv_u[0] + g*inv_u[1] + q*inv_u[2]) / z_index) % tri->texture->w;
+          v = (Uint16)((f*inv_v[0] + g*inv_v[1] + q*inv_v[2]) / z_index) % tri->texture->h;
 
           u *= tri->texture->format->BytesPerPixel;
 
           red   = pixels + v*tri->texture->pitch + u+2;
           green = pixels + v*tri->texture->pitch + u+1;
           blue  = pixels + v*tri->texture->pitch + u+0;
-
 
           if (count >= LIGHT_PIXEL_STEP)
           {
@@ -291,8 +321,12 @@ void GE_rasterise(SDL_Surface *pxl_buf, float *dep_buf, Polygon *tri, int xmin, 
           pixel(pxl_buf, x, y, (Uint8)r, (Uint8)g, (Uint8)b);
         }
       }
-      count += 1;
+      count++;
     }
+
+    A2   += f_ystep;
+    D2   += g_ystep;
+    og_q += q_ystep;
   }
 }
 
@@ -713,7 +747,7 @@ void GE_clip_all(void)
  */
 void GE_rasterise_all(void)
 {
-  clear_screen(back_buffer, 100, 100, 100);
+  clear_screen(back_buffer, 255, 0, 0);
 
   int size = GE_rasterise_queue->size;
 
@@ -723,10 +757,7 @@ void GE_rasterise_all(void)
     RSR_dequeue(GE_rasterise_queue);
    
     for (int j=0; j<3; j++)
-    {
       tri.proj_verts[j] = GE_view_to_screen(&tri.vertices[j]);
-      tri.og_proj_verts[j] = GE_view_to_screen(&tri.og_vertices[j]);
-    }
 
     GE_rasterise(back_buffer, z_buffer, &tri, 0, SCREEN_WDTH, 0, SCREEN_HGHT);
 
@@ -854,8 +885,8 @@ Vector2 GE_view_to_screen(Vector3 *pt)
   float canvas_x = (pt->x * nearplane_z * REN_RES_X) / (pt->z*VIEWPLANE_WDTH);
   float canvas_y = (pt->y * nearplane_z * REN_RES_Y) / (pt->z*VIEWPLANE_HGHT);
  
-  canvas_x += (HALF_SCREEN_WDTH);
-  canvas_y += (HALF_SCREEN_HGHT);
+  canvas_x += HALF_SCREEN_WDTH;
+  canvas_y += HALF_SCREEN_HGHT;
 
   // float canvas_x = (pt->x * HALF_SCREEN_WDTH) / pt->z;
   // float canvas_y = (pt->y * HALF_SCREEN_HGHT) / pt->z;
