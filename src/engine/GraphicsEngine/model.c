@@ -15,9 +15,7 @@ void GE_material_init(Material *material)
 void GE_model_free(Model *model)
 {
   free(model->polygons);
-
   free(model->vertices);
-  free(model->vertex_normals);
   for (int i=0; i<model->mat_count*2; i++)
     SDL_FreeSurface(model->textures[i]);
   free(model->textures);
@@ -63,12 +61,12 @@ void GE_model_rotx(Model *model, float alpha)
   for (int i=0; i<model->poly_count; i++)
   {
     for (int j=0; j<3; j++)
+    {
       vector3_rotx(&model->polygons[i].vertices[j], alpha);
+      vector3_rotx(&model->polygons[i].normals[j], alpha);
+    }
     vector3_rotx(&model->polygons[i].face_normal, alpha);
   }
-
-  for (int i=0; i<model->vertex_count; i++)
-    vector3_rotx(&model->vertex_normals[i], alpha);
 
   GE_model_translate(model, model_pos.x, model_pos.y, model_pos.z);
 }
@@ -81,12 +79,12 @@ void GE_model_roty(Model *model, float alpha)
   for (int i=0; i<model->poly_count; i++)
   {
     for (int j=0; j<3; j++)
+    {
       vector3_roty(&model->polygons[i].vertices[j], alpha);
+      vector3_roty(&model->polygons[i].normals[j], alpha);
+    }
     vector3_roty(&model->polygons[i].face_normal, alpha);
   }
-
-  for (int i=0; i<model->vertex_count; i++)
-    vector3_roty(&model->vertex_normals[i], alpha);
 
   GE_model_translate(model, model_pos.x, model_pos.y, model_pos.z);
 }
@@ -99,12 +97,12 @@ void GE_model_rotz(Model *model, float alpha)
   for (int i=0; i<model->poly_count; i++)
   {
     for (int j=0; j<3; j++)
+    {
       vector3_rotz(&model->polygons[i].vertices[j], alpha);
+      vector3_rotz(&model->polygons[i].normals[j], alpha);
+    }
     vector3_rotz(&model->polygons[i].face_normal, alpha);
   }
-
-  for (int i=0; i<model->vertex_count; i++)
-    vector3_rotz(&model->vertex_normals[i], alpha);
 
   GE_model_translate(model, model_pos.x, model_pos.y, model_pos.z);
 }

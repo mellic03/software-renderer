@@ -10,7 +10,7 @@ void calculate_frustum(Camera *cam, float angle)
 {
   cam->vfov = angle;
 
-  float aspect =  SCREEN_WDTH / SCREEN_HGHT;
+  float aspect =  (float)SCREEN_WDTH / (float)SCREEN_HGHT;
   float znear = 1;
   float zfar = 1000;
 

@@ -2,11 +2,18 @@
 #include "lighting.h"
 #include "../math/enginemath.h"
 
-static LightSource *head = NULL;
+LightSource *lightsource_head = NULL;
+
+Vector3 GE_default_vertex_shader(Polygon *tri, Vector3 vert_pos, LightSource lightsource)
+{
+  return (Vector3){1, 1, 1};
+}
 
 LightSource *GE_lightsource_init(LightType light_type)
 {
   LightSource *light = (LightSource *)calloc(1, sizeof(LightSource));
+
+  light->vert_shader = &GE_default_vertex_shader;
 
   light->light_type = light_type;
 
@@ -28,17 +35,17 @@ LightSource *GE_lightsource_init(LightType light_type)
 
 LightSource *GE_lightsource_create(LightType light_type)
 {
-  if (head == NULL)
+  if (lightsource_head == NULL)
   {
-    head = GE_lightsource_init(light_type);
-    return head;
+    lightsource_head = GE_lightsource_init(light_type);
+    return lightsource_head;
   }
 
   LightSource *new = GE_lightsource_init(light_type);
-  new->next = head;
-  head = new;
+  new->next = lightsource_head;
+  lightsource_head = new;
 
-  return head;
+  return lightsource_head;
 }
 
 
@@ -49,10 +56,7 @@ Vector3 GE_lightsource_perform_fragment(Polygon *tri, Vector3 frag_pos)
 {
   Vector3 output = (Vector3){0, 0, 0};
 
-  if (head == NULL)
-    return (Vector3){1, 1, 1};
-  
-  LightSource *lightsource = head;
+  LightSource *lightsource = lightsource_head;
 
   while (lightsource != NULL)
   {
@@ -61,8 +65,28 @@ Vector3 GE_lightsource_perform_fragment(Polygon *tri, Vector3 frag_pos)
   }
 
   vector3_clamp(&output, 0, 1);
-
   return output;
+}
+
+void GE_lightsource_perform_vertex(Polygon *tri, Vector3 *out1, Vector3 *out2, Vector3 *out3)
+{
+  *out1 = (Vector3){0, 0, 0};
+  *out2 = (Vector3){0, 0, 0};
+  *out3 = (Vector3){0, 0, 0};
+
+  LightSource *lightsource = lightsource_head;
+
+  while (lightsource != NULL)
+  {
+    *out1 = vector3_add(*out1, lightsource->vert_shader(tri, tri->vertices[0], *lightsource));
+    *out2 = vector3_add(*out2, lightsource->vert_shader(tri, tri->vertices[1], *lightsource));
+    *out3 = vector3_add(*out3, lightsource->vert_shader(tri, tri->vertices[2], *lightsource));
+    lightsource = lightsource->next;
+  }
+
+  vector3_clamp(out1, 0, 1);
+  vector3_clamp(out2, 0, 1);
+  vector3_clamp(out3, 0, 1);
 }
 
 void GE_lightsource_world_to_view(LightSource *lightsource)
@@ -79,10 +103,10 @@ void GE_lightsource_world_to_view(LightSource *lightsource)
 
 void GE_lightsource_world_to_view_all(void)
 {
-  if (head == NULL)
+  if (lightsource_head == NULL)
     return;
   
-  LightSource *lightsource = head;
+  LightSource *lightsource = lightsource_head;
 
   while (lightsource != NULL)
   {

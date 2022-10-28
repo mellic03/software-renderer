@@ -5,6 +5,7 @@
 #include "enginemath.h"
 #include <xmmintrin.h>
 
+
 Vector2 vector2_add(Vector2 v1, Vector2 v2)
 {
   return (Vector2){v1.x+v2.x, v1.y+v2.y, 1};
@@ -91,7 +92,8 @@ Vector3 vector3_scale(Vector3 v1, float scalar)
 
 float vector3_mag(Vector3 v)
 {
-  return sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+  float sqd = v.x*v.x + v.y*v.y + v.z*v.z;
+  return sqrt(sqd);
 }
 
 float vector3_dist(Vector3 v1, Vector3 v2)
@@ -110,6 +112,11 @@ void vector3_normalise(Vector3 *v1)
   v1->x /= mag;
   v1->y /= mag;
   v1->z /= mag;
+}
+
+void vector3_add_normalise(Vector3 *v0, Vector3 v1)
+{
+  *v0 = vector3_scale(*v0, 1/sqrt(Sq(v0->x+v1.x) + Sq(v0->y+v1.y) + Sq(v0->z+v1.z)));
 }
 
 Vector3 vector3_cross(Vector3 v1, Vector3 v2)
@@ -160,7 +167,13 @@ Vector3 vector3_lerp(Vector3 *a, Vector3 *b, float alpha)
 
 Vector3 vector3_negate(Vector3 v0)
 {
-  return (Vector3){v0.x * -1, v0.y * -1, v0.z * -1};
+  return (Vector3){-v0.x, -v0.y, -v0.z};
+}
+
+Vector3 vector3_negate_normalise(Vector3 v0)
+{
+  float mag = -vector3_mag(v0);
+  return (Vector3){v0.x/mag, v0.y/mag, v0.z/mag};
 }
 
 /** Reflect a vector about a normal
@@ -194,4 +207,9 @@ void matrix_mult(int h1, int w1, int h2, int w2, float m1m2[][w2], float m1[][w1
       }
     }
   }
+}
+
+void vector3_add8()
+{
+
 }

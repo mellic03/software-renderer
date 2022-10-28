@@ -12,6 +12,14 @@ float clamp(float n, float min, float max);
 //-----------------------------------------
 
 
+#define ftov2(a) ((Vector2){a, a}) /** Construct a Vector2 from one value */
+#define v2sum(a) (a.x+a.y) /** Sum the elements of a Vector2 */
+
+
+#define ftov3(a) ((Vector3){a, a, a}) /** Construct a Vector3 from one value */
+#define v3sum(a) (a.x+a.y+a.z) /** Sum the elements of a Vector3 */
+#define v3mul(a, b) ((Vector3){a.x*b.x, a.y*b.y, a.z*b.z})
+
 // VECTOR2
 //----------------------------------------------
 typedef struct Vector2 {
@@ -25,7 +33,7 @@ float vector2_dist(Vector2 v0, Vector2 v1);
 float vector2_cross(Vector2 v0, Vector2 v1);
 void vector2_normalise(Vector2 *v0);
 
-Vector2 vector2_add(Vector2 v0, Vector2 v1);
+// Vector2 vector2_add(Vector2 v0, Vector2 v1);
 Vector2 vector2_sub(Vector2 v0, Vector2 v1);
 Vector2 vector2_scale(Vector2 v0, float scalar);
 Vector2 vector2_lerp(Vector2 v0, Vector2 v1, float alpha);
@@ -38,6 +46,9 @@ typedef struct Vector3 {
   double x, y, z;
 } Vector3;
 
+#define v3add(v0, v1) ((Vector3){v0.x+v1.x, v0.y+v1.y, v0.z+v1.z})
+#define v3sub(v0, v1) ((Vector3){v0.x-v1.x, v0.y-v1.y, v0.z-v1.z})
+
 float vector3_dist(Vector3 v0, Vector3 v1);
 float vector3_dot(Vector3 v0, Vector3 v1);
 float vector3_angle(Vector3 v0, Vector3 v1);
@@ -48,6 +59,10 @@ void vector3_roty(Vector3 *v0, float a);
 void vector3_rotz(Vector3 *v0, float a);
 void vector3_clamp(Vector3 *v0, float min, float max);
 
+void vector3_add_normalise(Vector3 *v0, Vector3 v1);
+Vector3 vector3_negate_normalise(Vector3 v0);
+
+
 Vector3 vector3_add(Vector3 v0, Vector3 v1);
 Vector3 vector3_sub(Vector3 v0, Vector3 v1);
 Vector3 vector3_scale(Vector3 v0, float scalar);
@@ -57,6 +72,9 @@ Vector3 vector3_reflect(Vector3 reflectee, Vector3 reflector);
 Vector3 vector3_negate(Vector3 v0);
 //----------------------------------------------
 
+
 void matrix_mult(int w1, int h1, int w2, int h2, float m1m2[][w2], float m1[][w1], float m2[][w2]);
+
+
 
 #endif /* ENGINEMATH_H */

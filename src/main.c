@@ -80,7 +80,6 @@ int main(int argc, char** argv)
   GameObject *enemy = gameobject_create();
   gameobject_assign_model(enemy, GE_model_load("src/assets/enemy"));
   gameobject_translate(enemy, 5, -3, 0);
-  gameobject_rotate_y(enemy, 1.57);
 
   GameObject *map = gameobject_create();
   gameobject_assign_model(map, GE_model_load("src/assets/benchmark"));
@@ -115,7 +114,8 @@ int main(int argc, char** argv)
     input(event, GE_cam, player);
 
     gameobject_draw_all();
-  
+    gameobject_rotate_y(enemy, 0.02);
+    gameobject_rotate_x(enemy, 0.03);
 
     GE_transform_all();
     GE_clip_all();

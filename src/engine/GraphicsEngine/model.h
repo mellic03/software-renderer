@@ -60,7 +60,7 @@ typedef struct {
   int vertex_count, normal_count, uv_count;
 
   Vector3 *vertices;
-  Vector3 *vertex_normals;
+  // Vector3 *vertex_normals;
   Vector3 *vertex_normals_worldspace;
   Vector3 *vertex_normals_viewspace;
 

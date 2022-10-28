@@ -3,11 +3,11 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 
-#define SCREEN_WDTH 1024
-#define SCREEN_HGHT 1024
+#define SCREEN_WDTH 1920
+#define SCREEN_HGHT 1080
 
-#define REN_RES_X ((const int)(SCREEN_WDTH*0.5))
-#define REN_RES_Y ((const int)(SCREEN_HGHT*0.5))
+#define REN_RES_X ((const int)(SCREEN_WDTH))
+#define REN_RES_Y ((const int)(SCREEN_HGHT))
 
 #define HALF_SCREEN_WDTH (REN_RES_X>>1)
 #define HALF_SCREEN_HGHT (REN_RES_Y>>1)

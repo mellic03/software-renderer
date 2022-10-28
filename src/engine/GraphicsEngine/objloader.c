@@ -156,8 +156,8 @@ void load_polygons(FILE *fh, Model *model)
         model->polygons[polygon_index].vertices[i] = vertices[temp[0]-1];
         model->polygons[polygon_index].vertex_indices[i] = temp[0]-1;
         model->polygons[polygon_index].uvs[i] = tex_coords[temp[1]-1];
+        model->polygons[polygon_index].normals[i] = normals[temp[2]-1];
       }
-      
       Vector3 v1 = vector3_sub(model->polygons[polygon_index].vertices[0], model->polygons[polygon_index].vertices[1]);
       Vector3 v2 = vector3_sub(model->polygons[polygon_index].vertices[0], model->polygons[polygon_index].vertices[2]);
       model->polygons[polygon_index].face_normal = vector3_cross(v1, v2);
@@ -193,34 +193,6 @@ void load_polygons(FILE *fh, Model *model)
     }
   }
 
-  // Calculate vertex normals from face normals
-  rewind(fh);
-  // An array of normals where index n corresponds to vertex n
-  Vector3 *vertex_normals = (Vector3 *)malloc(model->vertex_count * sizeof(Vector3));
-
-  // For each polygon, add face normal to vertex_normals[index of vertex]
-  for (int i=0; i<model->poly_count; i++)
-    for (int j=0; j<3; j++)
-      vertex_normals[model->polygons[i].vertex_indices[j]] = vector3_add(vertex_normals[model->polygons[i].vertex_indices[j]], model->polygons[i].face_normal);
-
-  for (int i=0; i<model->vertex_count; i++)
-    vector3_normalise(&vertex_normals[i]);
-
-
-  model->vertex_normals = (Vector3 *)malloc(model->vertex_count * sizeof(Vector3));
-  for (int i=0; i<model->vertex_count; i++)
-    model->vertex_normals[i] = vertex_normals[i];
-
-
-  model->vertices = (Vector3 *)malloc(model->vertex_count * sizeof(Vector3));
-  for (int i=0; i<model->vertex_count; i++)
-    model->vertices[i] = vertices[i];
-
-  for (int i=0; i<model->poly_count; i++)
-    for (int j=0; j<3; j++)
-      model->polygons[i].normals[j] = vertex_normals[model->polygons[i].vertex_indices[j]];
-
-  free(vertex_normals);
   free(vertices);
   free(normals);
   free(tex_coords);
