@@ -152,7 +152,7 @@ void clear_screen(SDL_Surface *pixel_buffer, Uint8 r, Uint8 g, Uint8 b)
   //   for (int j=0; j<SCREEN_HGHT; j++)
   //     pixel(i, j, r, g, b);
 
-  // SDL_FillRect(pixel_buffer, NULL, (Uint32)(r<<16) + (Uint16)(g<<8) + b);
+  SDL_FillRect(pixel_buffer, NULL, (Uint32)(r<<16) + (Uint16)(g<<8) + b);
 
   for (int i=0; i<SCREEN_WDTH; i++)
     for (int j=0; j<SCREEN_HGHT; j++)
@@ -237,6 +237,19 @@ float q_xy(float f_xy, float g_xy)
   return 1 - f_xy - g_xy;
 }
 
+int SIMD_cmp_dpth_buf(__m128 *_z_index, __m128 *_dpth_buf)
+{
+  return _mm_movemask_ps(_mm_cmp_ps(*_z_index, *_dpth_buf, 0x0E));
+}
+
+/** Calculate _a % b
+ */
+void _mm_mod_ps(__m128 *_a, float b)
+{
+  __m128 _b = _mm_set1_ps(b);
+  *_a = _mm_sub_ps(*_a, _mm_div_ps(*_a, _b));
+}
+
 /** Rasterise a Polygon
  * \param pxl_buf pixel buffer to draw to
  * \param dep_buf depth buffer to compare depth values to
@@ -265,9 +278,20 @@ void GE_rasterise(SDL_Surface *pxl_buf, float *dep_buf, Polygon *tri, int xmin, 
   int hy = MAX(v1.y, MAX(v2.y, v3.y));
 
   lx = MAX(xmin, lx); lx = MIN(lx, xmax-1);
-  hx = MAX(xmin, hx); hx = MIN(hx, xmax-1);
+  hx = MAX(xmin, hx); hx = MIN(hx, xmax-1); 
   ly = MAX(ymin, ly); ly = MIN(ly, ymax-1);
   hy = MAX(ymin, hy); hy = MIN(hy, ymax-1);
+
+
+  __m128 _inv_u0 = _mm_set1_ps(tri->uvs[0].x * v1.w);
+  __m128 _inv_u1 = _mm_set1_ps(tri->uvs[1].x * v2.w);
+  __m128 _inv_u2 = _mm_set1_ps(tri->uvs[2].x * v3.w);
+
+  __m128 _inv_v0 = _mm_set1_ps(tri->uvs[0].y * v1.w);
+  __m128 _inv_v1 = _mm_set1_ps(tri->uvs[1].y * v2.w);
+  __m128 _inv_v2 = _mm_set1_ps(tri->uvs[2].y * v3.w);
+
+  __m128 _u, _v;
 
   Uint16 u=0, v=0;
   float z_index; 
@@ -295,93 +319,145 @@ void GE_rasterise(SDL_Surface *pxl_buf, float *dep_buf, Polygon *tri, int xmin, 
   __m128 _v2w = _mm_set1_ps(v2.w);
   __m128 _v3w = _mm_set1_ps(v3.w);
 
-  __m128 _f_xstep = _mm_set1_ps(f_xstep), _g_xstep = _mm_set1_ps(g_xstep), _q_xstep = _mm_set1_ps(q_xstep);
-  __m128 _f_ystep = _mm_set1_ps(f_ystep), _g_ystep = _mm_set1_ps(g_ystep), _q_ystep = _mm_set1_ps(q_ystep);
+  __m128 _A2 = _mm_set_ps(A2+3*f_xstep, A2+2*f_xstep, A2+f_xstep, A2);
+  __m128 _D2 = _mm_set_ps(D2+3*g_xstep, D2+2*g_xstep, D2+g_xstep, D2);
+  __m128 _OQ = _mm_set_ps(og_q+3*q_xstep, og_q+2*q_xstep, og_q+q_xstep, og_q);
 
-  __m128 _A2 = _mm_set1_ps(A2);
-  __m128 _D2 = _mm_set1_ps(D2);
-  __m128 _og_q = _mm_set1_ps(og_q);
+  __m128 _f_xstep = _mm_set1_ps(4*f_xstep),  _g_xstep = _mm_set1_ps(4*g_xstep),  _q_xstep = _mm_set1_ps(4*q_xstep);
+  __m128 _f_ystep = _mm_set1_ps(f_ystep),  _g_ystep = _mm_set1_ps(g_ystep),  _q_ystep = _mm_set1_ps(q_ystep);
+  __m128 _f, _g, _q;
 
-  __m128 _f = _mm_set_ps(A2+3, A2+2, A2+1, A2+0);
-  __m128 _g = _mm_set_ps(D2+3, D2+2, D2+1, D2+0);
-  __m128 _q = _mm_set_ps(og_q+3, og_q+2, og_q+1, og_q+0);
+  __m128 _zero = _mm_set1_ps(0);
 
   int count;
   // Vector3 out1, out2, out3;
   // GE_lightsource_perform_vertex(tri, &out1, &out2, &out3);  
 
+  Uint8 masks[4] = { 0b1000, 0b0100, 0b0010, 0b0001 };
+  Uint8 allmask = 0b1111;
+
+  int remainder = (hx-lx)%4;
+
+  // for (int y=ly; y<=hy; y++)
+  // {
+  //   count = LIGHT_PIXEL_STEP;
+
+  //   _f = _A2;
+  //   _g = _D2;
+  //   _q = _OQ;
+
+  //   for (int x=lx; x<hx-remainder; x+=4)
+  //   {
+  //     __m128 _f_gtr_0 = _mm_cmp_ps(_f, _zero, 0x0D);
+  //     __m128 _g_gtr_0 = _mm_cmp_ps(_g, _zero, 0x0D);
+  //     __m128 _q_gtr_0 = _mm_cmp_ps(_q, _zero, 0x0D);
+  //     Uint8 gtr_0 = _mm_movemask_ps(_f_gtr_0) & _mm_movemask_ps(_g_gtr_0) & _mm_movemask_ps(_q_gtr_0);
+
+  //     __m128 _z_index = _mm_mul_ps(_f, _v1w);
+  //     _z_index = _mm_add_ps(_z_index, _mm_mul_ps(_g, _v2w));
+  //     _z_index = _mm_add_ps(_z_index, _mm_mul_ps(_q, _v3w));
+
+  //     __m128 _z_buf = _mm_set_ps(dep_buf[REN_RES_X*y + (x+3)], dep_buf[REN_RES_X*y + (x+2)], dep_buf[REN_RES_X*y + (x+1)], dep_buf[REN_RES_X*y + (x+0)]);
+  //     Uint8 gtr_thn_zbuf = SIMD_cmp_dpth_buf(&_z_index, &_z_buf);
+
+  //     Uint8 pass = gtr_0 & gtr_thn_zbuf;
+
+  //     _u = _mm_add_ps(_mm_mul_ps(_f, _inv_u0), _mm_add_ps(_mm_mul_ps(_g, _inv_u1), _mm_mul_ps(_q, _inv_u2)));
+  //     _v = _mm_add_ps(_mm_mul_ps(_f, _inv_v0), _mm_add_ps(_mm_mul_ps(_g, _inv_v1), _mm_mul_ps(_q, _inv_v2)));
+      
+  //     _u = _mm_div_ps(_u, _z_index);
+  //     _v = _mm_div_ps(_v, _z_index);
+
+  //     _mm_mod_ps(&_u, tri->texture->w);
+  //     _mm_mod_ps(&_v, tri->texture->h);
+      
+
+  //     if (allmask & pass)
+  //     {
+  //       for (int i=0; i<4; i++)
+  //       {
+  //         dep_buf[REN_RES_X*y + x+i] = _z_index[i];
+
+  //         u = (Uint16)_u[i] % tri->texture->w;
+  //         v = (Uint16)_v[i] % tri->texture->h;
+
+  //         u *= tri->texture->format->BytesPerPixel;
+
+  //         red   = pixels + v*tri->texture->pitch + u+2;
+  //         green = pixels + v*tri->texture->pitch + u+1;
+  //         blue  = pixels + v*tri->texture->pitch + u+0;
+
+  //         // Vector3 color = out1;
+  //         // color = vector3_lerp(&color, &out2, g);
+  //         // color = vector3_lerp(&color, &out3, q);
+
+  //         // if (count >= LIGHT_PIXEL_STEP)
+  //         // {
+  //         //   tri->bar0 = f, tri->bar1 = g, tri->bar2 = q;
+  //         //   count = 0;
+  //         //   deprojected = GE_screen_to_view((Vector2){x, y, z_index});
+  //         //   lighting = GE_lightsource_perform_fragment(tri, deprojected);
+  //         // }
+
+  //         // float r = (float)*red * lighting.x;
+  //         // float g = (float)*green * lighting.y;
+  //         // float b = (float)*blue * lighting.z;
+          
+
+  //         pixel(pxl_buf, x+i, y, *red, *green, *blue);
+  //       }
+  //     }
+
+  //     _f = _mm_add_ps(_f, _f_xstep);
+  //     _g = _mm_add_ps(_g, _g_xstep);
+  //     _q = _mm_add_ps(_q, _q_xstep);
+  //   }
+
+  //   _A2 = _mm_add_ps(_A2, _f_ystep);
+  //   _D2 = _mm_add_ps(_D2, _g_ystep);
+  //   _OQ = _mm_add_ps(_OQ, _q_ystep);
+  // }
+
   for (int y=ly; y<=hy; y++)
   {
     count = LIGHT_PIXEL_STEP;
     f = A2, g = D2, q = og_q;
-
-    _f = _A2;
-    _g = _D2;
-    _q = _og_q;
-
     for (int x=lx; x<=hx; x++)
     {
       if (f >= 0 && g >= 0 && q >= 0)
       {
-        // z_index = f*v1.w + g*v2.w + q*v3.w;
-
-        __m128 _z_index = _mm_mul_ps(_f, _v1w);
-        _z_index = _mm_add_ps(_z_index, _mm_mul_ps(_g, _v2w));
-        _z_index = _mm_add_ps(_z_index, _mm_mul_ps(_q, _v3w));
-
-        if (_z_index[3] > dep_buf[SCREEN_WDTH*y + x])
+        z_index = f*v1.w + g*v2.w + q*v3.w;
+        if (z_index > dep_buf[SCREEN_WDTH*y + x])
         {
-          dep_buf[SCREEN_WDTH*y + x] = _z_index[3];
-
-          u = (Uint16)((f*inv_u[0] + g*inv_u[1] + q*inv_u[2]) / _z_index[3]) % tri->texture->w;
-          v = (Uint16)((f*inv_v[0] + g*inv_v[1] + q*inv_v[2]) / _z_index[3]) % tri->texture->h;
-
+          dep_buf[SCREEN_WDTH*y + x] = z_index;
+          u = (Uint16)((f*inv_u[0] + g*inv_u[1] + q*inv_u[2]) / z_index) % tri->texture->w;
+          v = (Uint16)((f*inv_v[0] + g*inv_v[1] + q*inv_v[2]) / z_index) % tri->texture->h;
           u *= tri->texture->format->BytesPerPixel;
-
           red   = pixels + v*tri->texture->pitch + u+2;
           green = pixels + v*tri->texture->pitch + u+1;
           blue  = pixels + v*tri->texture->pitch + u+0;
-
-          // Vector3 color = out1;
-          // color = vector3_lerp(&color, &out2, g);
-          // color = vector3_lerp(&color, &out3, q);
-
           // if (count >= LIGHT_PIXEL_STEP)
           // {
-          //   tri->bar0 = f, tri->bar1 = g, tri->bar2 = q;
           //   count = 0;
           //   deprojected = GE_screen_to_view((Vector2){x, y, z_index});
           //   lighting = GE_lightsource_perform_fragment(tri, deprojected);
           // }
-
           float r = (float)*red * lighting.x;
           float g = (float)*green * lighting.y;
           float b = (float)*blue * lighting.z;
-
           pixel(pxl_buf, x, y, (Uint8)r, (Uint8)g, (Uint8)b);
         }
       }
-
       f += f_xstep;
       g += g_xstep;
       q += q_xstep;
-
-      _f = _mm_add_ps(_f, _f_xstep);
-      _g = _mm_add_ps(_g, _g_xstep);
-      _q = _mm_add_ps(_q, _q_xstep);
-
       count++;
     }
-
     A2   += f_ystep;
     D2   += g_ystep;
     og_q += q_ystep;
-
-    _A2 = _mm_add_ps(_A2, _f_ystep);
-    _D2 = _mm_add_ps(_D2, _g_ystep);
-    _og_q = _mm_add_ps(_og_q, _q_ystep);
-
   }
+
 }
 
 
@@ -440,10 +516,7 @@ void SIMD_calculate_barycentric_third(__m128 *identity, __m128 *first, __m128 *s
   *output = _mm_sub_ps(*output, *second);
 }
 
-int SIMD_cmp_dpth_buf(__m128 *_z_index, __m128 *_dpth_buf)
-{
-  return _mm_movemask_ps(_mm_cmp_ps(*_z_index, *_dpth_buf, 0x0E));
-}
+
 
 /**
  * @param p1 start of line
@@ -637,7 +710,7 @@ void GE_clip_all(void)
  */
 void GE_rasterise_all(void)
 {
-  clear_screen(back_buffer, 255, 0, 0);
+  clear_screen(front_buffer, 255, 0, 0);
 
   int size = GE_rasterise_queue->size;
 
@@ -649,7 +722,7 @@ void GE_rasterise_all(void)
     for (int j=0; j<3; j++)
       tri.proj_verts[j] = GE_view_to_screen(&tri.vertices[j]);
 
-    GE_rasterise(back_buffer, z_buffer, &tri, 0, REN_RES_X, 0, REN_RES_Y);
+    GE_rasterise(front_buffer, z_buffer, &tri, 0, REN_RES_X, 0, REN_RES_Y);
 
     // // If left
     // if (tri.proj_verts[0].x < HALF_SCREEN_WDTH && tri.proj_verts[1].x < HALF_SCREEN_WDTH && tri.proj_verts[2].x < HALF_SCREEN_WDTH)
@@ -728,19 +801,19 @@ void GE_rasterise_all(void)
   // pthread_join(thread_render_3, NULL);
   // pthread_join(thread_render_4, NULL);
 
-  SDL_Rect src;
-  src.x = 0;
-  src.y = 0;
-  src.w = REN_RES_X;
-  src.h = REN_RES_Y;
+  // SDL_Rect src;
+  // src.x = 0;
+  // src.y = 0;
+  // src.w = REN_RES_X;
+  // src.h = REN_RES_Y;
 
-  SDL_Rect dest;
-  dest.x = 0;
-  dest.y = 0;
-  dest.w = SCREEN_WDTH;
-  dest.h = SCREEN_HGHT;
+  // SDL_Rect dest;
+  // dest.x = 0;
+  // dest.y = 0;
+  // dest.w = SCREEN_WDTH;
+  // dest.h = SCREEN_HGHT;
 
-  SDL_BlitScaled(back_buffer, &src, front_buffer, &dest);
+  // SDL_BlitScaled(back_buffer, &src, front_buffer, &dest);
 }
 
 
