@@ -21,15 +21,15 @@ d 1.000000
 illum 2
 map_Kd concrete_baked.bmp
 
-newmtl floor
+newmtl light
 Ns 250.000000
 Ka 1.000000 1.000000 1.000000
 Ks 0.500000 0.500000 0.500000
-Ke 0.000000 0.000000 0.000000
+Ke 109.799995 109.799995 109.799995
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd interior_baked.bmp
+map_Kd metal_baked2.bmp
 
 newmtl Material.001
 Ns 250.000000
@@ -41,15 +41,16 @@ d 1.000000
 illum 2
 map_Kd metal_baked.bmp
 
-newmtl light
+
+newmtl floor
 Ns 250.000000
 Ka 1.000000 1.000000 1.000000
 Ks 0.500000 0.500000 0.500000
-Ke 109.799995 109.799995 109.799995
+Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd metal_baked2.bmp
+map_Kd interior_baked.bmp
 
 newmtl Material.002
 Ns 250.000000
