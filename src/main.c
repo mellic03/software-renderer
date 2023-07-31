@@ -88,7 +88,6 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  SDL_SetRelativeMouseMode(SDL_TRUE);
   pixel_array = SDL_GetWindowSurface(win);
 
   // Load assets
