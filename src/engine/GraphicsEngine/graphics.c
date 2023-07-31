@@ -418,45 +418,92 @@ void GE_rasterise(SDL_Surface *pxl_buf, float *dep_buf, Polygon *tri, int xmin, 
   //   _OQ = _mm_add_ps(_OQ, _q_ystep);
   // }
 
-  for (int y=ly; y<=hy; y++)
-  {
-    count = LIGHT_PIXEL_STEP;
-    f = A2, g = D2, q = og_q;
-    for (int x=lx; x<=hx; x++)
+    Vector3 weights;
+
+    for (int y=ly; y<=hy; y++)
     {
-      if (f >= 0 && g >= 0 && q >= 0)
-      {
-        z_index = f*v1.w + g*v2.w + q*v3.w;
-        if (z_index > dep_buf[SCREEN_WDTH*y + x])
+        count = LIGHT_PIXEL_STEP;
+        f = A2, g = D2, q = og_q;
+        for (int x=lx; x<=hx; x++)
         {
-          dep_buf[SCREEN_WDTH*y + x] = z_index;
-          u = (Uint16)((f*inv_u[0] + g*inv_u[1] + q*inv_u[2]) / z_index) % tri->texture->w;
-          v = (Uint16)((f*inv_v[0] + g*inv_v[1] + q*inv_v[2]) / z_index) % tri->texture->h;
-          u *= tri->texture->format->BytesPerPixel;
-          red   = pixels + v*tri->texture->pitch + u+2;
-          green = pixels + v*tri->texture->pitch + u+1;
-          blue  = pixels + v*tri->texture->pitch + u+0;
-          // if (count >= LIGHT_PIXEL_STEP)
-          // {
-          //   count = 0;
-          //   deprojected = GE_screen_to_view((Vector2){x, y, z_index});
-          //   lighting = GE_lightsource_perform_fragment(tri, deprojected);
-          // }
-          float r = (float)*red * lighting.x;
-          float g = (float)*green * lighting.y;
-          float b = (float)*blue * lighting.z;
-          pixel(pxl_buf, x, y, (Uint8)r, (Uint8)g, (Uint8)b);
+            weights = calculate_barycentric(x, y, v1, v2, v3, denom);
+
+            if (weights.x >= 0.0f && weights.y >= 0.0f && weights.z >= 0.0f)
+            {
+                z_index = f*v1.w + g*v2.w + q*v3.w;
+                if (z_index > dep_buf[SCREEN_WDTH*y + x])
+                {
+                    dep_buf[SCREEN_WDTH*y + x] = z_index;
+                    u = (Uint16)((f*inv_u[0] + g*inv_u[1] + q*inv_u[2]) / z_index) % tri->texture->w;
+                    v = (Uint16)((f*inv_v[0] + g*inv_v[1] + q*inv_v[2]) / z_index) % tri->texture->h;
+                    u *= tri->texture->format->BytesPerPixel;
+                    red   = pixels + v*tri->texture->pitch + u+2;
+                    green = pixels + v*tri->texture->pitch + u+1;
+                    blue  = pixels + v*tri->texture->pitch + u+0;
+                    if (count >= LIGHT_PIXEL_STEP)
+                    {
+                        count = 0;
+                        deprojected = GE_screen_to_view((Vector2){x, y, z_index});
+
+                        LightSource lightsource = *lightsource_head;
+                        
+                        Vector3 diffuse = tri->material->diffuse;
+                        Vector3 specular = tri->material->specular;
+
+                        Vector3 light_dir = vector3_sub(deprojected, lightsource.pos_viewspace);
+                        vector3_normalise(&light_dir);
+
+                        Vector3 norm = tri->normals[0];
+                        norm = vector3_lerp(&norm, &tri->normals[1], tri->bar1);
+                        norm = vector3_lerp(&norm, &tri->normals[2], tri->bar2);
+                        vector3_normalise(&norm);
+
+
+                        float diff = vector3_dot(vector3_negate(light_dir), norm);
+                        diff = (diff + 1.0f) / 2.0f; 
+                        diffuse = vector3_scale(diffuse, diff);
+                        diffuse = (Vector3){lightsource.colour.x * diffuse.x, lightsource.colour.y * diffuse.y, lightsource.colour.z * diffuse.z};
+
+                        Vector3 view_dir = vector3_negate(deprojected);
+                        vector3_normalise(&view_dir);
+
+                        Vector3 reflect_dir = vector3_reflect(light_dir, norm);
+                        vector3_normalise(&reflect_dir);
+
+                        float spec = pow(MAX(vector3_dot(view_dir, reflect_dir), 0.0f), tri->material->specular_exponent);
+                        specular = vector3_scale(specular, spec);
+                        specular = (Vector3){lightsource.colour.x * specular.x, lightsource.colour.y * specular.y, lightsource.colour.z * specular.z};
+
+                        float constant = 0.0f;
+                        float linear = 0.0f;
+                        float quadratic = 0.1f;
+
+                        float d = vector3_dist(lightsource.pos_viewspace, deprojected);
+
+                        float attenuation = 1.0 / ( constant + d*linear + d*d*quadratic );
+
+                        diffuse = vector3_scale(diffuse, attenuation);
+                        specular = vector3_scale(specular, attenuation);
+
+                        lighting = v3add(diffuse, specular);
+                        lighting = v3add(lighting, AMBIENT_LIGHT);
+                        
+                    }
+                    float r = (float)*red * lighting.x;
+                    float g = (float)*green * lighting.y;
+                    float b = (float)*blue * lighting.z;
+                    pixel(pxl_buf, x, y, (Uint8)r, (Uint8)g, (Uint8)b);
+                }
+            }
+            f += f_xstep;
+            g += g_xstep;
+            q += q_xstep;
+            count++;
         }
-      }
-      f += f_xstep;
-      g += g_xstep;
-      q += q_xstep;
-      count++;
+        A2   += f_ystep;
+        D2   += g_ystep;
+        og_q += q_ystep;
     }
-    A2   += f_ystep;
-    D2   += g_ystep;
-    og_q += q_ystep;
-  }
 
 }
 

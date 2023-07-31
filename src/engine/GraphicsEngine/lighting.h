@@ -4,7 +4,7 @@
 #include "../math/enginemath.h"
 #include "model.h"
 
-#define LIGHT_PIXEL_STEP 4 
+#define LIGHT_PIXEL_STEP 8 
 #define AMBIENT_LIGHT ((Vector3){0.02, 0.02, 0.02})
 
 struct lightsource;

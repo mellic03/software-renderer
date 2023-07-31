@@ -22,5 +22,5 @@ gcc \
 ./src/engine/GameEngine/input.c \
 \
 ./src/main.c \
--o main -lSDL2 -lcblas -mavx -lm -Ofast -g \
+-o main -lSDL2 -lcblas -mavx -lm -Ofast \
 

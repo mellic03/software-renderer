@@ -69,7 +69,7 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  SDL_SetRelativeMouseMode(SDL_TRUE);
+//   SDL_SetRelativeMouseMode(SDL_TRUE);
   //-------------------------------------------------------
 
 
@@ -82,7 +82,7 @@ int main(int argc, char** argv)
   gameobject_translate(enemy, 5, -3, 0);
 
   GameObject *map = gameobject_create();
-  gameobject_assign_model(map, GE_model_load("src/assets/benchmark"));
+  gameobject_assign_model(map, GE_model_load("src/assets/map1"));
 
   player = player_create();
   player->game_object = gameobject_create();
